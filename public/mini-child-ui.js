@@ -1,5 +1,5 @@
-// Mini V6 companion surface: all activity buttons use the SAME live Qwen session.
-// No activity stops the microphone or starts an offline fake conversation.
+// Mini V6.3: child-facing UI is only Mini’s face and a live conversation.
+// Parent controls retain connection, microphone diagnostics, and privacy safeguards.
 (function () {
   'use strict';
   function init(options) {
@@ -17,12 +17,6 @@
     const vadStatus = $('kidVadStatus');
     const micHelp = $('kidMicHelp');
     const kidStop = $('kidStopBtn');
-    const buttons = [
-      {id:'kidChat', mode:'chat'},
-      {id:'kidGuess', mode:'guess'},
-      {id:'kidStory', mode:'story'},
-      {id:'kidLook', mode:'look'},
-    ];
     let activity = 'chat';
     let touchCount = 0;
     let speechActive = false;
@@ -37,18 +31,14 @@
     const words = () => content.getLabels(language());
     function setHint(message) { hint.textContent = message; }
     function setModeLabel() {
-      const labels = words();
-      for (const item of buttons) {
-        const button = $(item.id);
-        const selected = item.mode === activity;
-        button.classList.toggle('selected',selected);
-        button.setAttribute('aria-pressed',String(selected));
-        button.querySelector('strong').textContent = labels[item.mode];
-      }
       const session = options.getSession();
-      modeLine.textContent = session?.ready && session.mode === 'realtime'
-        ? '🎲 ' + labels[activity] + ' · AI conversation'
-        : '🎤 Ask a grown-up to start the AI';
+      if (session?.ready && session.mode === 'realtime' && !session.stopped) {
+        modeLine.textContent = language() === 'zh'
+          ? '💜 直接跟 Mini 说话吧！' : '💜 Just talk to Mini!';
+      } else {
+        modeLine.textContent = language() === 'zh'
+          ? '请大人先开启 Mini' : 'A grown-up can wake Mini up';
+      }
     }
     function releaseSpeech() {
       const value = activeNarration;
@@ -133,25 +123,6 @@
       mood(isPeek?'peek':'happy',isPeek?1250:850);
       sparkle(isPeek?'✨':'💜');
       setHint(isPeek ? 'Peekaboo!' : words().ready);
-    }
-    function showParentHelp(message) {
-      setHint(message);
-      parent.open=true;
-      parent.scrollIntoView({block:'start',behavior:'smooth'});
-    }
-    function select(mode) {
-      const session=options.getSession();
-      if(!session?.ready || session.mode!=='realtime' || session.stopped) {
-        showParentHelp(words().blocked);
-        return;
-      }
-      if(session.muted || !session.audioInputTrack?.enabled) {
-        setHint(words().muted);
-        return;
-      }
-      activity=content.mode(mode);
-      setModeLabel();
-      options.requestActivity(activity);
     }
     function onStatus(info={}) {
       const online=Boolean(info.online);
@@ -259,7 +230,6 @@
       face.style.removeProperty('--look-x');
       face.style.removeProperty('--look-y');
     });
-    for(const item of buttons) $(item.id).addEventListener('click',()=>select(item.mode));
     $('kidParentLink').addEventListener('click',()=>{
       parent.open=true;
       parent.scrollIntoView({block:'start',behavior:'smooth'});
