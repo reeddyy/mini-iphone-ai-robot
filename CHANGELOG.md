@@ -1,5 +1,15 @@
 # Changelog
 
+## 6.0.1 — Fix unexpected mid-session Qwen model errors
+
+- Removed extra `response.create` requests while automatic Qwen server VAD is enabled, following Alibaba's documented automatic response flow.
+- Mini's first question and new game starters now use local Safari speech synthesis. Qwen replies to the child's actual microphone input.
+- Sanitized and exposed the model's documented error code, type and parameter rather than hiding all failures behind a generic "check settings" message.
+- Gracefully handles rejected activity instruction updates and failed individual replies when the session can continue.
+- Queues game changes while a spoken answer awaits Qwen, preventing overlapping instruction updates.
+- Preserves the parent-start requirement, camera opt-in, session timeout and no automatic paid retries.
+- Verified using mocked WebRTC events and CI, not with a real child or billable Qwen session.
+
 ## 6.0.0 — Conversational Buddy (experimental)
 
 - Corrected V5's major flaw: clicking a game no longer disconnects Qwen or pretends to listen during an offline quiz.
