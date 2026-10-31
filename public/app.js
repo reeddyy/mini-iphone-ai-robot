@@ -4,6 +4,7 @@ const $ = id => document.getElementById(id);
 const els = {
   face: $('robotFace'), status: $('status'), mode: $('modeTag'), info: $('modeInfo'),
   code: $('accessCode'), start: $('startBtn'), stop: $('stopBtn'),
+  postTest: $('postTestBtn'), postResult: $('postTestResult'),
   videoToggle: $('sendVideo'), facing: $('facing'), videoMode: $('videoMode'), fps: $('fps'), limit: $('sessionLimit'),
   preview: $('preview'), placeholder: $('cameraPlaceholder'),
   mute: $('muteBtn'), pauseVideo: $('pauseVideoBtn'), clock: $('sessionClock'),
@@ -390,6 +391,41 @@ async function toggleVideo() {
   render();
 }
 
+// This diagnostic never contacts Alibaba. It uses the same POST method and
+// application/sdp content type as the live session, so a gateway-level 401 is
+// easier to distinguish from Mini's own access-code validation.
+async function testPostConnection() {
+  els.postTest.disabled = true;
+  els.postResult.textContent = 'Testing HTTPS POST to Mini...';
+  try {
+    const response = await fetch('/api/diagnostics/post', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/sdp'},
+      body: 'v=0\r\n',
+      cache: 'no-store',
+    });
+    if (response.status === 401) {
+      els.postResult.textContent = 'POST blocked: HTTP 401. The diagnostic endpoint needs no Mini code and calls no AI, so the HTTPS tunnel or another gateway rejected this request. Try Tailscale Serve.';
+      return;
+    }
+    const contentType = response.headers.get('content-type') || '';
+    if (response.ok && contentType.includes('application/json')) {
+      const data = await response.json();
+      if (data.ok === true && data.origin === 'mini') {
+        els.postResult.textContent = 'POST reached Mini successfully. Wait 10 seconds and test again: if it becomes HTTP 401, the Cloudflare login session is expiring.';
+        return;
+      }
+    }
+    els.postResult.textContent = `Unexpected HTTP ${response.status} response. An authentication page or proxy may be intercepting this request.`;
+  } catch (error) {
+    els.postResult.textContent = `POST test failed: ${error.message || 'Network error'}`;
+  } finally {
+    els.postTest.disabled = false;
+  }
+}
+
+els.postTest.addEventListener('click', testPostConnection);
 els.start.addEventListener('click', startMini);
 els.stop.addEventListener('click', () => stopMini());
 els.mute.addEventListener('click', toggleMute);
