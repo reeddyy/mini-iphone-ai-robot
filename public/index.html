@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101426">
   <meta name="description" content="Mini: a playful family robot with offline stories and parent-controlled live Qwen voice and camera">
-  <title>Mini V5 · Little Companion</title>
+  <title>Mini V6 · Talking Buddy</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/mini-extras.js" defer></script>
   <script src="/mini-kids.js" defer></script>
@@ -16,8 +16,8 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand-mark" aria-hidden="true">✦</div>
-      <div><div class="eyebrow">A little robot friend · V5</div><h1>Hi, I’m Mini<span class="dot">!</span></h1></div>
-      <div id="kidLiveTag" class="kid-live-tag">♡ QUIET PLAY</div>
+      <div><div class="eyebrow">A real talking buddy · V6</div><h1>Hi, I’m Mini<span class="dot">!</span></h1></div>
+      <div id="kidLiveTag" class="kid-live-tag">♡ NEEDS GROWN-UP</div>
     </header>
     <section class="robot-stage" aria-label="Animated robot face">
       <div class="halo"></div>
@@ -27,32 +27,33 @@
         <div class="mouth"><span></span><span></span><span></span><span></span><span></span></div>
       </div>
       <div id="status" class="status" role="status" aria-live="polite"><span class="status-light"></span>Mini is resting</div>
-      <div class="tip">Tap my face! I love gentle boops. 💜</div>
+      <div class="tip">Talk with me, play together, or show me something!</div>
     </section>
 
-    <section class="kid-home" aria-label="Play with Mini">
-      <p id="kidHint" class="kid-hint" role="status" aria-live="polite">Hi! I’m Mini! Want to play?</p>
+    <section class="kid-home" aria-label="Talk with Mini">
+      <p id="kidHint" class="kid-hint" role="status" aria-live="polite">Hi! Ask a grown-up to wake up my talking brain.</p>
+      <p id="kidGameMode" class="kid-mode-line" aria-live="polite">Mini is not listening yet</p>
       <div class="kid-actions">
-        <button class="kid-action story" id="kidStory" type="button"><span class="kid-emoji" aria-hidden="true">📖</span><strong>Stories</strong><small>FREE · OFFLINE</small></button>
-        <button class="kid-action guess" id="kidGuess" type="button"><span class="kid-emoji" aria-hidden="true">🐾</span><strong>Guess!</strong><small>FREE · OFFLINE</small></button>
-        <button class="kid-action look" id="kidLook" type="button"><span class="kid-emoji" aria-hidden="true">👀</span><strong>Look!</strong><small>ASK ME OUT LOUD</small></button>
+        <button class="kid-action talk" id="kidChat" type="button"><span class="kid-emoji" aria-hidden="true">💬</span><strong>Talk</strong><small>ASK ME ANYTHING</small></button>
+        <button class="kid-action guess" id="kidGuess" type="button"><span class="kid-emoji" aria-hidden="true">🐯</span><strong>Guess!</strong><small>I ASK, YOU ANSWER</small></button>
+        <button class="kid-action story" id="kidStory" type="button"><span class="kid-emoji" aria-hidden="true">📖</span><strong>Story</strong><small>WE MAKE IT TOGETHER</small></button>
+        <button class="kid-action look" id="kidLook" type="button"><span class="kid-emoji" aria-hidden="true">👀</span><strong>Show</strong><small>SEE MY TOY</small></button>
       </div>
-      <section id="kidActivity" class="kid-activity hidden" aria-hidden="true" aria-label="Mini's play activity">
-        <div class="kid-activity-header"><h2 id="kidActivityTitle">Let's play!</h2><button id="kidClose" type="button" aria-label="Close this activity">✕</button></div>
-        <p id="kidActivityBody"></p>
-        <div id="kidChoices" class="kid-choices"></div>
-        <button id="kidNext" class="kid-next" type="button">Next</button>
-      </section>
+      <div class="kid-listening" role="group" aria-label="Microphone and speech detection">
+        <div class="kid-listening-head"><span id="kidMicStatus">🎤 Microphone off</span><span id="kidVadStatus">AI speech detection: waiting</span></div>
+        <div class="kid-mic-track"><span id="kidMicBar"></span></div>
+        <p id="kidMicHelp">Ask a grown-up to start live Mini. When it asks a question, answer aloud — even one word!</p>
+      </div>
       <div class="kid-lower">
-        <button id="kidParentLink" class="kid-parent-link" type="button">👨‍👩‍👧 Grown-up setup</button>
+        <button id="kidParentLink" class="kid-parent-link" type="button">👨‍👩‍👧 Grown-up: Start Mini</button>
         <button id="kidStopBtn" class="kid-stop hidden" type="button">■ Stop live chat</button>
       </div>
-      <p class="kid-parent-note">A grown-up starts AI voice chats. Stories and guessing games work free, even when Mini is offline.</p>
+      <p class="kid-parent-note">Live AI is started by a grown-up. These activities use the same ongoing AI conversation — no separate offline quiz.</p>
     </section>
 
     <details id="parentSetup" class="parent-setup">
       <summary>⚙️ Parent setup &amp; safety controls</summary>
-      <p class="help parent-intro">For grown-ups: start or stop paid Qwen voice chat here. These controls are hidden from the main play screen, not locked with a separate PIN.</p>
+      <p class="help parent-intro">Only a grown-up can start a paid Qwen voice session. Once started, Mini asks your child a question, listens to short answers and continues the conversation. Camera sharing is optional and off by default. These settings are collapsed, not separately PIN-locked.</p>
     <section class="panel" aria-label="Live session">
       <div class="section-head"><h2>1 · Start a voice chat (grown-ups)</h2><span id="modeTag" class="tag">CHECKING</span></div>
       <p id="modeInfo" class="help">Checking server configuration…</p>
@@ -67,12 +68,14 @@
         <select id="videoMode"><option value="canvas">Smooth preview + reduced video (recommended)</option><option value="direct">Direct camera · Safari compatibility</option></select>
         <label for="fps">Video sent to AI</label>
         <select id="fps"><option value="1">1 frame/sec (recommended)</option><option value="2">2 frames/sec</option></select>
+        <label for="listenSensitivity">Speech sensitivity</label>
+        <select id="listenSensitivity"><option value="quiet" selected>Quiet child · more sensitive</option><option value="normal">Normal voice</option><option value="noisy">Noisy room · less sensitive</option></select>
         <label for="responsePace">Reply speed</label>
         <select id="responsePace"><option value="fast" selected>Fast · 500 ms silence</option><option value="balanced">Balanced · 800 ms</option><option value="patient">Patient · 1200 ms</option></select>
         <label for="sessionLimit">Automatic stop</label>
         <select id="sessionLimit"><option value="5">5 minutes · short test</option><option value="15" selected>15 minutes · recommended</option><option value="30">30 minutes · extended</option><option value="45">45 minutes · extended</option><option value="60">60 minutes · maximum</option></select>
       </div>
-      <p class="help cost-note">Longer sessions cost more. Session duration is a safety timer, not a fixed spending limit. Mini never automatically reconnects or renews a session.</p>
+      <p class="help cost-note">The voice AI starts speaking once, then waits for your child. Short answers should be picked up by acoustic speech detection. More sensitive listening may also hear background noise. Longer sessions cost more. There is no automatic paid reconnect.</p>
       <div class="actions session-actions">
         <button id="startBtn" class="primary" type="button">● Parent: Start voice chat</button>
         <button id="stopBtn" class="outline hidden" type="button">■ Stop session</button>
@@ -126,7 +129,7 @@
       <p class="help">If Safari blocks automatic audio playback, tap Enable speaker audio. Use phone speaker volume or headphones to reduce echo.</p>
     </section>
         </details>
-    <footer>Mini V5 · Child-friendly play, with grown-up controlled AI · Camera sharing is opt-in</footer>
+    <footer>Mini V6 · Live conversational play · Parent-started paid AI · Camera opt-in</footer>
   </main>
 </body>
 </html>
