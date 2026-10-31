@@ -1,12 +1,13 @@
-// Mini V4: one browser WebRTC session, continuous microphone, optional low-fps video.
+// Mini V6: one browser WebRTC session, continuous microphone, optional low-fps video.
 // No Alibaba API key is ever sent to this JavaScript. SDP exchange goes through /api/realtime/sdp.
 const extras = window.MiniExtras;
+const kids = window.MiniKidsContent;
 const $ = id => document.getElementById(id);
 const els = {
   face: $('robotFace'), status: $('status'), mode: $('modeTag'), info: $('modeInfo'),
   code: $('accessCode'), start: $('startBtn'), stop: $('stopBtn'), extend: $('extendBtn'),
   pace: $('responsePace'), remaining: $('remainingTime'), delay: $('replyDelay'),
-  personality: $('personality'), language: $('language'),
+  personality: $('personality'), language: $('language'), sensitivity: $('listenSensitivity'),
   note: $('familyNote'), remember: $('rememberPrefs'), clearMemory: $('clearMemoryBtn'), memoryInfo: $('memoryInfo'),
   postTest: $('postTestBtn'), postResult: $('postTestResult'),
   videoToggle: $('sendVideo'), facing: $('facing'), videoMode: $('videoMode'), fps: $('fps'), limit: $('sessionLimit'),
@@ -40,7 +41,7 @@ function render() {
   els.stop.classList.toggle('hidden', !running);
   els.start.disabled = loading || mode === 'checking';
   els.start.textContent = mode === 'preview' ? '● Parent: Test camera & mic' : '● Parent: Start live voice';
-  for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps, els.limit, els.pace, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
+  for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps, els.limit, els.pace, els.sensitivity, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
   els.clearMemory.disabled = running || loading;
   els.mute.disabled = !running;
   els.mute.textContent = s?.muted ? 'Unmute microphone' : 'Mute microphone';
@@ -69,7 +70,7 @@ async function loadConfig() {
     els.mode.textContent = mode === 'realtime' ? 'QWEN REALTIME' : 'LOCAL PREVIEW ONLY';
     els.mode.classList.toggle('is-demo', mode !== 'realtime');
     els.info.textContent = mode === 'realtime'
-      ? `Ready: ${data.model}. Mic and video will be sent to Model Studio when you press Start. Usage incurs API charges.`
+      ? `Ready: ${data.model}. A grown-up starts live voice; camera sharing is optional. Model Studio usage incurs charges.`
       : 'No pay-as-you-go key configured. You can test the iPhone camera and mic locally for free; there will be no AI replies.';
   } catch (e) {
     mode = 'checking';
@@ -172,19 +173,95 @@ function sendModelEvent(s, event) {
   if (!s.eventChannel || s.eventChannel.readyState !== 'open') throw new Error('AI event channel is not ready');
   s.eventChannel.send(JSON.stringify(event));
 }
+
+// One live Qwen session drives every activity. Updating instructions selects a
+// game; a single response.create invites the child. Later spoken answers are
+// handled by normal WebRTC audio and VAD, not by any fake offline button.
+function startActivity(s, value) {
+  if (!s || s.stopped || !s.mediaReady || s.mode !== 'realtime') return;
+  s.activity = kids.mode(value);
+  s.userSpokeDuringMode = false;
+  s.activityUpdatePending = true;
+  s.activityUpdateEventId = 'event_' + crypto.randomUUID();
+  clearTimeout(s.proactiveTimer);
+  s.awaitingProactiveResponse = false;
+  childUI?.onActivityStart(s.activity);
+  try {
+    sendModelEvent(s, {
+      type:'session.update',
+      event_id:s.activityUpdateEventId,
+      session:{instructions:kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused)},
+    });
+  } catch (error) {
+    s.activityUpdatePending = false;
+    console.warn('Mini could not set activity:', error.message);
+    childUI?.sayFallback(s.activity);
+  }
+}
+function requestActivity(value) {
+  const s = current;
+  if (!s || s.stopped || s.mode !== 'realtime' || !s.mediaReady ||
+      s.eventChannel?.readyState !== 'open') return false;
+  const activity = kids.mode(value);
+  if (s.responseActive || s.childSpeaking || s.activityUpdatePending || s.awaitingProactiveResponse) {
+    s.queuedActivity = activity;
+    childUI?.onActivityStart(activity,true);
+    return true;
+  }
+  startActivity(s,activity);
+  return true;
+}
+function promptActivity(s) {
+  if (!s || s.stopped || !s.mediaReady || s.activityUpdatePending ||
+      s.childSpeaking || s.responseActive || s.userSpokeDuringMode) return;
+  s.awaitingProactiveResponse = true;
+  s.proactiveEventId = 'event_' + crypto.randomUUID();
+  try {
+    sendModelEvent(s,{type:'response.create',event_id:s.proactiveEventId});
+  } catch (error) {
+    s.awaitingProactiveResponse = false;
+    childUI?.sayFallback(s.activity);
+    return;
+  }
+  // Some provider versions do not start speaking without a user turn.
+  // Fall back to ONE local prompt, while the live mic remains active for the
+  // child's answer. Cancel the fallback if a model reply arrives.
+  clearTimeout(s.proactiveTimer);
+  s.proactiveTimer = setTimeout(()=>{
+    if (s.stopped || !s.awaitingProactiveResponse || s.responseActive ||
+        s.childSpeaking || s.userSpokeDuringMode) return;
+    s.awaitingProactiveResponse = false;
+    childUI?.sayFallback(s.activity);
+  },6000);
+}
+function afterResponse(s) {
+  s.responseActive = false;
+  s.awaitingProactiveResponse = false;
+  clearTimeout(s.proactiveTimer);
+  if (s.queuedActivity) {
+    const activity = s.queuedActivity;
+    s.queuedActivity = null;
+    startActivity(s,activity);
+  } else {
+    childUI?.onResponseFinished();
+  }
+}
+
 function tryInitialize(s) {
   if (s.stopped || s.updateSent || !s.sessionCreated ||
       s.pc?.connectionState !== 'connected' ||
       s.eventChannel?.readyState !== 'open') return;
   s.updateSent = true;
+  s.baseInstructions = extras.buildInstructions({personality:s.personality, language:s.language, note:s.note});
   const session = {
     modalities: ['text','audio'],
-    instructions: extras.buildInstructions({personality:s.personality, language:s.language, note:s.note}),
+    instructions: kids.instructions(s.baseInstructions,'chat',s.wantVideo),
     input_audio_format: 'pcm',
     output_audio_format: 'pcm',
     input_audio_transcription: {model:'qwen3-asr-flash-realtime'},
     audio: {output:{voice:'Tina'}},
-    turn_detection: {type:'semantic_vad', threshold:0.5, silence_duration_ms:s.silenceMs, prefix_padding_ms:500},
+    // Acoustic VAD is more suitable for short, one-word child responses.
+    turn_detection: {type:'server_vad', threshold:s.vadThreshold, silence_duration_ms:s.silenceMs, prefix_padding_ms:500},
   };
   if (s.wantVideo) session.video = {input:{representation_compact:'normal'}};
   try {
@@ -210,14 +287,30 @@ function receiveEvent(s, ev, channel) {
           console.error(error);
           if (!s.stopped) stopMini('Could not start the live microphone or video.');
         });
+      } else if (s.activityUpdatePending && s.mediaReady) {
+        s.activityUpdatePending = false;
+        if (s.queuedActivity && s.queuedActivity !== s.activity) {
+          const next = s.queuedActivity;
+          s.queuedActivity = null;
+          startActivity(s,next);
+        } else if (!s.responseActive && !s.childSpeaking) {
+          promptActivity(s);
+        }
       }
       break;
     case 'input_audio_buffer.speech_started':
+      s.childSpeaking = true;
+      s.userSpokeDuringMode = true;
+      clearTimeout(s.proactiveTimer);
+      s.awaitingProactiveResponse = false;
+      childUI?.onVoiceDetected(true);
       els.delay.textContent = 'First AI reply: waiting…';
       els.userText.textContent = 'Listening…';
       setStatus('You are speaking · listening', 'listening');
       break;
     case 'input_audio_buffer.speech_stopped':
+      s.childSpeaking = false;
+      childUI?.onVoiceDetected(false);
       s.speechEndedAt = performance.now();
       s.replyMeasured = false;
       setStatus('Mini is thinking…', 'thinking');
@@ -227,8 +320,13 @@ function receiveEvent(s, ev, channel) {
       break;
     case 'conversation.item.input_audio_transcription.completed':
       els.userText.textContent = ev.transcript || '—';
+      childUI?.onTranscription(ev.transcript);
       break;
     case 'response.created':
+      s.responseActive = true;
+      s.awaitingProactiveResponse = false;
+      clearTimeout(s.proactiveTimer);
+      childUI?.onResponseStarted();
       els.miniText.textContent = '';
       setStatus('Mini is responding…', 'speaking');
       break;
@@ -246,11 +344,25 @@ function receiveEvent(s, ev, channel) {
       break;
     case 'response.done':
       setStatus('Live · ask Mini another question', 'listening');
+      afterResponse(s);
       break;
-    case 'error':
+    case 'error': {
       console.error('Realtime model error code:', ev.error?.code || 'unknown');
-      stopMini('Model error. Check the Model Studio console and retry.');
+      const failedId = ev.error?.event_id || ev.error?.eventId || null;
+      if (failedId && failedId === s.proactiveEventId) {
+        s.awaitingProactiveResponse = false;
+        clearTimeout(s.proactiveTimer);
+        childUI?.sayFallback(s.activity);
+        break;
+      }
+      if (failedId && failedId === s.activityUpdateEventId) {
+        s.activityUpdatePending = false;
+        childUI?.sayFallback(s.activity);
+        break;
+      }
+      stopMini('Model error. Check Model Studio settings and retry.');
       break;
+    }
     default:
       break;
   }
@@ -282,9 +394,14 @@ async function startSendingMedia(s) {
     if (!s.stopped && !s.videoPaused) await s.videoSender.replaceTrack(s.videoOutTrack);
   }
   if (s.stopped) return;
-  setStatus('Mini is live · speak or show an object', 'listening');
-  childUI?.onLiveReady();
+  s.mediaReady = true;
+  if (s.mode === 'realtime') {
+    s.micMeter = extras.createMicInputMeter(s.localStream,level=>childUI?.onMicLevel(level));
+    childUI?.onLiveReady();
+  }
+  setStatus('Mini is live · speak naturally, even one word', 'listening');
   render();
+  if (s.mode === 'realtime') requestActivity('chat');
 }
 
 function makeVideoTrack(s) {
@@ -349,10 +466,13 @@ async function startMini() {
     fps:Number(els.fps.value) === 2 ? 2 : 1, videoMode:els.videoMode.value,
     limit:extras.durationMinutes(els.limit.value),
     silenceMs:extras.silenceDuration(els.pace.value),
+    vadThreshold:extras.speechThreshold(els.sensitivity.value),
     personality:els.personality.value, language:els.language.value,
     note:extras.boundedNote(els.note.value),
     muted:false, videoPaused:false, channels:new Set(),
-    ready:false, updateSent:false, sessionCreated:false, mediaStarted:false,
+    ready:false, updateSent:false, sessionCreated:false, mediaStarted:false, mediaReady:false,
+    activity:'chat', activityUpdatePending:false, userSpokeDuringMode:false,
+    responseActive:false, childSpeaking:false, awaitingProactiveResponse:false,
     startedAt:Date.now(),
   };
   if (s.mode === 'realtime' && !window.confirm('Grown-up check: Start a paid Qwen voice session for up to ' + s.limit + ' minutes? The microphone and any camera you enable will stream while connected.')) return;
@@ -465,7 +585,9 @@ function stopMini(reason = 'Mini stopped · camera and microphone off') {
   clearInterval(s.timer);
   clearTimeout(s.deadline);
   clearTimeout(s.disconnectedTimer);
+  clearTimeout(s.proactiveTimer);
   s.audioMeter?.stop();
+  s.micMeter?.stop();
   if (s.drawRaf) cancelAnimationFrame(s.drawRaf);
   for (const channel of s.channels) { try {channel.close();} catch {} }
   try {s.pc?.close();} catch {}
@@ -561,6 +683,7 @@ childUI = window.MiniChildUI?.init({
   getSession: () => current,
   getLanguage: () => els.language.value,
   stopSession: reason => stopMini(reason),
+  requestActivity,
 });
 els.language.addEventListener('change', () => childUI?.syncLanguage());
 loadConfig();
