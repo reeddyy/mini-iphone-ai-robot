@@ -150,7 +150,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       process.exitCode = 1;
     });
     app.listen(port, '127.0.0.1', () => {
-      console.log(`Mini V3: http://localhost:${port}`);
+      console.log(`Mini V4: http://localhost:${port}`);
       console.log(process.env.ALIBABA_API_KEY ? 'AI mode: pay-as-you-go Qwen realtime' : 'AI mode: LOCAL PREVIEW ONLY (no AI charges)');
       console.log('For iPhone Safari, use a protected HTTPS tunnel. Do not use a Token Plan key.');
     });
