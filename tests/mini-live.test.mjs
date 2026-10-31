@@ -65,6 +65,7 @@ function mockEnvironment() {
       },
       MiniKidsContent:{
         mode:m=>['chat','guess','story','look'].includes(m)?m:'chat',
+        detectRequestedActivity:(utterance,prev)=>/guess/i.test(utterance)?'guess':/story/i.test(utterance)?'story':prev,
         instructions:(base,m)=>base+' mode='+m,
         needsFollowUp:(reply,child,status)=>Boolean(reply?.trim()) &&
           (status===undefined || status==='completed') &&
@@ -380,4 +381,17 @@ test('A Mandarin model reply gets a Mandarin follow-up in Auto language mode',()
   assert.equal(followups.length,1);
   assert.equal(followups[0][3],'zh');
   assert.match(followups[0][2],/？/);
+});
+
+
+test('Spoken game request updates local follow-up context without another provider event',()=>{
+  const env=mockEnvironment();
+  const before=env.sent.length;
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Can we guess animals?'});
+  assert.equal(env.s.activity,'guess');
+  assert.equal(env.sent.length,before,'spoken activity request must not send session.update or response.create');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Tell me a story'});
+  assert.equal(env.s.activity,'story');
+  assert.equal(env.sent.length,before);
+  assert.equal(env.s.stopped,false);
 });
