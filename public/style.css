@@ -39,3 +39,19 @@ select:disabled{opacity:.5}.actions button{min-width:0;white-space:normal}
 #remoteAudio{width:100%;height:42px;margin-top:10px}
 #playAudioBtn{width:100%;margin-top:9px}
 .top-label{margin-top:16px!important}
+
+
+/* V4: explicit paid-time safeguards, opt-in memory and audio-reactive face */
+.preferences-panel summary{cursor:pointer;font-size:15px;font-weight:750;color:#f0edff;list-style-position:outside;padding:3px 0}
+.preferences-panel[open] summary{margin-bottom:14px}
+.preferences-panel textarea{display:block;width:100%;margin:9px 0 12px;border:1px solid #536083;border-radius:11px;background:#0c1325;color:#f0f2ff;padding:12px;font:inherit;font-size:13px;resize:vertical;min-height:72px}
+.preferences-panel textarea:focus{outline:2px solid #b4a6fd;outline-offset:1px}
+.preferences-panel .memory-check{display:flex;align-items:flex-start;gap:10px;line-height:1.5;margin:13px 0 3px}
+.memory-check input{accent-color:#ac9eff;width:19px;height:19px;flex:none;margin:2px 0 0}
+.cost-note{color:#f0d59a;background:#a0702120;border:1px solid #aa82414a;padding:10px 12px;border-radius:10px;margin-top:15px}
+#remainingTime.warning{color:#ffdc8b;border-color:#8b6f3f}
+#extendBtn{flex:0.6;min-width:85px}
+.face.audible .mouth span{animation:none!important;height:var(--mouth-height,5px);transition:height .07s ease-out}
+.face.audible .mouth span:nth-child(2),.face.audible .mouth span:nth-child(4){height:calc(var(--mouth-height,5px) * .72)}
+.face.audible .pupil{transform:translateY(-3px)}
+@media(prefers-reduced-motion:reduce){.face,.eye,.mouth span{animation:none!important}.face{transition:none}}
