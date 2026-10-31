@@ -1,4 +1,4 @@
-// Mini V3: one browser WebRTC session, continuous microphone, optional low-fps video.
+// Mini V4: one browser WebRTC session, continuous microphone, optional low-fps video.
 // No Alibaba API key is ever sent to this JavaScript. SDP exchange goes through /api/realtime/sdp.
 const extras = window.MiniExtras;
 const $ = id => document.getElementById(id);
@@ -433,7 +433,7 @@ async function startMini() {
       const msg = await response.json().catch(() => null);
       const serverMessage = typeof msg?.error === 'string' ? msg.error : null;
       const fallback = response.status === 401
-        ? 'Authentication failed (HTTP 401) before Mini received a readable server response. If using a protected Cloudflare Tunnel, complete its email PIN sign-in in this same Safari browser, then refresh and retry. Test localhost on Windows to isolate the tunnel.'
+        ? 'Authentication failed (HTTP 401) before Mini received a readable server response. Check your HTTPS tunnel login (ngrok password or Cloudflare email PIN), refresh Safari and retry. Test localhost on Windows to isolate the gateway.'
         : `SDP connection failed: HTTP ${response.status}`;
       throw new Error(serverMessage || fallback);
     }
@@ -512,14 +512,14 @@ async function testPostConnection() {
       cache: 'no-store',
     });
     if (response.status === 401) {
-      els.postResult.textContent = 'POST blocked: HTTP 401. The diagnostic endpoint needs no Mini code and calls no AI, so the HTTPS tunnel or another gateway rejected this request. Try Tailscale Serve.';
+      els.postResult.textContent = 'POST blocked: HTTP 401. No Mini code or AI is involved: your HTTPS gateway rejected the test. Check your ngrok password session or other tunnel authentication.';
       return;
     }
     const contentType = response.headers.get('content-type') || '';
     if (response.ok && contentType.includes('application/json')) {
       const data = await response.json();
       if (data.ok === true && data.origin === 'mini') {
-        els.postResult.textContent = 'POST reached Mini successfully. Wait 10 seconds and test again: if it becomes HTTP 401, the Cloudflare login session is expiring.';
+        els.postResult.textContent = 'POST reached Mini successfully. Repeat after 10 seconds to confirm that your HTTPS gateway remains authenticated.';
         return;
       }
     }
