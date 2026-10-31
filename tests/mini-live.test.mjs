@@ -213,7 +213,7 @@ test('Blocked Safari fallback speech does not mute the child microphone',()=>{
   const childScript=readFileSync(fileURLToPath(new URL('../public/mini-child-ui.js',import.meta.url)),'utf8');
   const elements=new Map();
   const element=()=>({
-    textContent:'',classList:{add(){},remove(){},toggle(){}},
+    textContent:'',dataset:{},classList:{add(){},remove(){},toggle(){}},
     style:{width:'',setProperty(){},removeProperty(){}},
     setAttribute(){},removeAttribute(){},addEventListener(){},
     querySelector(){return {textContent:''};},
