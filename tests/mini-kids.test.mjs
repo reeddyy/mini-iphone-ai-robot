@@ -119,6 +119,7 @@ test('Follow-up detection skips model questions and respects bedtime and stoppin
   assert.equal(kid.needsFollowUp('真聪明！我们再玩一次吗？','长颈鹿','completed'),false);
   assert.equal(kid.needsFollowUp('真棒！接下来想去哪里','森林','completed'),false);
   assert.equal(kid.needsFollowUp('Well done!','I do not want to play','completed'),false);
+  assert.equal(kid.needsFollowUp('Good guessing!','Stop','completed'),false);
   assert.equal(kid.needsFollowUp('Bye, have a nice day!','bye','completed'),false);
   assert.equal(kid.needsFollowUp('Nice try!','no','completed'),true,'ordinary no answer is not a stop request');
   assert.equal(kid.needsFollowUp('Yes!','rabbit','failed'),false);
