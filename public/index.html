@@ -73,10 +73,11 @@
         <select id="listenSensitivity"><option value="quiet" selected>Quiet child · more sensitive</option><option value="normal">Normal voice</option><option value="noisy">Noisy room · less sensitive</option></select>
         <label for="responsePace">Reply speed</label>
         <select id="responsePace"><option value="fast" selected>Fast · 500 ms silence</option><option value="balanced">Balanced · 800 ms</option><option value="patient">Patient · 1200 ms</option></select>
+        <label class="toggle-label"><input id="keepConversationGoing" type="checkbox" checked><span>Keep the conversation going · one question after each answer</span></label>
         <label for="sessionLimit">Automatic stop</label>
         <select id="sessionLimit"><option value="5">5 minutes · short test</option><option value="15" selected>15 minutes · recommended</option><option value="30">30 minutes · extended</option><option value="45">45 minutes · extended</option><option value="60">60 minutes · maximum</option></select>
       </div>
-      <p class="help cost-note">Mini asks an opening question using Safari's local voice, then Qwen replies to your child's spoken answer. Short answers use acoustic speech detection. More sensitive listening may also hear background noise. Longer sessions cost more. There is no automatic paid reconnect.</p>
+      <p class="help cost-note">Mini asks an opening question using Safari's voice. Qwen should answer your child's reply and ask the next question. If Qwen forgets, Safari asks one short follow-up (no extra model request). More sensitive listening may also hear background noise. Longer sessions cost more. There is no automatic paid reconnect.</p>
       <div class="actions session-actions">
         <button id="startBtn" class="primary" type="button">● Parent: Start voice chat</button>
         <button id="stopBtn" class="outline hidden" type="button">■ Stop session</button>
