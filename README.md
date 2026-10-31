@@ -1,10 +1,29 @@
-# Mini — iPhone AI Companion (V6.3)
+# Mini — iPhone AI Companion (V6.4)
 
 Mini is an experimental **voice-first English/Mandarin AI companion for a six-year-old**, running in iPhone Safari with Alibaba Model Studio Qwen Omni Realtime and a protected Windows/ngrok connection.
 
-**Current version: V6.3 — Just Talk to Mini.** Previous versions put four Talk / Guess / Story / Show buttons on the screen. A child should not need to understand a menu: **V6.3 displays one animated Mini face, a short listening status, and a parent-start control**. The model can switch between chatting, stories, guessing games and describing toys when the child asks out loud.
+**Current version: V6.4 — Expressive Little Companion.** Previous versions put four Talk / Guess / Story / Show buttons on the screen. A child should not need to understand a menu: **V6.3 displays one animated Mini face, a short listening status, and a parent-start control**. The model can switch between chatting, stories, guessing games and describing toys when the child asks out loud.
 
 > This public repository never needs your private API key or ngrok password committed. Keep `.env`, local policies and any child recordings out of Git.
+
+## V6.4 — A cuter, more expressive Mini
+
+The child screen still has **no game selection buttons**. The character now has a softly rounded lavender/indigo face, large bright eyes with two highlights, rosy cheeks, tiny ears, an antenna and a smile that moves when Mini speaks.
+
+- **Relaxing:** A gentle floating motion, occasional blinking and curious eye movements make the face feel alive even between replies.
+- **Listening:** Eyes become attentive and the brows lift when your daughter speaks.
+- **Thinking:** Eyes look upward and the mouth forms a small thoughtful circle.
+- **Talking:** Mouth animates from Qwen's incoming audio signal (with a CSS fallback); it also moves when Safari speaks the local conversation starter or follow-up question.
+- **Celebrating:** A positive Mini reply can trigger a proud smile, cheek blush and sparkles. Other phrases can trigger a surprised face, and questions prompt a curious expression.
+- **Touching:** A tap gives a happy reaction; every fourth tap triggers peekaboo. Tapping during a blocked Safari opening prompt still retries that prompt.
+
+Mini reacts to **its own spoken words** and the existing conversation state; it does **not** infer or classify your daughter's facial expression or emotions. The redesign is implemented with local HTML/CSS and existing JavaScript, with no new third-party image assets, servers, tracking, API requests or changes to Qwen credentials. The dedicated stylesheet is `public/mini-face.css` and is explicitly served by `server.mjs`.
+
+**For accessibility and iPhone battery life**, CSS motion is disabled when the device requests reduced motion. The face retains its existing keyboard/touch interactions. Please test Safari audio animation and appearance directly on your iPhone: automated tests validate code and structure but cannot verify the real visual result or audio hardware behaviour.
+
+### Try V6.4 on Windows
+
+Stop Mini, then run `git pull`, `npm test`, and `npm start` from your current `D:\Ai-projects\mini-iphone-ai-robot` folder. Refresh Safari's HTTPS ngrok page. You should see the new face immediately without signing into the paid Qwen session; the microphone and camera still require a grown-up to start them.
 
 ## V6.3 — One face and one ongoing conversation
 
