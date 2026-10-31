@@ -43,6 +43,7 @@
         <div class="kid-listening-head"><span id="kidMicStatus">🎤 Microphone off</span><span id="kidVadStatus">AI speech detection: waiting</span></div>
         <div class="kid-mic-track"><span id="kidMicBar"></span></div>
         <p id="kidMicHelp">Ask a grown-up to start live Mini. When it asks a question, answer aloud — even one word!</p>
+        <p id="modelDiagnostic" class="kid-model-issue hidden" role="status" aria-live="polite"></p>
       </div>
       <div class="kid-lower">
         <button id="kidParentLink" class="kid-parent-link" type="button">👨‍👩‍👧 Grown-up: Start Mini</button>
@@ -75,7 +76,7 @@
         <label for="sessionLimit">Automatic stop</label>
         <select id="sessionLimit"><option value="5">5 minutes · short test</option><option value="15" selected>15 minutes · recommended</option><option value="30">30 minutes · extended</option><option value="45">45 minutes · extended</option><option value="60">60 minutes · maximum</option></select>
       </div>
-      <p class="help cost-note">The voice AI starts speaking once, then waits for your child. Short answers should be picked up by acoustic speech detection. More sensitive listening may also hear background noise. Longer sessions cost more. There is no automatic paid reconnect.</p>
+      <p class="help cost-note">Mini asks an opening question using Safari's local voice, then Qwen replies to your child's spoken answer. Short answers use acoustic speech detection. More sensitive listening may also hear background noise. Longer sessions cost more. There is no automatic paid reconnect.</p>
       <div class="actions session-actions">
         <button id="startBtn" class="primary" type="button">● Parent: Start voice chat</button>
         <button id="stopBtn" class="outline hidden" type="button">■ Stop session</button>
