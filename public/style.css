@@ -55,3 +55,83 @@ select:disabled{opacity:.5}.actions button{min-width:0;white-space:normal}
 .face.audible .mouth span:nth-child(2),.face.audible .mouth span:nth-child(4){height:calc(var(--mouth-height,5px) * .72)}
 .face.audible .pupil{transform:translateY(-3px)}
 @media(prefers-reduced-motion:reduce){.face,.eye,.mouth span{animation:none!important}.face{transition:none}}
+
+
+/* V5 — child-first companion screen inspired by expressive desktop robots.
+   No images or fonts are loaded from the web; all animations are local CSS. */
+.kid-live-tag{margin-left:auto;flex:none;border:1px solid #5b7c94;border-radius:999px;padding:7px 10px;
+ color:#abd2f1;background:#24364f;font-size:10px;font-weight:800;letter-spacing:.06em}
+.kid-live-tag.active{color:#a5ffe0;border-color:#568f7d;background:#1b4c3e}
+.robot-stage{min-height:300px;margin:4px 0 0}
+.robot-stage .halo{top:25px;width:240px;height:240px;filter:blur(66px);opacity:.32}
+.robot-stage .face{width:min(67vw,280px);height:220px;border-radius:66px 66px 78px 78px;
+  cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.robot-stage .face:focus-visible{outline:4px solid #c9c5ff;outline-offset:6px}
+.face .eyes .pupil{transform:translate(calc(var(--look-x,0px) + var(--status-x,0px)),
+  calc(var(--look-y,0px) + var(--status-y,0px)));transition:transform .18s ease}
+.face.listening{--status-y:4px}.face.thinking{--status-x:4px}
+.face.audible{--status-y:-3px}
+.face.kid-happy{box-shadow:0 12px 90px #f0baec8c,0 7px 0 #a6a0d3}
+.face.kid-happy .eye{border-radius:46% 46% 50% 50%;animation:kid-squint .7s ease-in-out 1}
+.face.kid-surprised .eye{animation:kid-astonished .8s ease-in-out 1}
+.face.kid-wink .eye:first-child{animation:kid-wink .7s ease-in-out 1}
+.face.kid-peek .eye{animation:kid-peek .85s ease-in-out 1}
+.kid-sparkles{position:absolute;z-index:3;pointer-events:none;top:50px;width:265px;height:190px}
+.kid-spark{position:absolute;left:calc(15% + var(--spark-i) * 22%);top:calc(22% + (var(--spark-i) % 2) * 35%);
+  font-size:28px;animation:kid-spark 1.35s ease-out forwards;filter:drop-shadow(0 0 4px #dcb8ff)}
+.kid-home{margin:0 0 14px;padding:2px 0 10px}
+.kid-hint{font-size:19px;line-height:1.35;font-weight:770;min-height:52px;text-align:center;
+  color:#f6f2ff;margin:5px 12px 16px}
+.kid-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kid-action{min-height:130px;padding:13px 5px;border:2px solid #ffffff40;border-radius:21px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  box-shadow:0 5px 0 #080f2266, inset 0 2px 8px #ffffff1c;transition:transform .14s}
+.kid-action:active{transform:translateY(3px);box-shadow:0 2px 0 #080f2266}
+.kid-action:focus-visible,.kid-choice:focus-visible{outline:4px solid #f8d6a8;outline-offset:2px}
+.kid-action.story{background:linear-gradient(150deg,#9672dd,#6542ac);color:#fff}
+.kid-action.guess{background:linear-gradient(150deg,#2aaf9a,#126e75);color:#fff}
+.kid-action.look{background:linear-gradient(150deg,#de9966,#af615a);color:#fff}
+.kid-action .kid-emoji{font-size:36px;line-height:1.1}
+.kid-action strong{font-size:18px;line-height:1.1}
+.kid-action small{font-size:8px;letter-spacing:.075em;font-weight:850;opacity:.85}
+.kid-lower{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin-top:14px}
+.kid-parent-link,.kid-stop{font-size:12px;border:1px solid #54627e;background:#202b42;color:#d5e0fa;
+  border-radius:999px;padding:11px 15px}
+.kid-stop{border-color:#985c6b;color:#ffd5de;background:#522a39}
+.kid-parent-note{text-align:center;font-size:11px;color:#aab9d1;line-height:1.5;margin:12px 10px 0}
+.kid-activity{margin:15px 0 6px;border:1px solid #77709d;border-radius:20px;padding:17px;
+  background:linear-gradient(145deg,#2f3359,#1b2946);box-shadow:0 14px 35px #0709155a}
+.kid-activity-header{display:flex;justify-content:space-between;gap:8px;align-items:start}
+.kid-activity h2{font-size:20px;line-height:1.3;margin:0;color:#fff}
+.kid-activity-header #kidClose{font-size:18px;color:#d8daeb;background:#3f4763;width:42px;height:42px;flex:none;padding:7px}
+.kid-activity p{font-size:17px;line-height:1.65;color:#f0edff;margin:12px 0;white-space:pre-line}
+.kid-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:13px}
+.kid-choices:empty{display:none}
+.kid-choice{font-size:44px;min-height:95px;background:#f5f1ff;color:#17233d;border-radius:17px;
+  box-shadow:0 4px 0 #100f267a}
+.kid-choice:disabled{opacity:.65}
+.kid-next{width:100%;margin-top:14px;background:#b6a5fc;color:#181230;font-weight:850;font-size:14px}
+.parent-setup{margin:18px 0 15px;padding:13px;border:1px solid #53607c9c;border-radius:19px;background:#121e33}
+.parent-setup>summary{font-size:14px;font-weight:800;color:#dde2f4;cursor:pointer;padding:10px 7px}
+.parent-setup[open]>summary{margin-bottom:11px}
+.parent-setup .panel{margin:10px 0}
+.parent-setup .parent-intro{margin:0 8px 12px;color:#c8d6ed}
+@keyframes kid-peek{0%,13%,72%,100%{transform:scaleY(1)}25%,54%{transform:scaleY(.08)}}
+@keyframes kid-squint{0%,100%{transform:scaleY(1)}42%{transform:scaleY(.47)}}
+@keyframes kid-astonished{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes kid-wink{0%,100%{transform:scaleY(1)}45%{transform:scaleY(.07)}}
+@keyframes kid-spark{0%{transform:translateY(20px) scale(.5);opacity:0}20%{opacity:1}100%{transform:translateY(-57px) scale(1.18) rotate(18deg);opacity:0}}
+@media(max-width:400px){
+ .shell{padding-left:14px;padding-right:14px}
+ .robot-stage .face{width:250px;height:207px}
+ .kid-actions{gap:7px}
+ .kid-action{min-height:123px;border-radius:17px}
+ .kid-action strong{font-size:16px}
+ .kid-action .kid-emoji{font-size:33px}
+ .kid-action small{font-size:7px}
+ .kid-activity p{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){
+ .face.kid-happy .eye,.face.kid-peek .eye,.face.kid-surprised .eye,.face.kid-wink .eye,
+ .kid-spark{animation:none!important}
+}
