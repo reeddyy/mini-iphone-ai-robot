@@ -179,6 +179,7 @@ function sendModelEvent(s, event) {
 // handled by normal WebRTC audio and VAD, not by any fake offline button.
 function startActivity(s, value) {
   if (!s || s.stopped || !s.mediaReady || s.mode !== 'realtime') return;
+  childUI?.stopSpeech();
   s.activity = kids.mode(value);
   s.userSpokeDuringMode = false;
   s.activityUpdatePending = true;
@@ -231,7 +232,13 @@ function promptActivity(s) {
     if (s.stopped || !s.awaitingProactiveResponse || s.responseActive ||
         s.childSpeaking || s.userSpokeDuringMode) return;
     s.awaitingProactiveResponse = false;
-    childUI?.sayFallback(s.activity);
+    if (s.queuedActivity) {
+      const next = s.queuedActivity;
+      s.queuedActivity = null;
+      startActivity(s,next);
+    } else {
+      childUI?.sayFallback(s.activity);
+    }
   },6000);
 }
 function afterResponse(s) {
@@ -294,6 +301,7 @@ function receiveEvent(s, ev, channel) {
           s.queuedActivity = null;
           startActivity(s,next);
         } else if (!s.responseActive && !s.childSpeaking) {
+          s.queuedActivity = null;
           promptActivity(s);
         }
       }
@@ -349,10 +357,15 @@ function receiveEvent(s, ev, channel) {
     case 'error': {
       console.error('Realtime model error code:', ev.error?.code || 'unknown');
       const failedId = ev.error?.event_id || ev.error?.eventId || null;
-      if (failedId && failedId === s.proactiveEventId) {
+      if ((failedId && failedId === s.proactiveEventId) ||
+          (s.awaitingProactiveResponse && !s.responseActive && !s.childSpeaking)) {
         s.awaitingProactiveResponse = false;
         clearTimeout(s.proactiveTimer);
-        childUI?.sayFallback(s.activity);
+        if (s.queuedActivity) {
+          const next = s.queuedActivity;
+          s.queuedActivity = null;
+          startActivity(s,next);
+        } else childUI?.sayFallback(s.activity);
         break;
       }
       if (failedId && failedId === s.activityUpdateEventId) {
