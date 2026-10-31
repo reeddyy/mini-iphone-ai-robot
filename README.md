@@ -143,6 +143,22 @@ Run `npm test` to verify static serving, config secrecy, credentials checks, rat
 
 ## Troubleshooting
 
+### Windows: port already in use (`EADDRINUSE`)
+
+If `npm start` reports `listen EADDRINUSE: address already in use 127.0.0.1:3000`, another app is already using port 3000. This is **not** an npm version problem.
+
+**Easiest fix:** Run `notepad .env`, change `PORT=3000` to `PORT=3001`, save the file, run `npm start` again and visit http://localhost:3001. If port 3001 is also occupied, choose another unused port.
+
+**Alternative:** Find the program listening on port 3000 with:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3000 -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess
+```
+
+Use `Get-Process -Id <PID>` (replace `<PID>` with the displayed OwningProcess number) to identify it. Only if it is an old Mini process you want to close, stop it with `Stop-Process -Id <PID>`. Otherwise, leave it running and change Mini's port.
+
+Node.js v22.13.0 and npm 10.9.2 are sufficient for this project. You do **not** need to upgrade to npm 12, which requires a newer Node.js version.
+
 | Symptom | Next step |
 |---|---|
 | LOCAL PREVIEW ONLY | Set both `.env` pay-as-you-go variables and restart Node. |
