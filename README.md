@@ -6,6 +6,10 @@ Mini is an experimental **voice-first English/Mandarin AI companion for a six-ye
 
 ### Current development updates
 
+- **More natural turns:** Mini's speaking face and first-audible-reply diagnostic follow actual local playback. Its listening cue waits for audio to drain. Detected child speech mutes old playback while keeping the microphone enabled; late events from an older response are ignored. Tapping during a Safari-spoken local prompt interrupts that prompt and restores the microphone. Live provider cancellation and iPhone timing still require device tests.
+- **Guided stories and riddles:** Ask for a story, choose a cat or dragon, a forest or castle, then a star or flower. Mini tracks these fixed choices in the current session and displays a short progress line. A three-round animal game offers easier clues after uncertain answers. Instruction checkpoints are sent between turns without `response.create`; if the provider declines an optional checkpoint, normal voice chat remains available. Checkpoint context can still affect provider token usage.
+- **Free local play:** Tap **Play a tap game · free**, watch Mini's smiles and copy them with two, three, then two face taps. No microphone, camera or AI request is used. The game stops when capture starts or Safari is hidden. Optional soft sounds are off by default.
+- **Parent handoff:** Language, duration and camera choice come first. Advanced settings and diagnostics are underneath. **Remember these settings** saves only fixed non-sensitive options such as language, pace, activity interests and duration. Access codes, transcripts, recordings and camera-sharing choices are excluded. **Forget saved settings** leaves the separately controlled preference note alone. Camera sharing resets after Stop.
 - Muting during startup keeps the microphone disabled when permission arrives and when media is attached. The free preview now includes the local microphone level meter.
 - Direct commands such as **“Mini, stop talking now”**, **“Goodbye Mini”**, or **“Mini，别说了”** close the session and stop microphone/camera capture when a completed speech transcript is received. Mentions inside a story and “don't stop” are not stop commands. Recognition and network delay still matter; use the visible **Stop live chat** button to stop immediately without waiting for speech recognition.
 - Adding five paid minutes requires entering the parent access code again. Authorization is checked by Mini's backend, shares the incorrect-code throttle, and does not call Alibaba. The dialog clears the entered code; closing it or stopping cancels a pending extension. The 60-minute maximum remains a browser-side limit, not a financial guarantee.
@@ -49,7 +53,7 @@ The child simply speaks. There are **no child-facing activity buttons**, separat
 
 Qwen is explicitly instructed to respond to these requests **within the ongoing conversation**, without asking the child to tap a control or announcing a mode change. It should answer briefly and, when follow-ups are enabled and useful, offer one relevant question before waiting. Short acknowledgements and completed stories can stand alone. Direct stop commands end capture when their completed transcript arrives.
 
-When Model Studio supplies a speech transcript, Mini may classify an explicit voice request **locally** to pick a more relevant one-time fallback question. This classification **does not send another `session.update` or `response.create`**. Qwen itself handles conversational topic changes based on its instructions and the audio. If no transcript is available, Mini still talks normally, but the optional fallback may be less specific.
+When Model Studio supplies a speech transcript, Mini classifies the activity locally and retains only fixed story choices or riddle counters as a session checkpoint. Updated instructions are sent between turns, never as an extra `response.create` or a second paid reply. Qwen handles the actual spoken conversation and may still make mistakes; a checkpoint is guidance, not a guarantee about generated content. If transcripts are unavailable, normal voice chat continues without reliable local activity tracking. All activity state clears on Stop.
 
 ## How the conversation starts and continues
 
@@ -102,7 +106,7 @@ notepad .env
 npm start
 ```
 
-6. Open http://localhost:3001 on Windows (or your chosen `PORT`). The child home appears immediately. Open **Parent setup** to use the private code and start live AI; with no Qwen key, you can test the microphone and camera locally without AI charges. The child-facing screen has no activity buttons; without a Qwen key, only the local mic/camera preview and face can be tested.
+6. Open http://localhost:3001 on Windows (or your chosen `PORT`). The child home appears immediately. **Play a tap game · free** works without credentials or media capture. Open **Parent setup** to use the private code and start live AI; with no Qwen key, you can test the microphone and camera locally without AI charges. Live activities remain voice-led, without an activity-selection menu.
 
 ### Getting future updates
 
@@ -258,6 +262,8 @@ With a working HTTPS method, say: **"Hello Mini, what can you see in front of yo
 ## Tests
 
 Run `npm test` to verify static serving, config secrecy, credentials checks, rate limits, mocked WebRTC SDP proxy, JavaScript syntax, session option clamping, VAD pacing, language/personality prompts and browser-local preference storage. Tests **do not call Alibaba**, and do not independently verify iPhone audio playback, audio-meter animation or provider latency.
+
+The suite also covers delayed playback completion, old response events after interruption, bilingual story choices, riddle progression, safe saved settings, and local play with no media/network APIs. See [the companion benchmark guide](docs/companion-benchmark.md) for repeatable device scenarios and measurement definitions. Competitor scores and live iPhone/Qwen results have not been measured here.
 
 ## Troubleshooting
 

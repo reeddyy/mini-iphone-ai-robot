@@ -27,6 +27,10 @@
     let moodTimer = null;
     let sparkleTimer = null;
     let lastVoiceAt = 0;
+    let reactionTimers=[];
+    let localTimers=[];
+    let localGame=null;
+    let chimeContext=null;
     const canSpeak = Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance);
     const language = () => options.getLanguage() === 'zh' ? 'zh' : 'en';
     const words = () => content.getLabels(language());
@@ -112,6 +116,77 @@
         if (face.dataset.expression === type) delete face.dataset.expression;
       },duration);
     }
+    function cancelReactions() {
+      reactionTimers.forEach(clearTimeout);reactionTimers=[];
+      clearTimeout(moodTimer);
+      delete face.dataset.sequence;
+      if(face.dataset.expression!=='sleepy')delete face.dataset.expression;
+    }
+    function celebrate() {
+      cancelReactions();
+      face.dataset.sequence='celebrate';
+      mood('proud',250);sparkle('⭐');
+      reactionTimers.push(setTimeout(()=>mood('happy',650),250));
+      reactionTimers.push(setTimeout(()=>mood('curious',450),950));
+      reactionTimers.push(setTimeout(()=>{delete face.dataset.sequence;},1450));
+    }
+    function prepareChimes() {
+      if(!options.getReactionSounds?.())return;
+      try {
+        const Ctor=window.AudioContext || window.webkitAudioContext;
+        if(!Ctor)return;
+        chimeContext ||= new Ctor();
+        chimeContext.resume().catch(()=>{});
+      } catch {}
+    }
+    function chirp() {
+      prepareChimes();
+      if(!chimeContext)return;
+      try {
+        const osc=chimeContext.createOscillator(),gain=chimeContext.createGain(),now=chimeContext.currentTime;
+        osc.type='sine';osc.frequency.setValueAtTime(620,now);osc.frequency.exponentialRampToValueAtTime(820,now+.1);
+        gain.gain.setValueAtTime(.001,now);gain.gain.exponentialRampToValueAtTime(.025,now+.02);gain.gain.exponentialRampToValueAtTime(.001,now+.15);
+        osc.connect(gain);gain.connect(chimeContext.destination);osc.start(now);osc.stop(now+.16);
+        osc.onended=()=>{osc.disconnect();gain.disconnect();};
+      } catch {}
+    }
+    function stopLocalPlay() {
+      const wasPlaying=Boolean(localGame);
+      localTimers.forEach(clearTimeout);localTimers=[];localGame=null;
+      $('localPlayBtn').textContent='✦ Play a tap game · free';
+      try{chimeContext?.close().catch(()=>{});}catch{}
+      chimeContext=null;
+      if(wasPlaying){
+        cancelReactions();tag.textContent='♡ NEEDS GROWN-UP';setHint(words().blocked);setModeLabel();
+        $('status').textContent=language()==='zh'?'Mini 休息中 · 麦克风和摄像头关闭':'Mini is resting · mic and camera off';
+        $('faceTip').textContent=language()==='zh'?'直接跟 Mini 说话吧！💜':'No buttons to learn. Just talk to me! 💜';
+      }
+    }
+    function showTapRound() {
+      if(!localGame)return;
+      const expected=[2,3,2][localGame.round];
+      localGame.phase='watch';localGame.expected=expected;localGame.received=0;
+      setHint(language()==='zh'?'看看 Mini 笑几次，然后跟着点！':'Watch Mini smile, then copy with your taps!');
+      for(let i=0;i<expected;i++)localTimers.push(setTimeout(()=>{mood('happy',230);chirp();},i*650));
+      localTimers.push(setTimeout(()=>{
+        if(!localGame)return;
+        localGame.phase='copy';
+        setHint(language()==='zh'?'轮到你啦，点 Mini '+expected+' 次！':'Your turn—tap Mini '+expected+' times!');
+      },expected*650+150));
+    }
+    function startLocalPlay() {
+      const session=options.getSession();
+      if(session && !session.stopped)return;
+      if(localGame){stopLocalPlay();cancelReactions();setHint(words().blocked);setModeLabel();tag.textContent='♡ NEEDS GROWN-UP';return;}
+      stopLocalPlay();cancelReactions();
+      localGame={round:0,phase:'watch'};
+      $('localPlayBtn').textContent=language()==='zh'?'结束点击游戏':'■ Stop tap game';
+      tag.textContent=language()==='zh'?'✦ 本地游戏':'✦ LOCAL PLAY';
+      modeLine.textContent=language()==='zh'?'麦克风和摄像头关闭 · 无 AI 费用':'Mic and camera off · no AI charges';
+      $('status').textContent=language()==='zh'?'本地游戏 · 麦克风和摄像头关闭':'Local play · mic and camera off';
+      $('faceTip').textContent=language()==='zh'?'看看 Mini，再跟着点一点。':'Watch Mini, then copy by tapping the face.';
+      prepareChimes();showTapRound();
+    }
     function sparkle(symbol='💜') {
       clearTimeout(sparkleTimer);
       sparkles.textContent = '';
@@ -124,6 +199,24 @@
       sparkleTimer=setTimeout(()=>{sparkles.textContent='';},1400);
     }
     function tapFace() {
+      if(localGame) {
+        if(localGame.phase!=='copy')return;
+        localGame.received+=1;mood('happy',220);chirp();
+        if(localGame.received===localGame.expected) {
+          localGame.phase='celebrate';celebrate();
+          localGame.round+=1;
+          setHint(language()==='zh'?'跟上啦！真棒！':'You copied it! Lovely!');
+          localTimers.push(setTimeout(()=>{
+            if(!localGame)return;
+            if(localGame.round<3)showTapRound();
+            else {stopLocalPlay();cancelReactions();onSessionEnded(language());}
+          },1700));
+        }
+        return;
+      }
+      if(activeNarration && face.dataset.localVoice==='true') {
+        stopSpeech();setHint(words().listening);return;
+      }
       if (pendingStarter && options.getSession()?.ready) {
         const again = pendingStarter;
         sayFallback(again.mode, again.text, again.language); // A touch can unlock Safari narration.
@@ -141,6 +234,8 @@
     }
     function onStatus(info={}) {
       const online=Boolean(info.online);
+      $('localPlayBtn').classList.toggle('hidden',Boolean(info.running));
+      if(info.running && localGame){stopLocalPlay();cancelReactions();}
       if(info.running && face.dataset.expression==='sleepy') delete face.dataset.expression;
       tag.classList.toggle('active',online);
       tag.textContent=online?(options.getSession()?.muted?'● MIC MUTED':'● AI READY'):'♡ NEEDS GROWN-UP';
@@ -189,6 +284,7 @@
       if (soon && sessionNotice.textContent !== message) sessionNotice.textContent = message;
     }
     function onSessionEnded(replyLanguage) {
+      stopLocalPlay();cancelReactions();
       clearTimeout(moodTimer);
       clearTimeout(sparkleTimer);
       sparkles.textContent='';
@@ -209,16 +305,16 @@
       }
     }
     function onResponseStarted() {
+      cancelReactions();
       stopSpeech();
-      setHint(words().playing);
+      setHint(words().prompting);
     }
     function reactToMiniSpeech(transcript) {
       // React only to Mini's own reply, not to the child's face or inferred emotion.
       if (typeof transcript !== 'string' || !transcript.trim()) return;
       const t = transcript.toLowerCase().slice(0,1100);
       if (/\b(?:correct|great job|well done|you got it|brilliant|excellent|awesome)\b|答对|真棒|太棒|厉害|做得好/i.test(t)) {
-        mood('proud',1200);
-        sparkle('⭐');
+        celebrate();
       } else if (/\b(?:wow|whoa|amazing|oh my|surprise)\b|哇|真的吗|惊喜/i.test(t)) {
         mood('surprised',1000);
       } else if (/\b(?:it(?:'|’)s okay|no worries|take your time|that(?:'|’)s okay)\b|没关系|慢慢来|别着急/i.test(t)) {
@@ -231,11 +327,12 @@
     }
     function onResponseFinished() {
       if(speechActive) return;
-      setHint(words().listening);
+      setHint(options.getSession()?.muted?words().muted:words().listening);
     }
     function onVoiceDetected(heard) {
       speechActive=heard;
       if(heard) {
+        cancelReactions();
         pendingStarter = null;
         lastVoiceAt=Date.now();
         vadStatus.textContent='✅ '+words().speech;
@@ -291,6 +388,7 @@
       parent.open=true;
       parent.scrollIntoView({block:'start',behavior:'smooth'});
     });
+    $('localPlayBtn').addEventListener('click',startLocalPlay);
     kidStop.addEventListener('click',()=>{
       stopSpeech();
       options.stopSession('Live AI stopped by family.', {gentle:true});
@@ -312,6 +410,7 @@
       sayFallback,
       sayFollowUp,
       stopSpeech,
+      stopLocalPlay,
       syncLanguage:()=>{setModeLabel();setHint(options.getSession()?.ready?words().ready:words().blocked);},
     });
   }

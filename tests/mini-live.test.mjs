@@ -79,6 +79,7 @@ function mockEnvironment() {
     AbortController,Uint8Array,
   });
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-kids.js',import.meta.url)),'utf8'),ctx);
+  vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-activities.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(app,ctx);
   const s={
     mode:'realtime',stopped:false,ready:true,mediaReady:true,language:'en',
@@ -88,6 +89,7 @@ function mockEnvironment() {
     baseInstructions:'family-safe instructions',
     wantVideo:false,videoPaused:false,startedAt:Date.now(),endsAt:Date.now()+900000,
     audioInputTrack:{enabled:true},
+    audioMeter:{isAudible:()=>false,stop(){},resume(){}},
     eventChannel:{readyState:'open',send:encoded=>sent.push(JSON.parse(encoded))},
     channels:new Set(),abort:new AbortController(),
   };
@@ -117,7 +119,10 @@ test('Guess game updates Qwen instructions but relies on VAD, not unsolicited re
   emit(env,'input_audio_buffer.speech_started');
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
+  vm.runInContext('onRemoteAudio(testSession,true)',env.ctx);
   emit(env,'response.done',{response:{status:'completed'}});
+  vm.runInContext('onRemoteAudio(testSession,false)',env.ctx);
+  env.flushTimeouts(900);
   assert.ok(env.calls.some(x=>x[0]==='response_done'));
   assert.equal(env.s.stopped,false);
 });
@@ -280,6 +285,7 @@ test('After a short Qwen verdict, Mini asks ONE local follow-up, no added AI req
   emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Giraffe'});
   emit(env,'response.created');
   emit(env,'response.audio_transcript.done',{transcript:'You are right! A giraffe. Good job!'});
+  vm.runInContext('onRemoteAudio(testSession,true); onRemoteAudio(testSession,false)',env.ctx);
   emit(env,'response.done',{response:{status:'completed'}});
   assert.equal(env.calls.filter(x=>x[0]==='followup').length,0,'do not interrupt streamed speech');
   env.flushTimeouts(2400);
@@ -308,6 +314,7 @@ test('A child who speaks before the delayed follow-up cancels it',()=>{
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
   emit(env,'response.audio_transcript.done',{transcript:'The dragon reaches a forest.'});
+  vm.runInContext('onRemoteAudio(testSession,true); onRemoteAudio(testSession,false)',env.ctx);
   emit(env,'response.done',{response:{status:'completed'}});
   assert.ok(env.s.followupTimer,'a follow-up was queued before the child interrupted');
   emit(env,'input_audio_buffer.speech_started');
@@ -321,6 +328,7 @@ test('The parent can turn off automatic local questions',()=>{
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
   emit(env,'response.audio_transcript.done',{transcript:'Great guessing!'});
+  vm.runInContext('onRemoteAudio(testSession,true); onRemoteAudio(testSession,false)',env.ctx);
   emit(env,'response.done',{response:{status:'completed'}});
   env.flushTimeouts();
   assert.equal(env.calls.filter(x=>x[0]==='followup').length,0);
@@ -349,6 +357,7 @@ test('Changing the game before follow-up cancels the old question',()=>{
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
   emit(env,'response.audio_transcript.done',{transcript:'Yes, it is a giraffe.'});
+  vm.runInContext('onRemoteAudio(testSession,true); onRemoteAudio(testSession,false)',env.ctx);
   emit(env,'response.done',{response:{status:'completed'}});
   assert.ok(env.s.followupTimer);
   assert.equal(request(env,'story'),true);
@@ -364,6 +373,7 @@ test('Local question waits for Qwen audio to finish before talking',()=>{
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
   emit(env,'response.audio_transcript.done',{transcript:'Yes, it is a giraffe.'});
+  vm.runInContext('onRemoteAudio(testSession,true); onRemoteAudio(testSession,false)',env.ctx);
   emit(env,'response.done',{response:{status:'completed'}});
   env.flushTimeouts(2400);
   assert.equal(env.calls.filter(x=>x[0]==='followup').length,0);
@@ -379,6 +389,7 @@ test('A Mandarin model reply gets a Mandarin follow-up in Auto language mode',()
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
   emit(env,'response.audio_transcript.done',{transcript:'答对了，是长颈鹿！'});
+  vm.runInContext('onRemoteAudio(testSession,true); onRemoteAudio(testSession,false)',env.ctx);
   emit(env,'response.done',{response:{status:'completed'}});
   env.flushTimeouts();
   const followups=env.calls.filter(x=>x[0]==='followup');
@@ -555,4 +566,118 @@ test('Session deadline shows a break notice then releases the session without a 
   assert.equal(env.s.stopped,true);
   assert.ok(env.calls.some(x=>x[0]==='ended'));
   assert.equal(env.sent.length,0);
+});
+
+test('Model events do not claim speaking or first audible latency before playback',()=>{
+  const env=mockEnvironment();
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'response.created',{response:{id:'a'}});
+  emit(env,'response.audio_transcript.delta',{response_id:'a',delta:'Hello!'});
+  assert.equal(env.calls.some(x=>x[0]==='status' && x[1]==='speaking'),false);
+  assert.equal(Boolean(env.s.replyMeasured),false);
+  vm.runInContext('onRemoteAudio(testSession,true)',env.ctx);
+  assert.equal(env.calls.at(-1)[1],'speaking');
+  assert.equal(env.s.replyMeasured,true);
+  assert.match(env.ctx.document.getElementById('replyDelay').textContent,/First audible reply/);
+});
+
+test('Your-turn cue waits until the audible stream has drained',()=>{
+  const env=mockEnvironment();
+  let audible=true;
+  env.s.audioMeter={isAudible:()=>audible};
+  emit(env,'response.created');
+  vm.runInContext('onRemoteAudio(testSession,true)',env.ctx);
+  emit(env,'response.done',{response:{status:'completed'}});
+  env.flushTimeouts(900);
+  assert.equal(env.calls.some(x=>x[0]==='response_done'),false);
+  audible=false;
+  vm.runInContext('onRemoteAudio(testSession,false)',env.ctx);
+  assert.equal(env.calls.filter(x=>x[0]==='response_done').length,1);
+});
+
+test('A child interruption mutes old audio without muting the mic or losing the new turn',()=>{
+  const env=mockEnvironment();
+  emit(env,'response.created',{response:{id:'old'}});
+  vm.runInContext('onRemoteAudio(testSession,true)',env.ctx);
+  emit(env,'input_audio_buffer.speech_started');
+  assert.equal(env.ctx.document.getElementById('remoteAudio').muted,true);
+  assert.equal(env.s.audioInputTrack.enabled,true);
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'response.done',{response:{id:'old',status:'cancelled'}});
+  assert.equal(env.s.turnPending,true);
+  emit(env,'response.created',{response:{id:'new'}});
+  emit(env,'response.audio_transcript.delta',{response_id:'old',delta:'obsolete text'});
+  assert.equal(env.s.replyTranscript,'');
+  emit(env,'response.audio_transcript.delta',{response_id:'new',delta:'New answer.'});
+  assert.equal(env.s.replyTranscript,'New answer.');
+  assert.equal(env.ctx.document.getElementById('remoteAudio').muted,false);
+});
+
+test('Story checkpoints synchronize only between turns without another response or starter',()=>{
+  const env=mockEnvironment();
+  emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Tell me a story'});
+  env.flushTimeouts(0);
+  assert.equal(env.sent.length,0,'never compete with automatic VAD inference');
+  emit(env,'response.created');emit(env,'response.done',{response:{status:'completed'}});
+  env.flushTimeouts(0);
+  assert.equal(env.sent.length,1);
+  assert.equal(env.sent[0].type,'session.update');
+  assert.match(env.sent[0].session.instructions,/"stage":"hero"/);
+  emit(env,'session.updated');
+  assert.equal(env.calls.some(x=>x[0]==='fallback'),false);
+  emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'cat'});
+  emit(env,'response.created');emit(env,'response.done',{response:{status:'completed'}});
+  env.flushTimeouts(0);
+  assert.equal(env.sent.length,2);
+  assert.match(env.sent[1].session.instructions,/"hero":"cat"/);
+  assert.match(env.sent[1].session.instructions,/"stage":"place"/);
+  assert.equal(env.sent.some(x=>x.type==='response.create'),false);
+  vm.runInContext('stopMini()',env.ctx);
+  assert.equal(env.s.activityState,null);
+});
+
+test('A rejected optional checkpoint leaves the microphone and voice session available',()=>{
+  const env=mockEnvironment();
+  env.s.contextUpdatePending=true;
+  emit(env,'error',{error:{type:'invalid_request_error',param:'session.instructions',code:'invalid_value'}});
+  assert.equal(env.s.stopped,false);
+  assert.equal(env.s.contextSyncDisabled,true);
+  assert.equal(env.s.audioInputTrack.enabled,true);
+});
+
+test('Unheard generated text cannot invite a turn or trigger a spoken fallback',()=>{
+  const env=mockEnvironment();env.s.activity='story';
+  emit(env,'input_audio_buffer.speech_stopped');emit(env,'response.created');
+  emit(env,'response.audio_transcript.done',{transcript:'The dragon reaches a forest.'});
+  emit(env,'response.done',{response:{status:'completed'}});
+  env.flushTimeouts(2400);
+  assert.equal(env.calls.some(x=>x[0]==='followup' || x[0]==='response_done'),false);
+  assert.equal(env.ctx.document.getElementById('kidAudioBtn').classList.contains('hidden'),false);
+});
+
+test('Duplicate transcript completion cannot advance a riddle twice',()=>{
+  const env=mockEnvironment();
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'let us guess animals',item_id:'start'});
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'giraffe',item_id:'answer'});
+  assert.equal(env.s.activityState.game.round,1);
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'giraffe',item_id:'answer'});
+  assert.equal(env.s.activityState.game.round,1);
+  assert.equal(env.s.activityState.game.attempts,0);
+});
+
+test('An unacknowledged optional checkpoint times out without reconnecting or retrying',()=>{
+  const env=mockEnvironment();
+  env.s.activityState=env.ctx.window.MiniActivities.advance(null,'tell me a story');
+  vm.runInContext('syncActivityContext(testSession)',env.ctx);
+  assert.equal(env.sent.length,1);
+  assert.equal(env.s.contextUpdatePending,true);
+  env.flushTimeouts(5000);
+  assert.equal(env.s.contextUpdatePending,false);
+  assert.equal(env.s.contextSyncDisabled,true);
+  assert.equal(env.s.stopped,false);
+  env.s.activityState=env.ctx.window.MiniActivities.advance(env.s.activityState,'cat');
+  vm.runInContext('syncActivityContext(testSession)',env.ctx);
+  assert.equal(env.sent.length,1,'do not repeatedly retry an unsupported checkpoint');
 });

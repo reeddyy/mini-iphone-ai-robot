@@ -38,7 +38,7 @@ test('Session duration and VAD pacing are strictly bounded', () => {
   assert.equal(extras.silenceDuration('fast'), 500);
   assert.equal(extras.silenceDuration('balanced'), 800);
   assert.equal(extras.silenceDuration('patient'), 1200);
-  assert.equal(extras.silenceDuration('invalid'), 500);
+  assert.equal(extras.silenceDuration('invalid'), 800);
 });
 
 test('Mini prompts preserve bilingual and family-safe behavior', () => {
@@ -116,4 +116,32 @@ test('Qwen diagnostics expose only structured error fields, never free-text chil
   assert.equal(extras.modelErrorDetails({code:'unsafe <script>'}).code,'unsafescript');
   assert.equal(extras.modelErrorDetails(null).code,'unknown');
   assert.equal(extras.modelErrorDetails({code:'x'.repeat(200)}).code.length,90);
+});
+
+test('Remembered settings accept only safe fixed preferences, never credentials or camera sharing',()=>{
+  const {extras,map}=loadExtras();
+  assert.equal(extras.loadSettings(),null);
+  assert.equal(map.size,0);
+  extras.saveSettings({language:'zh',sessionLimit:'15',favoriteTopic:'space',reactionSounds:false,
+    accessCode:'must-not-save',sendVideo:true,ALIBABA_API_KEY:'must-not-save',familyNote:'private words',userTranscript:'private words'});
+  const stored=JSON.parse(map.get('mini-parent-settings-v1'));
+  assert.deepEqual(stored,{language:'zh',sessionLimit:'15',favoriteTopic:'space',reactionSounds:false});
+  assert.equal(extras.loadSettings().language,'zh');
+  extras.saveNote('We like stories.');
+  extras.clearSettings();
+  assert.equal(extras.loadSettings(),null);
+  assert.equal(extras.loadSavedNote(),'We like stories.');
+});
+
+test('Invalid settings and blocked storage do not prevent startup',()=>{
+  const map=new Map([['mini-parent-settings-v1','{invalid']]);
+  const {extras}=loadExtras(map);
+  assert.equal(extras.loadSettings(),null);
+  extras.saveSettings({language:'malicious',sessionLimit:'999',reactionSounds:'true',sendVideo:true});
+  assert.equal(JSON.stringify(extras.loadSettings()),'{}');
+  const window={localStorage:{getItem(){throw Error('blocked');},setItem(){throw Error('blocked');},removeItem(){throw Error('blocked');}}};
+  vm.runInNewContext(source,{window,Uint8Array});
+  assert.equal(window.MiniExtras.loadSettings(),null);
+  assert.equal(window.MiniExtras.saveSettings({language:'en'}),false);
+  assert.equal(window.MiniExtras.clearSettings(),false);
 });

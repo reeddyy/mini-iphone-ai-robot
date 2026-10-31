@@ -2,6 +2,11 @@
 
 ## Unreleased — Child controls and gentler conversation
 
+- Coordinate facial reactions into interruptible sequences; only show speaking/listening cues after audible playback transitions. Child speech mutes interrupted playback, and late events from old replies cannot consume the new turn.
+- Add a session-only story checkpoint (hero, setting, goal and ending) and three animal-riddle rounds with easier clues. Synchronize instructions between turns without requesting extra model responses; disable optional synchronization if the provider rejects it.
+- Add a three-round local copy-the-taps game that never opens media or connects to AI. Optional soft sounds default off; entering a voice or preview session cancels local play.
+- Simplify parent startup, use a balanced pause by default, and show microphone/camera sharing on the child screen. Opt-in saved settings contain only whitelisted non-sensitive choices, with a separate Forget action; camera sharing resets on stop.
+- Add a repeatable six-scenario companion benchmark guide in `docs/companion-benchmark.md`. Live provider and competitor measurements remain unrun.
 - Redesigned Mini as a soft lavender character with oversized glossy plum eyes, rosy cheeks and a small smile. Added distinct delight, curiosity, wink, surprise, reassurance and resting expressions; the mouth still follows incoming audio. Preserved keyboard/touch access and reduced-motion support.
 - Preserve microphone mute during permission requests and live media attachment; wire the local input meter into free preview.
 - End capture on direct English/Mandarin spoken stop commands, with a gentle resting message. Keep Stop available independently of transcription.

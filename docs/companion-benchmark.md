@@ -1,0 +1,26 @@
+# Companion interaction benchmark
+
+Use the same six scenarios when comparing Mini, Loona DeskMate, LOOI, and Reachy Mini. This is a repeatable evaluation plan, not a claim that the other products have been tested. Record hardware, app/firmware, provider/model, language and network conditions. Mark unsupported features separately from failures.
+
+## Scenarios
+
+| Scenario | Procedure | What to measure |
+| --- | --- | --- |
+| Short answer | Answer an animal clue with one word, then try “I don't know.” | Response success; time from end of speech to first audible reply; whether the next clue helps |
+| Interruption | Start speaking halfway through a reply. Also tap Mini during its local opening voice. | Time until the old playback is inaudible; whether the mic stays enabled; whether the new answer responds to the interruption |
+| Two languages | Request a story in English, choose the hero in Mandarin, then switch back. | Correct interpretation and natural language switching; repeated clarification requests |
+| Story continuity | Request a story; choose cat, forest, and star across three turns. Ask where the hero is. | All three choices retained; short coherent scenes; a natural ending without another generic question |
+| Show-and-tell | Start with camera off, ask “Can you see my toy?”, then explicitly opt in on a new session. | Honest camera-off response; visible sharing status; relevant description only when frames are available |
+| Stop and handoff | Say “Mini, stop” or “Mini，别说了”; repeat with the Stop button; test an extension with the wrong parent code. | Capture released; no auto-reconnect; parent code required to add time; graceful resting state |
+
+Run at least five repetitions per supported voice scenario in a quiet room. Use adult volunteers and invented content first. Device audio output matters: generated text and an open socket do not establish audible success. Do not record children's voices or retain their transcripts for benchmarking.
+
+Report the median and slowest observed audible delay and interruption time, plus counts of completed, failed, unsupported and unrun trials. With a larger sample, report p95. Do not assign a zero or a passing score to an unrun trial. Note whether interruptions are handled by the device, provider or both.
+
+## Mini validation available here
+
+`npm test` exercises simulated provider events, media teardown, delayed audio completion, stale responses after interruption, bilingual fixed story choices, three riddle rounds, settings persistence, parent authorization and local tap play. The browser checks additionally exercise the real DOM and HTTP endpoints with simulated media. These do not establish live Qwen speech quality or iPhone Safari timing.
+
+The parent diagnostic “First audible reply” uses the local remote-stream audio meter, gated on playback being unmuted and unpaused. It measures from the provider's end-of-speech event, not from the physical moment the child stopped talking. It is unavailable if the audio meter cannot run. A blocked speaker, failed audio route or OS volume setting still needs a human listening check.
+
+Live Qwen and physical competitor trials require the user's configured devices and credentials and remain unrun until performed explicitly. Instruction checkpoint updates do not create extra model responses, but their context can still affect provider token usage.

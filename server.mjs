@@ -10,6 +10,7 @@ const STATIC = new Map([
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/mini-extras.js', ['mini-extras.js', 'text/javascript; charset=utf-8']],
   ['/mini-kids.js', ['mini-kids.js', 'text/javascript; charset=utf-8']],
+  ['/mini-activities.js', ['mini-activities.js', 'text/javascript; charset=utf-8']],
   ['/mini-child-ui.js', ['mini-child-ui.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
   ['/mini-face.css', ['mini-face.css', 'text/css; charset=utf-8']],

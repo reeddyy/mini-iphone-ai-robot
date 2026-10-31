@@ -181,6 +181,12 @@ select:disabled{opacity:.5}.actions button{min-width:0;white-space:normal}
 .parent-diagnostics .kid-listening{margin:9px 0 0}
 .kid-audio{display:block;margin:12px auto;min-height:48px;font-size:17px}
 .kid-session-notice{text-align:center;color:#f0d59a;font-size:15px;line-height:1.5}
+.sharing-notice{text-align:center;color:#a2d4c2;font-size:12px;line-height:1.5}
+.activity-progress{text-align:center;color:#e0d3ff;font-size:15px;line-height:1.5;padding:9px 12px;border:1px solid #8c80b74d;border-radius:12px;background:#b4a6fd0d}
+.advanced-setup{margin-top:18px;padding-top:12px;border-top:1px solid #ffffff1c}
+.advanced-setup>summary{cursor:pointer;font-size:13px;color:#c3cce5;padding:8px 0}
+.panel>.memory-check{display:flex;align-items:flex-start;gap:10px;margin:16px 0;line-height:1.5}
+.panel>.memory-check input{flex:none;margin:2px 0 0}
 .parent-dialog{width:min(92vw,440px);max-height:85dvh;overflow:auto;border:1px solid #8c88b5;border-radius:20px;padding:24px;background:#152039;color:#eef1fa}
 .parent-dialog::backdrop{background:#050913bb}
 .parent-dialog h2{font-size:21px;margin:0 0 12px}

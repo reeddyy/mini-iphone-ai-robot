@@ -89,6 +89,8 @@
 .robot-stage #robotFace.audible .mouth{height:clamp(14px,calc(var(--mouth-height,12px) + 9px),38px);width:37px;border:0;border-radius:35% 35% 48% 48%;background:var(--ink);animation:none}
 .robot-stage #robotFace.idle:not([data-expression]) .pupil{animation:mini-look-around 11s ease-in-out infinite}
 @keyframes mini-float{0%,100%{transform:translateY(0) rotate(var(--head-tilt))}50%{transform:translateY(-4px) rotate(var(--head-tilt))}}
+.robot-stage #robotFace[data-sequence="celebrate"]{animation:mini-celebrate 1.4s ease-in-out 1}
+@keyframes mini-celebrate{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-7px) rotate(-4deg)}55%{transform:translateY(-2px) rotate(4deg)}80%{transform:translateY(-4px) rotate(-2deg)}}
 @keyframes mini-blink{0%,44%,48%,73%,77%,100%{height:0}46%,75%{height:104%}}
 @keyframes mini-talk{from{height:15px;width:29px}to{height:34px;width:39px}}
 @keyframes mini-spark{0%{opacity:0;transform:translateY(8px) scale(.4)}35%{opacity:1;transform:translateY(-4px) scale(1.15)}100%{opacity:0;transform:translateY(-20px) scale(.7)}}

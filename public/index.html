@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/mini-face.css">
   <script src="/mini-extras.js" defer></script>
   <script src="/mini-kids.js" defer></script>
+  <script src="/mini-activities.js" defer></script>
   <script src="/mini-child-ui.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
@@ -49,7 +50,7 @@
         <span class="mini-star right" aria-hidden="true">✦</span>
       </div>
       <div id="status" class="status" role="status" aria-live="polite"><span class="status-light"></span>Mini is resting</div>
-      <div class="tip">No buttons to learn. Just talk to me! 💜</div>
+      <div id="faceTip" class="tip">No buttons to learn. Just talk to me! 💜</div>
     </section>
 
     <section class="kid-home" aria-label="Talk with Mini">
@@ -57,17 +58,69 @@
       <p id="kidGameMode" class="kid-mode-line">💜 You can say anything to Mini.</p>
       <p id="modelDiagnostic" class="kid-model-issue hidden" role="status" aria-live="polite"></p>
       <p id="kidSessionNotice" class="kid-session-notice hidden" role="status"></p>
+      <p id="sharingNotice" class="sharing-notice hidden" role="status"></p>
+      <p id="activityProgress" class="activity-progress hidden" role="status"></p>
       <button id="kidAudioBtn" class="outline kid-audio hidden" type="button">▶ Tap to hear Mini</button>
       <div class="kid-lower">
         <button id="kidParentLink" class="kid-parent-link" type="button">👨‍👩‍👧 Grown-up: Start Mini</button>
         <button id="kidStopBtn" class="kid-stop hidden" type="button">■ Stop live chat</button>
+        <button id="localPlayBtn" class="kid-parent-link" type="button">✦ Play a tap game · free</button>
       </div>
       <p class="kid-parent-note">A grown-up starts the voice session. You can ask Mini for a story, a guessing game, or about a toy—just by speaking.</p>
     </section>
 
     <details id="parentSetup" class="parent-setup">
       <summary>⚙️ Parent setup &amp; safety controls</summary>
-      <p class="help parent-intro">Only a grown-up can start a paid Qwen voice session. Once started, Mini asks your child a question, listens to short answers and continues the conversation. Camera sharing is optional and off by default. These settings are collapsed, not separately PIN-locked.</p>
+      <p class="help parent-intro">A grown-up starts each paid voice session. Choose a language and duration; leave the camera off unless you want to share it. Extra time requires the parent code again. These settings are collapsed, not PIN-locked.</p>
+
+
+    <section class="panel" aria-label="Live session">
+      <div class="section-head"><h2>Start Mini · grown-ups</h2><span id="modeTag" class="tag">CHECKING</span></div>
+      <p id="modeInfo" class="help">Checking server configuration…</p>
+      <label class="top-label" for="accessCode">Parent access code</label>
+      <p class="help">Enter it each time you start a session. Mini clears the code after connecting so children cannot restart paid AI just by pressing Start.</p>
+      <input id="accessCode" class="wide-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Private parent code">
+      <div class="settings-grid">
+        <label for="language">Reply language</label>
+        <select id="language"><option value="auto">Auto · follow speaker</option><option value="en">Prefer English</option><option value="zh">Prefer Mandarin 中文</option></select>
+        <label for="sessionLimit">Automatic stop</label>
+        <select id="sessionLimit"><option value="5">5 minutes · short test</option><option value="15" selected>15 minutes · recommended</option><option value="30">30 minutes · extended</option><option value="45">45 minutes · extended</option><option value="60">60 minutes · maximum</option></select>
+        <label class="toggle-label"><input id="sendVideo" type="checkbox"><span>Allow AI to see the camera (off by default)</span></label>
+      </div>
+      <label class="toggle-label memory-check"><input id="rememberSettings" type="checkbox"><span>Remember these settings on this device. Access codes and camera-sharing choices are never saved.</span></label>
+      <button id="forgetSettingsBtn" class="outline" type="button">Forget saved settings</button>
+      <p id="settingsInfo" class="help" role="status">Settings stay in this session unless you choose to remember them.</p>
+      <div class="actions session-actions">
+        <button id="startBtn" class="primary" type="button">● Parent: Start voice chat</button>
+        <button id="stopBtn" class="outline hidden" type="button">■ Stop session</button>
+        <button id="extendBtn" class="outline hidden" type="button">+5 min · paid</button>
+      </div>
+      <div class="live-stats"><span id="sessionClock">00:00</span><span id="remainingTime">Remaining: --:--</span><span id="replyDelay">First audible reply: —</span><span id="micBadge">Microphone off</span><span id="videoBadge">Camera off</span></div>
+      <p class="help">First audible reply measures from end-of-speech detection to audio detected playing on this device. It is unavailable when the browser audio meter cannot run.</p>
+      <details class="advanced-setup"><summary>More voice and camera settings</summary>
+      <div class="settings-grid">
+        <label for="facing">Camera</label>
+        <select id="facing"><option value="user">Front · sees you</option><option value="environment">Rear · sees objects</option></select>
+        <label for="videoMode">Video method</label>
+        <select id="videoMode"><option value="canvas">Smooth preview + reduced video (recommended)</option><option value="direct">Direct camera · Safari compatibility</option></select>
+        <label for="fps">Video sent to AI</label>
+        <select id="fps"><option value="1">1 frame/sec (recommended)</option><option value="2">2 frames/sec</option></select>
+        <label for="listenSensitivity">Speech sensitivity</label>
+        <select id="listenSensitivity"><option value="quiet" selected>Quiet child · more sensitive</option><option value="normal">Normal voice</option><option value="noisy">Noisy room · less sensitive</option></select>
+        <label for="responsePace">Time to finish speaking</label>
+        <select id="responsePace"><option value="fast">Quick turn · half a second</option><option value="balanced" selected>A little pause · recommended</option><option value="patient">Extra thinking time</option></select>
+        <label class="toggle-label"><input id="keepConversationGoing" type="checkbox" checked><span>Offer gentle follow-up questions (allow quiet pauses and story endings)</span></label>
+      </div>
+      <p class="help cost-note">Mini asks a varied opening question using Safari's voice. Qwen follows your child's interests and choices. With follow-ups enabled, Safari may supply one question during an unfinished game or story (no extra model request). Turn follow-ups off for child-led conversation. Say “Mini, stop” or “Mini，别说了” to end a session when speech recognition is available; the Stop button always works. More sensitive listening may hear background noise. Longer sessions cost more. Adding time requires the parent code again. There is no automatic paid reconnect.</p>
+      </details>
+
+      <div class="actions">
+        <button id="postTestBtn" class="outline" type="button">Test tunnel POST (free)</button>
+      </div>
+      <p id="postTestResult" class="help" role="status" aria-live="polite">This safe test checks whether Safari POST requests reach Mini. It does not connect to Alibaba or charge for AI.</p>
+      <p class="help">Microphone streams continuously after Start. If camera sharing is checked, video frames stream continuously too. Stop ends both. No recording is saved by this app.</p>
+    </section>
+
       <details class="parent-diagnostics" id="parentDiagnostics">
         <summary>Microphone and AI hearing diagnostics</summary>
       <div class="kid-listening" role="group" aria-label="Microphone and speech detection">
@@ -79,52 +132,17 @@
 
       </details>
 
-    <section class="panel" aria-label="Live session">
-      <div class="section-head"><h2>1 · Start a voice chat (grown-ups)</h2><span id="modeTag" class="tag">CHECKING</span></div>
-      <p id="modeInfo" class="help">Checking server configuration…</p>
-      <label class="top-label" for="accessCode">Parent access code</label>
-      <p class="help">Enter it each time you start a session. Mini clears the code after connecting so children cannot restart paid AI just by pressing Start.</p>
-      <input id="accessCode" class="wide-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Code in your .env file">
-      <div class="settings-grid">
-        <label class="toggle-label"><input id="sendVideo" type="checkbox"><span>Allow AI to see the camera (off by default)</span></label>
-        <label for="facing">Camera</label>
-        <select id="facing"><option value="user">Front · sees you</option><option value="environment">Rear · sees objects</option></select>
-        <label for="videoMode">Video method</label>
-        <select id="videoMode"><option value="canvas">Smooth preview + reduced video (recommended)</option><option value="direct">Direct camera · Safari compatibility</option></select>
-        <label for="fps">Video sent to AI</label>
-        <select id="fps"><option value="1">1 frame/sec (recommended)</option><option value="2">2 frames/sec</option></select>
-        <label for="listenSensitivity">Speech sensitivity</label>
-        <select id="listenSensitivity"><option value="quiet" selected>Quiet child · more sensitive</option><option value="normal">Normal voice</option><option value="noisy">Noisy room · less sensitive</option></select>
-        <label for="responsePace">Reply speed</label>
-        <select id="responsePace"><option value="fast" selected>Fast · 500 ms silence</option><option value="balanced">Balanced · 800 ms</option><option value="patient">Patient · 1200 ms</option></select>
-        <label class="toggle-label"><input id="keepConversationGoing" type="checkbox" checked><span>Offer gentle follow-up questions (allow quiet pauses and story endings)</span></label>
-        <label for="sessionLimit">Automatic stop</label>
-        <select id="sessionLimit"><option value="5">5 minutes · short test</option><option value="15" selected>15 minutes · recommended</option><option value="30">30 minutes · extended</option><option value="45">45 minutes · extended</option><option value="60">60 minutes · maximum</option></select>
-      </div>
-      <p class="help cost-note">Mini asks a varied opening question using Safari's voice. Qwen follows your child's interests and choices. With follow-ups enabled, Safari may supply one question during an unfinished game or story (no extra model request). Turn follow-ups off for child-led conversation. Say “Mini, stop” or “Mini，别说了” to end a session when speech recognition is available; the Stop button always works. More sensitive listening may hear background noise. Longer sessions cost more. Adding time requires the parent code again. There is no automatic paid reconnect.</p>
-      <div class="actions session-actions">
-        <button id="startBtn" class="primary" type="button">● Parent: Start voice chat</button>
-        <button id="stopBtn" class="outline hidden" type="button">■ Stop session</button>
-        <button id="extendBtn" class="outline hidden" type="button">+5 min · paid</button>
-      </div>
-      <div class="live-stats"><span id="sessionClock">00:00</span><span id="remainingTime">Remaining: --:--</span><span id="replyDelay">First AI reply: —</span><span id="micBadge">Microphone off</span><span id="videoBadge">Camera off</span></div>
-      <p class="help">First AI reply measures the interval from end-of-speech detection to the first reply event. It is not total audible delay.</p>
-      <div class="actions">
-        <button id="postTestBtn" class="outline" type="button">Test tunnel POST (free)</button>
-      </div>
-      <p id="postTestResult" class="help" role="status" aria-live="polite">This safe test checks whether Safari POST requests reach Mini. It does not connect to Alibaba or charge for AI.</p>
-      <p class="help">Microphone streams continuously after Start. If camera sharing is checked, video frames stream continuously too. Stop ends both. No recording is saved by this app.</p>
-    </section>
-
     <details class="panel preferences-panel" id="preferencesPanel">
       <summary>2 · Mini's personality, languages and memory</summary>
       <p class="help">Choose before starting. Mini understands English and Mandarin. Your choices apply during the next session.</p>
       <div class="settings-grid">
         <label for="personality">Personality</label>
         <select id="personality"><option value="friendly">Friendly companion</option><option value="playful" selected>Playful storyteller</option><option value="calm">Calm learning helper</option></select>
-        <label for="language">Reply language</label>
-        <select id="language"><option value="auto">Auto · follow speaker</option><option value="en">Prefer English</option><option value="zh">Prefer Mandarin 中文</option></select>
+        <label for="favoriteTopic">Favourite topics</label>
+        <select id="favoriteTopic"><option value="any">Follow the child</option><option value="animals">Animals</option><option value="space">Space</option><option value="nature">Nature</option><option value="stories">Stories</option></select>
+        <label class="toggle-label"><input id="reactionSounds" type="checkbox"><span>Soft reaction sounds during local play (off by default)</span></label>
       </div>
+
       <label class="top-label" for="familyNote">Optional preferences (not private family details)</label>
       <textarea id="familyNote" maxlength="240" rows="3" placeholder="For example: We enjoy space facts and short bedtime stories."></textarea>
       <label class="toggle-label memory-check"><input id="rememberPrefs" type="checkbox"><span>Save this note only in this Safari browser for future sessions (off by default)</span></label>

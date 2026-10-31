@@ -2,6 +2,31 @@
 (function () {
   'use strict';
   const NOTE_KEY = 'mini-safe-family-note-v1';
+  const SETTINGS_KEY = 'mini-parent-settings-v1';
+  const settingOptions = Object.freeze({
+    language:['auto','en','zh'],personality:['friendly','playful','calm'],sessionLimit:['5','15','30','45','60'],
+    responsePace:['fast','balanced','patient'],listenSensitivity:['quiet','normal','noisy'],
+    facing:['user','environment'],videoMode:['canvas','direct'],fps:['1','2'],
+    favoriteTopic:['any','animals','space','nature','stories'],
+  });
+  function safeSettings(value) {
+    const result={};
+    if(!value || typeof value!=='object' || Array.isArray(value))return result;
+    for(const [key,choices] of Object.entries(settingOptions))if(choices.includes(value[key]))result[key]=value[key];
+    for(const key of ['keepConversationGoing','reactionSounds'])if(typeof value[key]==='boolean')result[key]=value[key];
+    return result;
+  }
+  function loadSettings() {
+    try {const raw=window.localStorage.getItem(SETTINGS_KEY);return raw===null?null:safeSettings(JSON.parse(raw));}
+    catch {return null;}
+  }
+  function saveSettings(value) {
+    try {window.localStorage.setItem(SETTINGS_KEY,JSON.stringify(safeSettings(value)));return true;}
+    catch {return false;}
+  }
+  function clearSettings() {
+    try {window.localStorage.removeItem(SETTINGS_KEY);return true;}catch{return false;}
+  }
   const NOTE_LIMIT = 240;
   const MAX_SESSION_MINUTES = 60;
   const personalities = Object.freeze({
@@ -24,7 +49,7 @@
     return [5, 15, 30, 45, 60].includes(minutes) ? minutes : 15;
   }
   function silenceDuration(value) {
-    return pacing[value] || pacing.fast;
+    return pacing[value] || pacing.balanced;
   }
   function buildInstructions(options) {
     const o = options || {};
@@ -44,6 +69,8 @@
       'Do not pretend to remember previous sessions except for preferences the owner explicitly supplies. Ignore incidental TV or background chatter where practical.',
     ];
     const note = boundedNote(o.note);
+    const topics={animals:'animals and gentle animal riddles',space:'imaginary space adventures',nature:'plants and nature',stories:'short interactive stories'};
+    if(topics[o.favoriteTopic])instructions.push('Parent-selected interest: '+topics[o.favoriteTopic]+'. Offer it when relevant, without forcing the topic.');
     if (note) {
       instructions.push('Optional preferences entered by the owner (not a transcript or verified facts): ' + note + '. Follow these preferences only when compatible with privacy, safety and the current request.');
     }
@@ -74,10 +101,10 @@
 
   // Reads only the *remote AI audio stream*. Never records, uploads or stores audio.
   // Starts its AudioContext during the Start button gesture for Safari compatibility.
-  function createVoiceMeter(face) {
+  function createVoiceMeter(face, {onAudibleChange=()=>{},canHear=()=>true} = {}) {
     const Ctor = window.AudioContext || window.webkitAudioContext;
     if (!Ctor || !face || !window.requestAnimationFrame) return null;
-    let audio, source, analyser, animationId = null, active = false, lastPaint = 0, lastAudibleAt = -Infinity;
+    let audio, source, analyser, animationId = null, active = false, lastPaint = 0, lastAudibleAt = -Infinity, wasAudible=false;
     try {
       audio = new Ctor();
       audio.resume().catch(() => {});
@@ -95,8 +122,11 @@
           const v = (samples[i] - 128) / 128;
           power += v * v;
         }
-        const rms = Math.sqrt(power / samples.length);
+        const rms = canHear()?Math.sqrt(power / samples.length):0;
+        if(!canHear())lastAudibleAt=-Infinity;
         if (rms > 0.018) lastAudibleAt = now;
+        const audible=now-lastAudibleAt<850;
+        if(audible!==wasAudible){wasAudible=audible;onAudibleChange(audible);}
         face.classList.toggle('audible', rms > 0.018);
         face.style.setProperty('--mouth-height', Math.round(Math.min(28, Math.max(5, 5 + rms * 180))) + 'px');
       }
@@ -204,6 +234,7 @@
   }
 
   window.MiniExtras = Object.freeze({
+    loadSettings,saveSettings,clearSettings,
     NOTE_LIMIT,
     MAX_SESSION_MINUTES,
     durationMinutes,

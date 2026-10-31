@@ -2,6 +2,7 @@
 // No Alibaba API key is ever sent to this JavaScript. SDP exchange goes through /api/realtime/sdp.
 const extras = window.MiniExtras;
 const kids = window.MiniKidsContent;
+const activities = window.MiniActivities;
 const $ = id => document.getElementById(id);
 const els = {
   face: $('robotFace'), status: $('status'), mode: $('modeTag'), info: $('modeInfo'),
@@ -17,6 +18,9 @@ const els = {
   userText: $('userTranscript'), miniText: $('assistantTranscript'),
   remoteAudio: $('remoteAudio'), playAudio: $('playAudioBtn'), diagnostic: $('modelDiagnostic'),
   kidAudio: $('kidAudioBtn'),
+  sharing: $('sharingNotice'), progress: $('activityProgress'),
+  favoriteTopic: $('favoriteTopic'), reactionSounds: $('reactionSounds'), rememberSettings: $('rememberSettings'),
+  forgetSettings: $('forgetSettingsBtn'), settingsInfo: $('settingsInfo'),
   extendDialog: $('extendDialog'), extendForm: $('extendForm'), extensionCode: $('extensionCode'),
   extensionMessage: $('extensionMessage'), extensionApprove: $('extensionApprove'), extensionCancel: $('extensionCancel'),
 };
@@ -33,7 +37,7 @@ function setStatus(message, state = 'idle') {
   const dot = document.createElement('span');
   dot.className = 'status-light';
   els.status.append(dot, document.createTextNode(message));
-  els.face.className = `face ${state}`;
+  els.face.className = `face ${state}${current?.playbackActive && !current?.playbackSuppressed ? ' audible' : ''}`;
   childUI?.onStatus({state, online:Boolean(current?.ready && current.mode === 'realtime' && !current.stopped), running:Boolean(current && !current.stopped)});
 }
 function render() {
@@ -48,6 +52,7 @@ function render() {
   els.start.textContent = mode === 'preview' ? '● Parent: Test camera & mic' : '● Parent: Start live voice';
   for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps, els.limit, els.pace, els.sensitivity, els.keepTalk, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
   els.clearMemory.disabled = running || loading;
+  for(const control of [els.favoriteTopic,els.reactionSounds,els.rememberSettings,els.forgetSettings])control.disabled=running || loading;
   els.mute.disabled = !running;
   els.mute.textContent = s?.muted ? 'Unmute microphone' : 'Mute microphone';
   els.pauseVideo.disabled = !running || !s?.wantVideo || s?.mode === 'preview' || !s?.ready;
@@ -57,11 +62,20 @@ function render() {
   els.videoBadge.textContent = running && s.wantVideo ? (s.mode === 'preview' ? 'Camera local only' : s.videoPaused ? 'Visuals paused' : s.ready ? `Video LIVE · ${s.fps}fps` : 'Camera local') : 'Camera off';
   els.videoBadge.classList.toggle('active', running && s.mode !== 'preview' && s.wantVideo && !s.videoPaused && s.ready);
   els.placeholder.classList.toggle('hidden', !!(running && s.wantVideo && els.preview.srcObject));
+  els.sharing.classList.toggle('hidden',!running);
+  if(running) {
+    const zh=s.language==='zh';
+    const mic=s.audioInputTrack?.enabled && !s.muted;
+    const camera=s.wantVideo && !s.videoPaused;
+    els.sharing.textContent=s.mode==='preview'
+      ? (zh?'仅本地预览 · ':'Local preview · ')+(mic?(zh?'麦克风开启':'Mic on'):(zh?'麦克风静音':'Mic muted'))+' · '+(camera?(zh?'摄像头仅本地':'Camera local only'):(zh?'摄像头关闭':'Camera off'))
+      : (mic && s.mediaReady?(zh?'麦克风实时传送':'Mic live'):(zh?'麦克风未传送':'Mic not sending'))+' · '+(camera && s.mediaReady?(zh?'摄像头实时传送':'Camera live'):(zh?'摄像头未传送':'Camera not sending'));
+  }
 }
 async function maybeUnmuteAudio() {
   const s = current;
   if (!s || s.stopped) return;
-  els.remoteAudio.muted = false;
+  els.remoteAudio.muted = Boolean(s.playbackSuppressed);
   els.remoteAudio.volume = 1;
   current?.audioMeter?.resume();
   current?.micMeter?.resume();
@@ -85,8 +99,8 @@ async function loadConfig() {
     els.mode.textContent = mode === 'realtime' ? 'QWEN REALTIME' : 'LOCAL PREVIEW ONLY';
     els.mode.classList.toggle('is-demo', mode !== 'realtime');
     els.info.textContent = mode === 'realtime'
-      ? `Ready: ${data.model}. A grown-up starts live voice; camera sharing is optional. Model Studio usage incurs charges.`
-      : 'No pay-as-you-go key configured. You can test the iPhone camera and mic locally for free; there will be no AI replies.';
+      ? 'Voice chat is ready. Paid usage begins after parent confirmation. Camera sharing is optional.'
+      : 'Live AI is not configured yet. You can test the microphone and camera locally for free.';
   } catch (e) {
     mode = 'checking';
     els.mode.textContent = 'SERVER OFFLINE';
@@ -174,7 +188,76 @@ function recordFirstReply(s) {
   const elapsed = (performance.now() - s.speechEndedAt) / 1000;
   if (elapsed < 0 || elapsed > 60) return;
   s.replyMeasured = true;
-  els.delay.textContent = 'First AI reply: ~' + elapsed.toFixed(1) + 's';
+  els.delay.textContent = 'First audible reply: ~' + elapsed.toFixed(1) + 's';
+}
+function onRemoteAudio(s,audible) {
+  if(s.stopped || current!==s || s.playbackSuppressed || s.childSpeaking)return;
+  s.playbackActive=audible;
+  if(audible) {
+    s.hadAudibleReply=true;
+    els.kidAudio.classList.add('hidden');
+    recordFirstReply(s);
+    setStatus('Mini is speaking…','speaking');
+    if(s.pendingReaction && !s.reactionPlayed){childUI?.reactToMiniSpeech?.(s.pendingReaction);s.reactionPlayed=true;}
+  } else if(s.responseGenerationDone)finishPlayback(s);
+}
+function finishPlayback(s) {
+  clearTimeout(s.playbackTimer);
+  if(s.stopped || current!==s || s.childSpeaking || !s.responseGenerationDone)return;
+  if(s.playbackActive || s.audioMeter?.isAudible?.()) {
+    s.playbackTimer=setTimeout(()=>finishPlayback(s),120);
+    return;
+  }
+  if(!s.hadAudibleReply) {
+    setStatus('Reply ready · tap below if you could not hear Mini','idle');
+    els.kidAudio.textContent=s.language==='zh'?'▶ 点这里听 Mini 说话':'▶ Tap to hear Mini';
+    els.kidAudio.classList.remove('hidden');
+    return;
+  }
+  setStatus(s.muted?'Microphone muted · Mini cannot hear you':'Your turn · Mini is listening',s.muted?'idle':'listening');
+  childUI?.onResponseFinished();
+}
+function renderActivity(s) {
+  const text=activities.summary(s.activityState,s.language);
+  els.progress.textContent=text;
+  els.progress.classList.toggle('hidden',!text);
+}
+function syncActivityContext(s) {
+  if(s.stopped || current!==s || !s.ready || !s.mediaReady || s.responseActive || s.turnPending || s.childSpeaking ||
+     s.activityUpdatePending || s.contextUpdatePending || s.contextSyncDisabled || !s.activityState ||
+     (s.syncedRevision || 0)===s.activityState.revision || s.eventChannel?.readyState!=='open')return;
+  s.contextUpdatePending=true;
+  s.syncedRevision=s.activityState.revision;
+  try {
+    sendModelEvent(s,{type:'session.update',event_id:'event_'+crypto.randomUUID(),session:{instructions:
+      kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing})+' '+activities.instructions(s.activityState,s.language)}});
+    s.contextAckTimer=setTimeout(()=>{
+      if(s.stopped || current!==s || !s.contextUpdatePending)return;
+      s.contextUpdatePending=false;s.contextSyncDisabled=true;
+      showModelIssue('Activity checkpoints are unavailable. Voice chat remains connected.');
+    },5000);
+  } catch {s.contextUpdatePending=false;s.contextSyncDisabled=true;}
+}
+function initSavedSettings() {
+  const names=['language','personality','sessionLimit','responsePace','listenSensitivity','facing','videoMode','fps','favoriteTopic','keepConversationGoing','reactionSounds'];
+  const saved=extras.loadSettings?.();
+  if(saved) {
+    for(const key of names)if(Object.hasOwn(saved,key)){const el=$(key);if(typeof saved[key]==='boolean')el.checked=saved[key];else el.value=saved[key];}
+    els.rememberSettings.checked=true;
+    els.settingsInfo.textContent='Your selected settings are remembered on this device. Camera sharing stays off until you enable it.';
+  }
+  function save() {
+    if(!els.rememberSettings.checked)return;
+    const settings=Object.fromEntries(names.map(key=>[key,['keepConversationGoing','reactionSounds'].includes(key)?$(key).checked:$(key).value]));
+    const ok=extras.saveSettings(settings);
+    els.settingsInfo.textContent=ok?'Settings saved on this device. Access codes and camera sharing are not saved.':'Browser storage unavailable; settings are only used for this session.';
+  }
+  for(const key of names)$(key).addEventListener('change',save);
+  els.rememberSettings.addEventListener('change',()=>{
+    if(els.rememberSettings.checked)save();
+    else {const ok=extras.clearSettings();els.settingsInfo.textContent=ok?'Saved settings removed; current choices remain for this session.':'Could not remove settings: browser storage is unavailable.';}
+  });
+  els.forgetSettings.addEventListener('click',()=>{const ok=extras.clearSettings();els.rememberSettings.checked=false;els.settingsInfo.textContent=ok?'Saved settings removed. Your preference note is controlled separately below.':'Could not remove settings: browser storage is unavailable.';});
 }
 function updateMemoryLabel(message) {
   els.memoryInfo.textContent = message;
@@ -257,11 +340,13 @@ function cancelCompanionFollowUp(s) {
 function scheduleCompanionFollowUp(s, reply, child, status) {
   cancelCompanionFollowUp(s);
   if (!s.keepConversationGoing || !kids.needsFollowUp(reply, child, status, s.activity)) return;
+  if(!s.hadAudibleReply || !s.audioMeter?.isAudible)return;
   if (!s.mediaReady || s.mode !== 'realtime' || s.muted) return;
   const selectedMode = s.activity;
   const language = s.language === 'zh' ||
     (s.language === 'auto' && /[\u3400-\u9fff]/.test(reply || child || '')) ? 'zh' : 'en';
-  const question = kids.getFollowUp(selectedMode, language, s.followUpCount || 0);
+  if(s.activityState?.story?.stage==='complete' || s.activityState?.game?.round>=3)return;
+  const question = activities.prompt(s.activityState,language) || kids.getFollowUp(selectedMode, language, s.followUpCount || 0);
   const initiatedAt = Date.now();
   const attempt = () => {
     if (s.stopped || current !== s || s.activity !== selectedMode ||
@@ -312,7 +397,7 @@ function requestActivity(value) {
   const activity = kids.mode(value);
   cancelCompanionFollowUp(s);
   s.micMeter?.resume();
-  if (s.responseActive || s.childSpeaking || s.turnPending || s.activityUpdatePending) {
+  if (s.responseActive || s.childSpeaking || s.turnPending || s.activityUpdatePending || s.contextUpdatePending) {
     s.queuedActivity = activity;
     childUI?.onActivityStart(activity, true);
     return true;
@@ -329,7 +414,8 @@ function afterResponse(s) {
     s.queuedActivity = null;
     startActivity(s, activity);
   } else {
-    childUI?.onResponseFinished();
+    clearTimeout(s.contextTimer);
+    s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
   }
 }
 
@@ -338,10 +424,10 @@ function tryInitialize(s) {
       s.pc?.connectionState !== 'connected' ||
       s.eventChannel?.readyState !== 'open') return;
   s.updateSent = true;
-  s.baseInstructions = extras.buildInstructions({personality:s.personality, language:s.language, note:s.note});
+  s.baseInstructions = extras.buildInstructions({personality:s.personality, language:s.language, note:s.note,favoriteTopic:s.favoriteTopic});
   const session = {
     modalities: ['text','audio'],
-    instructions: kids.instructions(s.baseInstructions,'chat',s.wantVideo,{keepConversationGoing:s.keepConversationGoing,opening:s.opening}),
+    instructions: kids.instructions(s.baseInstructions,'chat',s.wantVideo,{keepConversationGoing:s.keepConversationGoing,opening:s.opening})+' '+activities.instructions(s.activityState,s.language),
     input_audio_format: 'pcm',
     output_audio_format: 'pcm',
     input_audio_transcription: {model:'qwen3-asr-flash-realtime'},
@@ -360,6 +446,14 @@ function tryInitialize(s) {
 
 function receiveEvent(s, ev, channel) {
   if (s.stopped || !ev || typeof ev !== 'object') return;
+  if(ev.type?.startsWith('response.') && ev.type!=='response.created') {
+    const id=ev.response_id || ev.response?.id;
+    if(id && s.activeResponseId && id!==s.activeResponseId)return;
+    if(s.responseTurn!==undefined && s.responseTurn!==(s.turnNumber || 0)) {
+      if(ev.type==='response.done')s.responseActive=false;
+      return;
+    }
+  }
   switch (ev.type) {
     case 'session.created':
       s.sessionCreated = true;
@@ -373,6 +467,11 @@ function receiveEvent(s, ev, channel) {
           console.error(error);
           if (!s.stopped) stopMini('Could not start the live microphone or video.');
         });
+      } else if(s.contextUpdatePending) {
+        clearTimeout(s.contextAckTimer);
+        s.contextUpdatePending=false;
+        if(s.queuedActivity && !s.responseActive && !s.turnPending){const next=s.queuedActivity;s.queuedActivity=null;startActivity(s,next);}
+        else syncActivityContext(s);
       } else if (s.activityUpdatePending && s.mediaReady) {
         s.activityUpdatePending = false;
         s.activeActivity = s.activity;
@@ -393,10 +492,15 @@ function receiveEvent(s, ev, channel) {
       cancelCompanionFollowUp(s);
       childUI?.stopSpeech();
       s.lastChildTranscript = '';
+      s.turnNumber=(s.turnNumber || 0)+1;
+      s.playbackSuppressed=true;
+      s.playbackActive=false;
+      els.remoteAudio.muted=true;
+      clearTimeout(s.playbackTimer);
       s.childSpeaking = true;
       s.userSpokeDuringMode = true;
       childUI?.onVoiceDetected(true);
-      els.delay.textContent = 'First AI reply: waiting…';
+      els.delay.textContent = 'First audible reply: waiting…';
       els.userText.textContent = 'Listening…';
       setStatus('You are speaking · listening', 'listening');
       break;
@@ -419,6 +523,8 @@ function receiveEvent(s, ev, channel) {
       els.userText.textContent = `${ev.text || ''}${ev.stash || ''}` || 'Listening…';
       break;
     case 'conversation.item.input_audio_transcription.completed':
+      if(ev.item_id && s.lastTranscriptItem===ev.item_id)return;
+      s.lastTranscriptItem=ev.item_id || null;
       if (kids.isStopCommand(ev.transcript)) {
         stopMini('Voice stop · camera and microphone off', {gentle:true});
         return;
@@ -426,9 +532,12 @@ function receiveEvent(s, ev, channel) {
       els.userText.textContent = ev.transcript || '—';
       if (typeof ev.transcript === 'string') {
         s.lastChildTranscript = ev.transcript.slice(0,240);
-        // For a relevant local follow-up only: allow voice requests to change
-        // story / guessing / show-and-tell without extra Qwen control events.
+        // No extra response request: checkpoint changes are synchronized between turns.
         s.activity = kids.detectRequestedActivity?.(ev.transcript, s.activity) || s.activity;
+        s.activityState=activities.advance(s.activityState,ev.transcript);
+        renderActivity(s);
+        clearTimeout(s.contextTimer);
+        s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
       }
       childUI?.onTranscription(ev.transcript);
       break;
@@ -438,25 +547,32 @@ function receiveEvent(s, ev, channel) {
       s.replyTranscript = '';
       s.replyTextBackup = '';
       s.responseActive = true;
+      s.activeResponseId=ev.response?.id || null;
+      s.responseTurn=s.turnNumber || 0;
+      s.responseGenerationDone=false;
+      s.hadAudibleReply=false;
+      s.pendingReaction='';s.reactionPlayed=false;
+      if(!s.childSpeaking){s.playbackSuppressed=false;els.remoteAudio.muted=false;}
       childUI?.onResponseStarted();
       els.miniText.textContent = '';
-      setStatus('Mini is responding…', 'speaking');
+      setStatus('Mini is preparing a reply…', 'thinking');
       break;
     case 'response.audio_transcript.delta':
-      recordFirstReply(s);
       if (typeof ev.delta === 'string') s.replyTranscript = ((s.replyTranscript || '') + ev.delta).slice(-1800);
       els.miniText.textContent += ev.delta || '';
-      if (ev.delta) setStatus('Mini is speaking…', 'speaking');
+      if(!s.reactionPlayed && /[.!?。！？]/.test(s.replyTranscript || '')) {
+        s.pendingReaction=s.replyTranscript;
+        if(s.playbackActive){childUI?.reactToMiniSpeech?.(s.pendingReaction);s.reactionPlayed=true;}
+      }
       break;
     case 'response.audio_transcript.done':
-      recordFirstReply(s);
       if (typeof ev.transcript === 'string' && ev.transcript.trim()) s.replyTranscript = ev.transcript.slice(-1800);
       els.miniText.textContent = ev.transcript || els.miniText.textContent || '—';
       // Only paint a playful expression; this never changes model requests.
-      childUI?.reactToMiniSpeech?.(ev.transcript);
+      s.pendingReaction=ev.transcript;
+      if(s.playbackActive && !s.reactionPlayed){childUI?.reactToMiniSpeech?.(ev.transcript);s.reactionPlayed=true;}
       break;
     case 'response.text.delta':
-      recordFirstReply(s);
       if (typeof ev.delta === 'string') s.replyTextBackup = ((s.replyTextBackup || '') + ev.delta).slice(-1800);
       break;
     case 'response.text.done':
@@ -472,8 +588,11 @@ function receiveEvent(s, ev, channel) {
       const wasChildAnswer = Boolean(s.turnPending);
       const changedGame = Boolean(s.queuedActivity);
       const spokenAnswer = s.replyTranscript || s.replyTextBackup || '';
-      setStatus('Live · ask Mini another question', 'listening');
+      s.responseGenerationDone=true;
+      if(status==='completed')s.activityState=activities.finishReply(s.activityState);
+      renderActivity(s);
       afterResponse(s);
+      s.playbackTimer=setTimeout(()=>finishPlayback(s),900);
       if (wasChildAnswer && !changedGame) {
         scheduleCompanionFollowUp(s, spokenAnswer, s.lastChildTranscript || '', status);
       }
@@ -485,6 +604,12 @@ function receiveEvent(s, ev, channel) {
       const detail = qwenErrorLabel(ev.error);
       const safe = extras.modelErrorDetails(ev.error);
       console.warn('Mini Qwen error (structured fields only):', detail);
+      if(s.contextUpdatePending && (safe.type==='invalid_request_error' || safe.param.startsWith('session.'))) {
+        clearTimeout(s.contextAckTimer);
+        s.contextUpdatePending=false;s.contextSyncDisabled=true;
+        showModelIssue('Mini could not refresh the activity checkpoint. Voice chat remains connected.');
+        break;
+      }
       if (s.activityUpdatePending &&
           (safe.type === 'invalid_request_error' || safe.param.startsWith('session.'))) {
         s.activityUpdatePending = false;
@@ -608,6 +733,7 @@ async function startMini() {
     keepConversationGoing:els.keepTalk.checked,
     vadThreshold:extras.speechThreshold(els.sensitivity.value),
     personality:els.personality.value, language:els.language.value,
+    favoriteTopic:els.favoriteTopic.value,
     opening:kids.getOpening(els.language.value,openingRound++),
     note:extras.boundedNote(els.note.value),
     muted:false, videoPaused:false, channels:new Set(),
@@ -617,11 +743,13 @@ async function startMini() {
     turnPending:false, followUpCount:0, lastChildTranscript:'', replyTranscript:'', replyTextBackup:'',
     startedAt:Date.now(),
   };
+  s.activityState=activities.fromOpening(s.opening);
+  s.syncedRevision=s.activityState.revision;
   if (s.mode === 'realtime' && !window.confirm('Grown-up check: Start a paid Qwen voice session for up to ' + s.limit + ' minutes? The microphone and any camera you enable will stream while connected.')) return;
   els.diagnostic.textContent = '';
   els.diagnostic.classList.add('hidden');
   s.endsAt = s.startedAt + s.limit * 60000;
-  if (s.mode === 'realtime') s.audioMeter = extras.createVoiceMeter(els.face);
+  if (s.mode === 'realtime') s.audioMeter = extras.createVoiceMeter(els.face,{onAudibleChange:audible=>onRemoteAudio(s,audible),canHear:()=>!s.playbackSuppressed && !els.remoteAudio.muted && !els.remoteAudio.paused});
   current = s;
   loading = true;
   render();
@@ -734,6 +862,9 @@ function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=
   clearTimeout(s.deadline);
   clearTimeout(s.disconnectedTimer);
   clearTimeout(s.thinkingWatchdog);
+  clearTimeout(s.playbackTimer);
+  clearTimeout(s.contextTimer);
+  clearTimeout(s.contextAckTimer);
   cancelCompanionFollowUp(s);
   s.audioMeter?.stop();
   s.micMeter?.stop();
@@ -750,6 +881,11 @@ function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=
   els.userText.textContent = '—';
   els.miniText.textContent = '—';
   els.kidAudio.classList.add('hidden');
+  els.progress.classList.add('hidden');
+  els.progress.textContent='';
+  s.activityState=null;
+  s.lastChildTranscript='';s.replyTranscript='';s.replyTextBackup='';s.pendingReaction='';
+  els.videoToggle.checked=false;
   current = null;
   els.remaining.textContent = 'Remaining: --:--';
   els.remaining.classList.remove('warning');
@@ -829,20 +965,24 @@ els.pauseVideo.addEventListener('click', toggleVideo);
 els.playAudio.addEventListener('click', maybeUnmuteAudio);
 els.kidAudio.addEventListener('click', maybeUnmuteAudio);
 window.addEventListener('pagehide', () => {
+  childUI?.stopLocalPlay?.();
   childUI?.stopSpeech();
   stopMini('Page closed · stopped');
 });
 document.addEventListener('visibilitychange', () => {
   // Stop *both* paid AI and local story narration when Safari is hidden.
   if (document.hidden) {
+    childUI?.stopLocalPlay?.();
     childUI?.stopSpeech();
     if (current) stopMini('Safari hidden · live session stopped for privacy');
   }
 });
 initPreferences();
+initSavedSettings();
 childUI = window.MiniChildUI?.init({
   getSession: () => current,
   getLanguage: () => els.language.value,
+  getReactionSounds: () => els.reactionSounds.checked,
   stopSession: (reason, options) => stopMini(reason, options),
   requestActivity,
 });
