@@ -1,5 +1,14 @@
 # Changelog
 
+## 6.4.0 — Expressive Little Companion
+
+- Redesigned Mini's face with large eyes, pink cheeks, ears, a small antenna, natural blinking and a gentle smile, all in self-contained CSS.
+- Added expressive listening/thinking/talking states, speaking animation from the existing remote-audio meter, and animation for local Safari spoken prompts.
+- Made happy/proud/surprised/curious reactions respond to Mini's own generated reply text without analysing the child's emotion.
+- Preserved tap/peekaboo reactions across status updates and respected reduced-motion accessibility preferences.
+- Kept the established V6.3 conversational UI, Qwen WebRTC connection, parent authorization, opt-in camera sharing and billing timeouts unchanged.
+- Added static resource and face-state tests. Visual appearance and iPhone audio timing still require device testing.
+
 ## 6.3.0 — Just talk to Mini
 
 - Removed all four Talk/Guess/Story/Show buttons from the child screen. One expressive face and live conversation are now the primary interface.
