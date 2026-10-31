@@ -100,25 +100,39 @@ The client sends an SDP offer to your own Node backend, the backend forwards it 
 
 ## 3. Open the live robot on iPhone 12 Pro
 
-Safari microphone and camera permissions require a secure context. Open a **second** PowerShell window:
+Safari camera and microphone capture require a **secure HTTPS origin**. Mini uses your local Windows backend and can be accessed on your phone through Tailscale Serve (recommended) or a protected Cloudflare Tunnel. First verify that the app works at `http://localhost:3001` (or your configured port) on Windows.
+
+### Recommended: private Tailscale Serve connection
+
+[Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve) supplies an HTTPS URL reachable **only within your private tailnet**. It does not expose Mini publicly and avoids Cloudflare Quick Tunnel email-session issues.
+
+1. Install [Tailscale on Windows](https://tailscale.com/download/windows) and [Tailscale on iOS](https://tailscale.com/download/ios), sign in on both with the same Tailscale account, and ensure the iPhone's VPN connection is on.
+2. Keep Mini running on Windows: `npm start` (for this example, `PORT=3001` in `.env`).
+3. Open a second PowerShell window on Windows:
+
+```powershell
+tailscale serve 3001
+```
+
+4. Follow any prompt to enable HTTPS for the tailnet. Tailscale displays a URL such as `https://your-pc.your-tailnet.ts.net`. Open **the exact URL displayed** in iPhone Safari. Tailscale must remain connected on both devices.
+5. Enter Mini's private `ROBOT_ACCESS_CODE`, select the camera settings and tap **Start live Mini**.
+
+Keep the Serve terminal open for testing; use Ctrl+C to stop. Do **not** use `tailscale funnel`—that publishes your service on the internet.
+
+### Alternative: email-protected Cloudflare Quick Tunnel
+
+Install `cloudflared`, then start a protected tunnel from a **second** PowerShell window (replace the email with yours and use your local Mini port):
 
 ```powershell
 winget install -e --id Cloudflare.cloudflared
+cloudflared tunnel --url http://localhost:3001 --allowed-mail you@example.com
 ```
 
-Close/reopen PowerShell after installation if needed. Then start a **protected** temporary HTTPS tunnel (replace with your own email):
+Close/reopen PowerShell after installation if `cloudflared` is not recognized. Open the displayed `https://....trycloudflare.com` URL in iPhone Safari, complete the email PIN challenge, and enter Mini's separate private access code.
 
-```powershell
-cloudflared tunnel --url http://localhost:3000 --allowed-mail you@example.com
-```
+**Known Cloudflare issue (October 2026):** Some `--allowed-mail` Quick Tunnel sessions expire shortly after sign-in; subsequent POST requests return a **plain HTTP 401**, including Mini's `/api/realtime/sdp` request. This matches [cloudflare/cloudflared issue #1752](https://github.com/cloudflare/cloudflared/issues/1752). If the local Windows app works but Safari reports a generic SDP HTTP 401 behind the email-protected tunnel, use Tailscale Serve instead. **Do not disable email protection to bypass the problem** on a public URL.
 
-Use the printed `https://....trycloudflare.com` address in **iPhone Safari**. Complete the one-time email verification, enter your robot access code, and select front/rear camera, 1 fps, and a 5 minute limit. Tap **Start live Mini**, then grant microphone/camera permissions.
-
-Say: **“Hello Mini, what can you see in front of you?”**, and try the same question in Chinese: **“你好 Mini，你看到什么？”**
-
-If Safari initially refuses to play the model's voice, tap **Enable speaker audio**, then raise your iPhone volume. Keep the screen awake and Safari foregrounded. If you put Safari in the background, the app intentionally stops the session.
-
-Cloudflare documents the protected `--allowed-mail` Quick Tunnel option: https://developers.cloudflare.com/changelog/post/2026-10-02-protected-quick-tunnels/.
+With either HTTPS method, say: **"Hello Mini, what can you see in front of you?"** and try **"你好 Mini，你看到什么？"**. If Safari refuses to play the model's voice, tap **Enable speaker audio** and raise the iPhone volume. Keep Safari open and the screen awake; backgrounding Safari intentionally stops the session.
 
 ## What is / is not continuous
 
@@ -162,7 +176,7 @@ Node.js v22.13.0 and npm 10.9.2 are sufficient for this project. You do **not** 
 | Symptom | Next step |
 |---|---|
 | LOCAL PREVIEW ONLY | Set both `.env` pay-as-you-go variables and restart Node. |
-| Authentication 401 from Mini | Check `ROBOT_ACCESS_CODE` in `.env` and the code entered in Safari; restart Mini after editing `.env`. A generic 401 without Mini's JSON error may instead be from the protected tunnel. Complete the tunnel's email login in Safari and refresh. |
+| Authentication 401 from Mini | Check `ROBOT_ACCESS_CODE` in `.env` and the code entered in Safari; restart Mini after editing `.env`. A **generic non-JSON SDP HTTP 401** may be caused by the [Cloudflare `--allowed-mail` session-expiration bug](https://github.com/cloudflare/cloudflared/issues/1752); if localhost works, try private Tailscale Serve instead. |
 | Server rejects Token Plan | Expected; custom robot app must use pay-as-you-go. |
 | Model Studio 403 / 404 | Check Workspace ID, Singapore key, permissions and availability of realtime model. |
 | No camera | Use HTTPS, foreground Safari, allow permissions. Try front camera first. |
