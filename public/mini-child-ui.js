@@ -44,7 +44,8 @@
         button.setAttribute('aria-pressed',String(selected));
         button.querySelector('strong').textContent = labels[item.mode];
       }
-      modeLine.textContent = options.getSession()?.ready
+      const session = options.getSession();
+      modeLine.textContent = session?.ready && session.mode === 'realtime'
         ? '🎲 ' + labels[activity] + ' · AI conversation'
         : '🎤 Ask a grown-up to start the AI';
     }
@@ -140,8 +141,9 @@
         micHelp.textContent='Ask a grown-up to start Mini. Then answer out loud, even with one word.';
         setHint(words().blocked);
       } else if(!online) {
-        micStatus.textContent='🎤 Connecting…';
-        vadStatus.textContent='AI speech detection: waiting';
+        const session=options.getSession();
+        micStatus.textContent=session?.mode==='preview'?'🎤 Local preview only':'🎤 Connecting…';
+        vadStatus.textContent=session?.mode==='preview'?'AI is not connected':'AI speech detection: waiting';
       } else if(info.state==='speaking') {
         setHint(words().playing);
       } else if(info.state==='thinking') {
@@ -208,7 +210,7 @@
         : level>=8?'🎤 Sound reaching mic':'🎤 Mic on · speak near phone';
       // Mic sound is only a local signal, not proof the model recognised speech.
       if(level>=8 && !speechActive && Date.now()-lastVoiceAt>7000) {
-        micHelp.textContent='Sound is reaching the phone. If Mini stays silent, speak a little louder or try Normal sensitivity.';
+        micHelp.textContent='Sound is reaching the phone. If Mini stays silent, move closer, speak clearly, and reduce background noise.';
       }
     }
 
