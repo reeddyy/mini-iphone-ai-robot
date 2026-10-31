@@ -170,3 +170,12 @@ select:disabled{opacity:.5}.actions button{min-width:0;white-space:normal}
 .kid-model-issue{margin-top:12px;border:1px solid #da9773;background:#5e3a385c;
   color:#ffe7d9;border-radius:11px;padding:11px 12px;font-size:12px;
   line-height:1.55;overflow-wrap:anywhere;font-weight:700}
+
+/* Mini V6.3: just the robot face for children. Diagnostics are parent-only. */
+.kid-home{max-width:540px;margin-left:auto;margin-right:auto;padding-top:8px}
+.kid-home .kid-hint{font-size:20px;min-height:48px;margin-bottom:8px}
+.kid-home .kid-mode-line{font-size:14px;color:#bfdbf7;margin:4px 0 16px}
+.parent-diagnostics{margin:12px 8px 16px;border:1px solid #546982;border-radius:13px;
+  background:#152239;color:#d8e6fc;padding:9px 12px}
+.parent-diagnostics>summary{cursor:pointer;font-size:12px;font-weight:750;line-height:1.45;padding:5px 0}
+.parent-diagnostics .kid-listening{margin:9px 0 0}
