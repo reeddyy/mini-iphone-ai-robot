@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101426">
   <meta name="description" content="Mini: a simple, voice-first child companion with parent-controlled live AI and camera">
-  <title>Mini V6.3 · Just Talk to Mini</title>
+  <title>Mini V6.4 · Expressive Little Companion</title>
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/mini-face.css">
   <script src="/mini-extras.js" defer></script>
   <script src="/mini-kids.js" defer></script>
   <script src="/mini-child-ui.js" defer></script>
@@ -16,15 +17,36 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand-mark" aria-hidden="true">✦</div>
-      <div><div class="eyebrow">Just talk to Mini · V6.3</div><h1>Hi, I’m Mini<span class="dot">!</span></h1></div>
+      <div><div class="eyebrow">A cuter little Mini · V6.4</div><h1>Hi, I’m Mini<span class="dot">!</span></h1></div>
       <div id="kidLiveTag" class="kid-live-tag">♡ NEEDS GROWN-UP</div>
     </header>
     <section class="robot-stage" aria-label="Animated robot face">
       <div class="halo"></div>
       <div id="kidSparkles" class="kid-sparkles" aria-hidden="true"></div>
       <div id="robotFace" class="face idle">
-        <div class="eyes"><div class="eye"><div class="pupil"></div><div class="glint"></div></div><div class="eye"><div class="pupil"></div><div class="glint"></div></div></div>
-        <div class="mouth"><span></span><span></span><span></span><span></span><span></span></div>
+        <span class="mini-ear left" aria-hidden="true"></span>
+        <span class="mini-ear right" aria-hidden="true"></span>
+        <span class="mini-antenna" aria-hidden="true"></span>
+        <div class="mini-brows" aria-hidden="true">
+          <span class="mini-brow"></span><span class="mini-brow"></span>
+        </div>
+        <div class="eyes" aria-hidden="true">
+          <div class="eye">
+            <div class="pupil"></div><div class="glint"></div>
+            <div class="mini-eye-sparkle"></div><div class="mini-lid"></div>
+          </div>
+          <div class="eye">
+            <div class="pupil"></div><div class="glint"></div>
+            <div class="mini-eye-sparkle"></div><div class="mini-lid"></div>
+          </div>
+        </div>
+        <span class="mini-cheek left" aria-hidden="true"></span>
+        <span class="mini-cheek right" aria-hidden="true"></span>
+        <span class="mini-freckle left" aria-hidden="true"></span>
+        <span class="mini-freckle right" aria-hidden="true"></span>
+        <div class="mouth" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+        <span class="mini-star left" aria-hidden="true">✦</span>
+        <span class="mini-star right" aria-hidden="true">✦</span>
       </div>
       <div id="status" class="status" role="status" aria-live="polite"><span class="status-light"></span>Mini is resting</div>
       <div class="tip">No buttons to learn. Just talk to me! 💜</div>
