@@ -77,7 +77,7 @@
   function createVoiceMeter(face) {
     const Ctor = window.AudioContext || window.webkitAudioContext;
     if (!Ctor || !face || !window.requestAnimationFrame) return null;
-    let audio, source, analyser, animationId = null, active = false, lastPaint = 0;
+    let audio, source, analyser, animationId = null, active = false, lastPaint = 0, lastAudibleAt = -Infinity;
     try {
       audio = new Ctor();
       audio.resume().catch(() => {});
@@ -96,6 +96,7 @@
           power += v * v;
         }
         const rms = Math.sqrt(power / samples.length);
+        if (rms > 0.018) lastAudibleAt = now;
         face.classList.toggle('audible', rms > 0.018);
         face.style.setProperty('--mouth-height', Math.round(Math.min(28, Math.max(5, 5 + rms * 180))) + 'px');
       }
@@ -117,6 +118,7 @@
         }
       },
       resume() { return audio.resume().catch(() => {}); },
+      isAudible() { return active && performance.now() - lastAudibleAt < 850; },
       stop() {
         active = false;
         if (animationId !== null) window.cancelAnimationFrame(animationId);
