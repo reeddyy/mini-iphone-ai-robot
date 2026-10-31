@@ -131,6 +131,16 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   }
   try {
     const app = createApp({accessCode:code});
+    app.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        const suggestedPort = port === 3001 ? 3002 : 3001;
+        console.error(`Mini cannot start: port ${port} is already in use on 127.0.0.1.`);
+        console.error(`Open .env, change PORT=${port} to PORT=${suggestedPort}, save it, then run npm start again.`);
+      } else {
+        console.error('Mini server could not start:', err.message);
+      }
+      process.exitCode = 1;
+    });
     app.listen(port, '127.0.0.1', () => {
       console.log(`Mini V3: http://localhost:${port}`);
       console.log(process.env.ALIBABA_API_KEY ? 'AI mode: pay-as-you-go Qwen realtime' : 'AI mode: LOCAL PREVIEW ONLY (no AI charges)');
