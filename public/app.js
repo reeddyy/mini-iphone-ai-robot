@@ -1,9 +1,13 @@
 // Mini V3: one browser WebRTC session, continuous microphone, optional low-fps video.
 // No Alibaba API key is ever sent to this JavaScript. SDP exchange goes through /api/realtime/sdp.
+const extras = window.MiniExtras;
 const $ = id => document.getElementById(id);
 const els = {
   face: $('robotFace'), status: $('status'), mode: $('modeTag'), info: $('modeInfo'),
-  code: $('accessCode'), start: $('startBtn'), stop: $('stopBtn'),
+  code: $('accessCode'), start: $('startBtn'), stop: $('stopBtn'), extend: $('extendBtn'),
+  pace: $('responsePace'), remaining: $('remainingTime'), delay: $('replyDelay'),
+  personality: $('personality'), language: $('language'),
+  note: $('familyNote'), remember: $('rememberPrefs'), clearMemory: $('clearMemoryBtn'), memoryInfo: $('memoryInfo'),
   postTest: $('postTestBtn'), postResult: $('postTestResult'),
   videoToggle: $('sendVideo'), facing: $('facing'), videoMode: $('videoMode'), fps: $('fps'), limit: $('sessionLimit'),
   preview: $('preview'), placeholder: $('cameraPlaceholder'),
@@ -27,11 +31,15 @@ function setStatus(message, state = 'idle') {
 function render() {
   const s = current;
   const running = !!s && !s.stopped;
+  const canExtend = running && s.mode === 'realtime' && s.endsAt < s.startedAt + extras.MAX_SESSION_MINUTES * 60000;
+  els.extend.classList.toggle('hidden', !canExtend);
+  els.extend.disabled = loading || !s?.ready || !canExtend;
   els.start.classList.toggle('hidden', running);
   els.stop.classList.toggle('hidden', !running);
   els.start.disabled = loading || mode === 'checking';
   els.start.textContent = mode === 'preview' ? '● Test local camera and mic' : '● Start live Mini';
-  for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps, els.limit]) control.disabled = running || loading;
+  for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps, els.limit, els.pace, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
+  els.clearMemory.disabled = running || loading;
   els.mute.disabled = !running;
   els.mute.textContent = s?.muted ? 'Unmute microphone' : 'Mute microphone';
   els.pauseVideo.disabled = !running || !s?.wantVideo || s?.mode === 'preview' || !s?.ready;
@@ -45,6 +53,7 @@ function render() {
 function maybeUnmuteAudio() {
   els.remoteAudio.muted = false;
   els.remoteAudio.volume = 1;
+  current?.audioMeter?.resume();
   els.remoteAudio.play().catch(() => {
     els.playAudio.textContent = '▶ Tap to hear Mini';
   });
@@ -66,6 +75,76 @@ async function loadConfig() {
     els.info.textContent = e.message;
   }
   render();
+}
+
+
+function clockText(seconds) {
+  const amount = Math.max(0, Math.floor(seconds));
+  return String(Math.floor(amount / 60)).padStart(2, '0') + ':' + String(amount % 60).padStart(2, '0');
+}
+function updateSessionClock(s) {
+  if (s.stopped || current !== s) return;
+  els.clock.textContent = clockText((Date.now() - s.startedAt) / 1000);
+  const remaining = Math.max(0, Math.ceil((s.endsAt - Date.now()) / 1000));
+  els.remaining.textContent = 'Remaining: ' + clockText(remaining);
+  els.remaining.classList.toggle('warning', remaining <= 60);
+  if (remaining === 0) stopMini('Session automatically stopped to limit costs.');
+}
+function scheduleSessionStop(s) {
+  clearTimeout(s.deadline);
+  s.deadline = setTimeout(() => {
+    if (!s.stopped && current === s) stopMini('Session automatically stopped to limit costs.');
+  }, Math.max(0, s.endsAt - Date.now()));
+}
+function extendSession() {
+  const s = current;
+  if (!s || s.stopped || s.mode !== 'realtime' || !s.ready) return;
+  const maximum = s.startedAt + extras.MAX_SESSION_MINUTES * 60000;
+  if (s.endsAt >= maximum) return;
+  if (!window.confirm('Add 5 minutes to this paid Qwen session? Microphone and any enabled camera sharing will continue.')) return;
+  s.endsAt = Math.min(maximum, s.endsAt + 5 * 60000);
+  scheduleSessionStop(s);
+  updateSessionClock(s);
+  render();
+}
+function recordFirstReply(s) {
+  if (s.stopped || s.replyMeasured || !Number.isFinite(s.speechEndedAt)) return;
+  const elapsed = (performance.now() - s.speechEndedAt) / 1000;
+  if (elapsed < 0 || elapsed > 60) return;
+  s.replyMeasured = true;
+  els.delay.textContent = 'First AI reply: ~' + elapsed.toFixed(1) + 's';
+}
+function updateMemoryLabel(message) {
+  els.memoryInfo.textContent = message;
+}
+function initPreferences() {
+  const previous = extras.loadSavedNote();
+  if (previous !== null) {
+    els.note.value = previous;
+    els.remember.checked = true;
+    updateMemoryLabel('A preference note is saved locally in this Safari browser. No transcripts or camera footage are saved.');
+  }
+  els.note.addEventListener('input', () => {
+    if (els.remember.checked) {
+      const ok = extras.saveNote(els.note.value);
+      updateMemoryLabel(ok ? 'Preference note saved locally on this browser.' : 'Browser storage unavailable; note is only used for the current session.');
+    }
+  });
+  els.remember.addEventListener('change', () => {
+    if (els.remember.checked) {
+      const ok = extras.saveNote(els.note.value);
+      updateMemoryLabel(ok ? 'Remembering this note only in this Safari browser. Clear it at any time.' : 'Browser storage unavailable; note will not be remembered.');
+    } else {
+      extras.clearNote();
+      updateMemoryLabel('Saved preference note removed. Current text remains for this session only.');
+    }
+  });
+  els.clearMemory.addEventListener('click', () => {
+    extras.clearNote();
+    els.note.value = '';
+    els.remember.checked = false;
+    updateMemoryLabel('Preference note cleared. No conversation history is stored.');
+  });
 }
 
 function waitForIce(s) {
@@ -98,21 +177,12 @@ function tryInitialize(s) {
   s.updateSent = true;
   const session = {
     modalities: ['text','audio'],
-    instructions: [
-      'You are Mini, a friendly, playful iPhone-powered family robot.',
-      'Use a natural spoken voice, with short sentences appropriate for conversation.',
-      'Reply in English or Mandarin to match the person speaking.',
-      'Use the live camera only to describe things you can actually see; acknowledge uncertainty.',
-      'Speak only when someone clearly addresses you or asks a question; ignore unrelated television and background chatter as much as possible.',
-      'You are a stationary robot without arms. Never say you moved or touched something.',
-      'Avoid asking children for names, addresses, school or other private information.',
-      'Do not read violent or inappropriate content to children.',
-    ].join(' '),
+    instructions: extras.buildInstructions({personality:s.personality, language:s.language, note:s.note}),
     input_audio_format: 'pcm',
     output_audio_format: 'pcm',
     input_audio_transcription: {model:'qwen3-asr-flash-realtime'},
     audio: {output:{voice:'Tina'}},
-    turn_detection: {type:'semantic_vad', threshold:0.5, silence_duration_ms:800, prefix_padding_ms:500},
+    turn_detection: {type:'semantic_vad', threshold:0.5, silence_duration_ms:s.silenceMs, prefix_padding_ms:500},
   };
   if (s.wantVideo) session.video = {input:{representation_compact:'normal'}};
   try {
@@ -141,10 +211,13 @@ function receiveEvent(s, ev, channel) {
       }
       break;
     case 'input_audio_buffer.speech_started':
+      els.delay.textContent = 'First AI reply: waiting…';
       els.userText.textContent = 'Listening…';
       setStatus('You are speaking · listening', 'listening');
       break;
     case 'input_audio_buffer.speech_stopped':
+      s.speechEndedAt = performance.now();
+      s.replyMeasured = false;
       setStatus('Mini is thinking…', 'thinking');
       break;
     case 'conversation.item.input_audio_transcription.delta':
@@ -158,10 +231,16 @@ function receiveEvent(s, ev, channel) {
       setStatus('Mini is responding…', 'speaking');
       break;
     case 'response.audio_transcript.delta':
+      recordFirstReply(s);
       els.miniText.textContent += ev.delta || '';
+      if (ev.delta) setStatus('Mini is speaking…', 'speaking');
       break;
     case 'response.audio_transcript.done':
+      recordFirstReply(s);
       els.miniText.textContent = ev.transcript || els.miniText.textContent || '—';
+      break;
+    case 'response.text.delta':
+      recordFirstReply(s);
       break;
     case 'response.done':
       setStatus('Live · ask Mini another question', 'listening');
@@ -257,11 +336,17 @@ async function startMini() {
     stopped:false, mode, abort:new AbortController(),
     wantVideo:els.videoToggle.checked, facing:els.facing.value,
     fps:Number(els.fps.value) === 2 ? 2 : 1, videoMode:els.videoMode.value,
-    limit:Number(els.limit.value) || 5,
+    limit:extras.durationMinutes(els.limit.value),
+    silenceMs:extras.silenceDuration(els.pace.value),
+    personality:els.personality.value, language:els.language.value,
+    note:extras.boundedNote(els.note.value),
     muted:false, videoPaused:false, channels:new Set(),
     ready:false, updateSent:false, sessionCreated:false, mediaStarted:false,
     startedAt:Date.now(),
   };
+  if (s.mode === 'realtime' && s.limit > 15 && !window.confirm('Start a paid Qwen session for up to ' + s.limit + ' minutes? Camera and microphone streams may incur charges throughout.')) return;
+  s.endsAt = s.startedAt + s.limit * 60000;
+  if (s.mode === 'realtime') s.audioMeter = extras.createVoiceMeter(els.face);
   current = s;
   loading = true;
   render();
@@ -279,11 +364,9 @@ async function startMini() {
       await els.preview.play().catch(() => {});
     }
     if (s.stopped) return;
-    s.timer = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - s.startedAt) / 1000);
-      els.clock.textContent = `${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
-    }, 500);
-    s.deadline = setTimeout(() => { if (!s.stopped) stopMini('Session automatically stopped to limit costs.'); }, s.limit*60_000);
+    s.timer = setInterval(() => updateSessionClock(s), 500);
+    scheduleSessionStop(s);
+    updateSessionClock(s);
 
     if (s.mode === 'preview') {
       s.ready = true;
@@ -295,8 +378,19 @@ async function startMini() {
     s.pc = new RTCPeerConnection({iceServers:[]});
     s.pc.onconnectionstatechange = () => {
       if (s.stopped) return;
-      if (s.pc.connectionState === 'connected') tryInitialize(s);
-      else if (['failed','closed','disconnected'].includes(s.pc.connectionState)) stopMini('WebRTC connection ended.');
+      if (s.pc.connectionState === 'connected') {
+        clearTimeout(s.disconnectedTimer);
+        if (s.ready) setStatus('Mini is live again · listening', 'listening');
+        tryInitialize(s);
+      } else if (s.pc.connectionState === 'disconnected') {
+        setStatus('Network interruption · trying to recover…', 'thinking');
+        clearTimeout(s.disconnectedTimer);
+        s.disconnectedTimer = setTimeout(() => {
+          if (!s.stopped && s.pc.connectionState === 'disconnected') stopMini('WebRTC disconnected for more than 10 seconds. Tap Start to reconnect manually.');
+        }, 10000);
+      } else if (['failed','closed'].includes(s.pc.connectionState)) {
+        stopMini('WebRTC connection ended.');
+      }
     };
     s.pc.ontrack = ({track, streams}) => {
       if (s.stopped || track.kind !== 'audio') return;
@@ -306,6 +400,7 @@ async function startMini() {
         s.remoteStream.addTrack(track);
         els.remoteAudio.srcObject = s.remoteStream;
       }
+      s.audioMeter?.attach(els.remoteAudio.srcObject);
       maybeUnmuteAudio();
     };
     s.pc.ondatachannel = ({channel}) => bindChannel(s, channel);
@@ -355,6 +450,8 @@ function stopMini(reason = 'Mini stopped · camera and microphone off') {
   s.abort.abort();
   clearInterval(s.timer);
   clearTimeout(s.deadline);
+  clearTimeout(s.disconnectedTimer);
+  s.audioMeter?.stop();
   if (s.drawRaf) cancelAnimationFrame(s.drawRaf);
   for (const channel of s.channels) { try {channel.close();} catch {} }
   try {s.pc?.close();} catch {}
@@ -367,6 +464,8 @@ function stopMini(reason = 'Mini stopped · camera and microphone off') {
   els.remoteAudio.srcObject = null;
   els.userText.textContent = '—';
   current = null;
+  els.remaining.textContent = 'Remaining: --:--';
+  els.remaining.classList.remove('warning');
   setStatus(reason, reason.includes('failed') || reason.includes('error') || reason.includes('Cannot') ? 'error' : 'idle');
   render();
 }
@@ -427,6 +526,7 @@ async function testPostConnection() {
 
 els.postTest.addEventListener('click', testPostConnection);
 els.start.addEventListener('click', startMini);
+els.extend.addEventListener('click', extendSession);
 els.stop.addEventListener('click', () => stopMini());
 els.mute.addEventListener('click', toggleMute);
 els.pauseVideo.addEventListener('click', toggleVideo);
@@ -436,5 +536,6 @@ document.addEventListener('visibilitychange', () => {
   // Avoid unintentional audio/video billing when the iPhone changes apps or locks.
   if (document.hidden && current) stopMini('Safari hidden · live session stopped for privacy');
 });
+initPreferences();
 loadConfig();
 render();
