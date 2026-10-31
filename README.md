@@ -43,9 +43,15 @@ Official references:
 
 ## 1. Local setup on Windows
 
-1. Install Node.js 22+ from https://nodejs.org/.
-2. Unzip to a folder on the computer and open PowerShell inside it.
-3. Copy the example configuration:
+1. Install [Git for Windows](https://git-scm.com/downloads/win) and [Node.js 22+](https://nodejs.org/). Open PowerShell. Verify both commands are available with `git --version` and `node --version`.
+2. **Clone the private GitHub repository once** (GitHub may prompt you to sign in):
+
+```powershell
+git clone https://github.com/reeddyy/mini-iphone-ai-robot.git
+cd mini-iphone-ai-robot
+```
+
+3. Copy the example configuration into a local, Git-ignored `.env` file:
 
 ```powershell
 Copy-Item .env.example .env
@@ -60,6 +66,18 @@ npm start
 ```
 
 6. Open http://localhost:3000 on the Windows computer. Use the private access code and press **Test local camera and mic**. Browser may request camera/mic access. **This mode has no AI and no usage charges.**
+
+### Getting future updates
+
+You **do not need to download ZIPs or clone the project again**. From the existing project folder, stop the app with Ctrl+C, pull the latest code, and restart:
+
+```powershell
+cd mini-iphone-ai-robot
+git pull
+npm start
+```
+
+If you're already inside `mini-iphone-ai-robot`, skip the `cd` command. Keep your `.env` local; do not commit or upload it. Before pulling, commit or set aside any changes you intentionally made to tracked source files.
 
 ## 2. Enable live Qwen audio + vision
 
