@@ -43,41 +43,63 @@ Official references:
 
 ## 1. Local setup on Windows
 
-1. Install [Git for Windows](https://git-scm.com/downloads/win) and [Node.js 22+](https://nodejs.org/). Open PowerShell. Verify both commands are available with `git --version` and `node --version`.
-2. **Clone the private GitHub repository once** (GitHub may prompt you to sign in):
+Because this is a **private GitHub repository**, your Windows computer must authenticate with the GitHub account that has access (currently `reeddyy`). Connecting GitHub to ChatGPT **does not** log Git or PowerShell in on your PC.
+
+### Recommended: GitHub CLI (browser sign-in)
+
+1. Install [Git for Windows](https://git-scm.com/downloads/win), [Node.js 22+](https://nodejs.org/) and [GitHub CLI](https://cli.github.com/). You can install GitHub CLI from PowerShell:
 
 ```powershell
-git clone https://github.com/reeddyy/mini-iphone-ai-robot.git
+winget install --id GitHub.cli -e
+```
+
+Close and reopen PowerShell if `gh` is not found after installation.
+
+2. Authenticate to **your own GitHub account** in the browser. Select `GitHub.com` and HTTPS if prompted, and approve the authorization. Do not paste passwords or access tokens into this project.
+
+```powershell
+gh auth login --hostname github.com --git-protocol https --web
+gh auth setup-git
+gh auth status
+```
+
+Confirm that `gh auth status` shows the GitHub account with access to this private repository.
+
+3. **Clone once**, after authentication:
+
+```powershell
+gh repo clone reeddyy/mini-iphone-ai-robot
 cd mini-iphone-ai-robot
 ```
 
-3. Copy the example configuration into a local, Git-ignored `.env` file:
+**Alternative:** Recent [Git for Windows](https://git-scm.com/downloads/win) includes Git Credential Manager. With it, `git clone https://github.com/reeddyy/mini-iphone-ai-robot.git` can also work, but Git Credential Manager must prompt you to authorize your GitHub account in the browser (or must already have valid credentials). An unauthenticated clone of this private repository will fail. See [GitHub's authentication guide](https://docs.github.com/en/get-started/git-basics/caching-your-github-credentials-in-git?platform=windows).
+
+4. Copy the example configuration into a local, Git-ignored `.env` file:
 
 ```powershell
 Copy-Item .env.example .env
 notepad .env
 ```
 
-4. Set `ROBOT_ACCESS_CODE` to your own **secret 10+ character value**. For a free local preview, leave `ALIBABA_API_KEY` and `ALIBABA_WORKSPACE_ID` blank.
-5. Start the app:
+5. Set `ROBOT_ACCESS_CODE` to your own **secret 10+ character value**. For a free local preview, leave `ALIBABA_API_KEY` and `ALIBABA_WORKSPACE_ID` blank.
+6. Start the app:
 
 ```powershell
 npm start
 ```
 
-6. Open http://localhost:3000 on the Windows computer. Use the private access code and press **Test local camera and mic**. Browser may request camera/mic access. **This mode has no AI and no usage charges.**
+7. Open http://localhost:3000 on the Windows computer. Use the private access code and press **Test local camera and mic**. Browser may request camera/mic access. **This mode has no AI and no usage charges.**
 
 ### Getting future updates
 
 You **do not need to download ZIPs or clone the project again**. From the existing project folder, stop the app with Ctrl+C, pull the latest code, and restart:
 
 ```powershell
-cd mini-iphone-ai-robot
 git pull
 npm start
 ```
 
-If you're already inside `mini-iphone-ai-robot`, skip the `cd` command. Keep your `.env` local; do not commit or upload it. Before pulling, commit or set aside any changes you intentionally made to tracked source files.
+Run those commands **inside** the `mini-iphone-ai-robot` folder; `git pull` uses the credentials configured above. Keep your `.env` local; do not commit or upload it. Before pulling, commit or set aside any changes you intentionally made to tracked source files.
 
 ## 2. Enable live Qwen audio + vision
 
