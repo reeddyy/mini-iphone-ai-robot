@@ -18,80 +18,81 @@ function kidsContent() {
   return window.MiniKidsContent;
 }
 
-test('Kid scripts and main Mini app parse as JavaScript',()=>{
-  for (const path of [kidsFile,uiFile,appFile,extrasFile]) {
-    assert.doesNotThrow(()=>execFileSync(process.execPath,['--check',path]),path);
+test('Child scripts and WebRTC app are syntactically valid',()=>{
+  for (const file of [kidsFile,uiFile,appFile,extrasFile]) {
+    assert.doesNotThrow(()=>execFileSync(process.execPath,['--check',file]),file);
   }
 });
 
-test('The child home is first, and advanced controls are under parent details',()=>{
-  const html = readFileSync(htmlFile,'utf8');
-  const kid = html.indexOf('class="kid-home"');
-  const adult = html.indexOf('id="parentSetup"');
-  const start = html.indexOf('id="startBtn"');
-  assert.ok(kid > 0);
-  assert.ok(adult > kid,'parent settings follow the face and child actions');
-  assert.ok(start > adult,'the charged AI session starts inside parent settings');
+test('Child home has four live conversation buttons and microphone feedback',()=>{
+  const html=readFileSync(htmlFile,'utf8');
+  const kid=html.indexOf('class="kid-home"'),adult=html.indexOf('id="parentSetup"');
+  assert.ok(kid>0 && adult>kid);
+  for(const id of ['kidChat','kidGuess','kidStory','kidLook','kidMicStatus','kidMicBar','kidVadStatus','kidMicHelp','listenSensitivity']) {
+    assert.ok(html.includes('id="'+id+'"'),id);
+  }
+  assert.match(html,/<input id="sendVideo" type="checkbox">/,'camera is opt-in');
   assert.match(html,/<details id="parentSetup" class="parent-setup">/);
-  assert.match(html,/<button id="kidStopBtn"/);
-  assert.match(html,/<button class="kid-action story" id="kidStory"/);
-  assert.match(html,/<button class="kid-action guess" id="kidGuess"/);
-  assert.match(html,/<button class="kid-action look" id="kidLook"/);
-  assert.match(html,/<input id="sendVideo" type="checkbox">/,'camera sharing opt-in');
-  const extras=html.indexOf('/mini-extras.js');
-  const stories=html.indexOf('/mini-kids.js');
-  const kidUI=html.indexOf('/mini-child-ui.js');
-  const app=html.indexOf('/app.js');
-  assert.ok(extras > 0 && extras < stories && stories < kidUI && kidUI < app);
+  assert.ok(html.indexOf('id="startBtn"')>adult,'paid AI starts under parent area');
+  assert.doesNotMatch(html,/FREE · OFFLINE|OFFLINE<\/small>/);
 });
 
-test('Original bilingual stories contain titles and narration but no user data',()=>{
-  const kids=kidsContent();
-  assert.ok(kids.storyCount >= 3);
-  for(let i=0;i<kids.storyCount;i++) {
-    const en=kids.story(i,'en');
-    const zh=kids.story(i,'zh');
-    assert.ok(en.title.length > 5 && en.text.length > 70);
-    assert.ok(zh.title.length > 3 && zh.text.length > 40);
-    assert.notEqual(en.title,zh.title);
-    assert.notEqual(en.text,zh.text);
+test('Games build live AI instructions; answers in one word count',()=>{
+  const kid=kidsContent();
+  assert.deepEqual(Array.from(kid.modes),['chat','guess','story','look']);
+  for(const mode of kid.modes){
+    const en=kid.instructions('Base rules',mode,true);
+    const off=kid.instructions('Base rules',mode,false);
+    assert.match(en,/ONE short word|single word/i);
+    assert.match(en,/never ignore a reply|Do not require .* wake word/i);
+    assert.match(en,/Base rules/);
+    assert.match(off,/camera is not shared/i);
+    assert.match(off,/cannot see any objects/i);
+    assert.ok(kid.getFallback(mode,'en').length>15);
+    assert.ok(kid.getFallback(mode,'zh').length>5);
   }
-  assert.equal(kids.story(kids.storyCount,'en').title,kids.story(0,'en').title);
+  assert.match(kid.instructions('','guess',false),/giraffe/i);
+  assert.match(kid.instructions('','story',false),/incorporate their spoken answer/i);
+  assert.match(kid.getLabels('zh').chat,/聊天/);
 });
 
-test('Offline animal quiz is bounded, varied and bilingual',()=>{
-  const kids=kidsContent();
-  assert.ok(kids.quizCount >= 6);
-  const positions=new Set();
-  for(let i=0;i<kids.quizCount;i++) {
-    const en=kids.quiz(i,'en'),zh=kids.quiz(i,'zh');
-    assert.ok(en.question.length >= 12);
-    assert.ok(zh.question.length >= 8);
-    assert.equal(en.choices.length,3);
-    assert.equal(zh.correct,en.correct);
-    assert.equal(en.choices[en.correct],zh.choices[zh.correct]);
-    assert.ok(en.correct>=0 && en.correct<3);
-    positions.add(en.correct);
-  }
-  assert.ok(positions.size>=2,'correct choice is not always in the same position');
-});
-
-test('Child UI is offline-first and never sends AI requests directly',()=>{
+test('The child UI never stops Qwen simply because a game is selected',()=>{
   const script=readFileSync(uiFile,'utf8');
-  assert.match(script,/options\.stopSession\('Switched to free offline play/);
-  assert.match(script,/audioInputTrack/);
-  assert.match(script,/speechSynthesis/);
-  assert.doesNotMatch(script,/fetch\(|sendModelEvent\(|WebSocket\(|RTCPeerConnection\(/);
-  assert.match(script,/kidParentLink/);
-  assert.match(script,/kidStopBtn/);
+  assert.match(script,/options\.requestActivity\(activity\)/);
+  assert.doesNotMatch(script,/Switched to free offline play/);
+  assert.doesNotMatch(script,/function switchToOfflinePlay/);
+  assert.doesNotMatch(script,/fetch\(|RTCPeerConnection\(/);
+  assert.match(script,/onVoiceDetected/);
+  assert.match(script,/onMicLevel/);
+  assert.match(script,/onTranscription/);
+  assert.match(script,/mic\.enabled = false/,'brief local fallback avoids echo');
+  assert.match(script,/mic\.enabled = true/,'mic is restored after fallback');
 });
 
-test('Family companion AI instructions are age-appropriate and avoid emotional dependence',()=>{
+test('Qwen activity transitions send a session update and single spoken reply',()=>{
+  const script=readFileSync(appFile,'utf8');
+  assert.match(script,/function requestActivity/);
+  assert.match(script,/function startActivity/);
+  assert.match(script,/type:'session\.update'/);
+  assert.match(script,/type:'response\.create'/);
+  assert.match(script,/case 'session\.updated'/);
+  assert.match(script,/case 'response\.done'/);
+  assert.match(script,/childUI\?\.onLiveReady\(\)/);
+  assert.match(script,/requestActivity\('chat'\)/,'AI greets child on first connection');
+  assert.match(script,/case 'input_audio_buffer\.speech_started'/);
+  assert.match(script,/case 'input_audio_buffer\.speech_stopped'/);
+  assert.match(script,/childUI\?\.onVoiceDetected/);
+  assert.match(script,/type:'server_vad'/,'short replies use acoustic VAD');
+  assert.match(script,/threshold:s\.vadThreshold/);
+});
+
+test('Quiet child sensitivity is lower and clamped to known choices',()=>{
   const window={};
   vm.runInNewContext(readFileSync(extrasFile,'utf8'),{window,Uint8Array});
-  const instructions=window.MiniExtras.buildInstructions({personality:'playful'});
-  assert.match(instructions,/six years old/);
-  assert.match(instructions,/trusted grown-up/);
-  assert.match(instructions,/family and offline play/);
-  assert.match(instructions,/no|never/i);
+  const extras=window.MiniExtras;
+  assert.equal(extras.speechThreshold('quiet'),0.25);
+  assert.equal(extras.speechThreshold('normal'),0.5);
+  assert.equal(extras.speechThreshold('noisy'),0.7);
+  assert.equal(extras.speechThreshold('unknown'),0.25);
+  assert.equal(extras.createMicInputMeter(null,()=>{}),null);
 });
