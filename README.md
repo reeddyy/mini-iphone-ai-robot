@@ -1,85 +1,59 @@
-# Mini — iPhone AI Robot
+# Mini — iPhone AI Companion (V6)
 
-An experimental **iPhone 12 Pro robot companion** with continuous microphone
-input, camera vision and spoken AI replies powered by Alibaba Qwen Omni Realtime.
+An experimental **live English/Mandarin AI companion for a six-year-old**, powered by Qwen Omni Realtime in iPhone Safari and a secure Windows/ngrok proxy.
 
-**Current version:** V5 — child-first companion (experimental). The owner has
-confirmed that V3 live voice and camera recognition worked on an iPhone 12 Pro
-in Safari and that V4 reply speed feels good. **V5's new child interface, local
-stories, speech synthesis and touch behaviours have automated tests but still
-need real iPhone testing.** Live AI requires Singapore Model Studio pay-as-you-go
-credentials; an Alibaba Token Plan key is not for standalone app use.
+**Current version: V6 — Conversational Buddy.** V3 live voice and object recognition were user-tested, and V4's reply speed felt good. V5's disconnected offline games failed to listen to a child's spoken answers. V6 changes those buttons into **live AI activities in the same conversation**. Automated tests pass; real child-voice and Safari testing is still required.
 
-**Quick links:** [Windows setup](#1-local-setup-on-windows) ·
-[Security notes](SECURITY.md) · [Automated tests](#tests).
+> This repository is public. Keep your local .env, Alibaba API key, robot code, ngrok credentials and children's private recordings out of Git.
 
-> Keep API keys in a local `.env` file; `.env` is ignored by Git.
-> This repository is **public**. Never commit API keys, `.env` files, access codes, or private recordings.
+## V6 — Real two-way conversation
+
+Once a grown-up starts Qwen, Mini initiates a short question and waits for a spoken answer. A child does **not** need to say a wake word. The four large buttons all use the existing session, without disconnecting the microphone:
+
+| Button | Live AI interaction |
+|---|---|
+| **Talk 💬** | Qwen asks one friendly question and responds to spoken answers |
+| **Guess 🐯** | Qwen offers an animal clue, listens to a guess, gives feedback and continues |
+| **Story 📖** | Qwen makes a short story with the child and incorporates their ideas |
+| **Show 👀** | Qwen invites a child to show or describe an object; camera is parent opt-in |
+
+V6 updates Qwen's live session instructions for the selected activity, then requests **one** opening response. Some providers might not generate an unsolicited model reply; when no model response starts within six seconds, Mini offers a short local Safari voice cue. **The live AI remains connected** to hear the child's answer. The fallback voice sounds different from Qwen's voice.
+
+**V5's bug is fixed:** choosing a game no longer stops the paid session. The activities no longer display prerecorded offline questions that Qwen cannot hear.
+
+## Short, quiet answers and the microphone indicator
+
+V6 now uses **acoustic server_vad** for children's short answers, defaulting to **Quiet child** (threshold 0.25) instead of the earlier semantic setting at 0.5. The lower threshold makes faint speech more likely to be detected, but can also detect background noises. Fast (500 ms), Balanced (800 ms) and Patient (1200 ms) silence options remain.
+
+The child screen now distinguishes:
+- **Microphone sound bar:** Local audio reaches the phone. This does not mean Qwen understood speech and does not save a recording.
+- **AI speech detection:** Qwen reports that the child's speech began or stopped, or returns a transcript.
+
+If the bar moves but Qwen's detection never activates, use Quiet child mode, bring the phone closer and lower background noise. If speech is detected but no answer arrives, inspect the Qwen response and error events instead of changing microphone permissions.
+
+## How to test V6 on your iPhone
+
+1. Run git pull and npm start in your existing Windows Mini folder. Keep ngrok running with your **password-protected policy** on port 3001.
+2. Open the HTTPS ngrok URL in Safari, expand **Grown-up: Start Mini**, enter the robot code, choose a five-minute test, and leave the camera off initially.
+3. Approve the paid session. Mini should ask an opening question (using Qwen or a one-time Safari voice fallback).
+4. Ask your child to answer with just **one word** near the phone. Look for both the sound bar and AI speech-detected message.
+5. Try **Guess!** then **Story**, without stopping or restarting the conversation.
+6. For object recognition, stop first, tick **Allow AI to see the camera** under parent controls, then explicitly start another session.
+
+A child should **not be left alone with open-ended AI voice chat**. Prompt instructions reduce risks but cannot guarantee fully child-safe responses. Avoid sending private family details to the microphone or camera.
+
+## Costs, privacy and technical limitations
+
+- Live AI sessions are **parent-started and chargeable**. The robot code is required on each start and cleared after successful setup. The parent panel is collapsed for simplicity, not locked with a separate PIN.
+- Camera is **off by default** and only streams when a grown-up enables it. Microphone and enabled camera stream to Qwen while the session is active.
+- Sessions automatically stop after 15 minutes by default (5, 30, 45 or 60 also available). Extensions require confirmation, no automatic reconnect is attempted, and browser timers are **not hard financial limits**. Set spend alerts in Alibaba Cloud.
+- An optional user-controlled preference note may be saved to Safari only if its Save checkbox is ticked. Mini does not persist conversation transcripts, audio recordings, video, or children's identities.
+- Microphone volume is analysed locally without recording or transmitting sound measurements. WebRTC carries actual live audio/video to the AI provider.
+- Whether the model starts speaking spontaneously and whether Safari reliably hears soft children's voices **still require actual device testing**. Automated tests simulate responses and never make billable Alibaba API calls.
+
+**Protocol references:** [Alibaba Qwen Omni Realtime](https://www.alibabacloud.com/help/en/model-studio/realtime) · [Client events](https://www.alibabacloud.com/help/en/model-studio/client-events) · [WebRTC protocol](https://www.alibabacloud.com/help/en/model-studio/realtime-webrtc-access)
 
 ---
-
-## V5 — The Little Companion for children (iPhone Safari)
-
-**Status:** Based on working V3 live voice/vision and V4 speed settings. V5 adds a big expressive touch-reactive face, storytime and picture games that run offline, a simple Show & Tell cue, a hidden-by-default parent control area, and stronger child-safety instructions for live Qwen. These V5 browser interactions need live Safari QA; automated tests do not call Alibaba.
-
-Based on Alibaba Cloud's official WebRTC best practices for `qwen3.8-omni-flash-realtime`. The model accepts streaming microphone audio + video frames and outputs spoken audio. The phone runs the camera, microphone, UI and speaker; a Windows PC only hosts the secure SDP-exchange proxy. The phone's WebRTC streams go directly to Alibaba after connection establishment.
-
-Official references:
-- [Alibaba: Qwen-Omni-Realtime](https://help.aliyun.com/en/model-studio/realtime)
-- [Alibaba: Browser WebRTC real-time audio/video guide](https://help.aliyun.com/en/model-studio/best-practice-webrtc-omni-realtime)
-- [Alibaba: WebRTC connection sequence and session.updated gating](https://help.aliyun.com/en/model-studio/realtime-webrtc-access)
-- [Alibaba: Token Plan scope restrictions](https://help.aliyun.com/en/model-studio/more-tools)
-
-## Features
-
-- A **child-first home screen** with large animated eyes, touch reactions, an original story library and picture-choice quizzes. A grown-up decides when to enable live Qwen.
-- One WebRTC session for **continuous microphone audio**, **optional, parent-enabled** video (1 fps by default, optional 2 fps), and **streaming model voice replies**.
-- Qwen `semantic_vad` detects speech pauses automatically; **no push-to-talk**. V4 defaults to a shorter **500 ms** pause (vs 800 ms previously), with Balanced 800 ms and Patient 1200 ms choices. Faster detection can prematurely cut off pauses in longer sentences.
-- Camera sharing is **off by default** and must be enabled by a grown-up before starting. Front or rear camera can be selected before a live session.
-- Local camera preview at 20–30 fps; outgoing video is downsampled via `canvas.captureStream(fps)`. If canvas streaming is unavailable, fall back to the original camera track with a requested lower FPS. You can also select **Direct camera · Safari compatibility** before pressing Start.
-- Live speech subtitles when the model emits text/transcription events.
-- Mute microphone; pause video transmission (local preview remains on); stop everything.
-- Automatic stop after **15 minutes by default**, adjustable to 5, 30, 45 or 60 minutes. A live session requires grown-up confirmation before starting and can be extended manually by 5-minute increments, with a **hard browser timer cap of 60 minutes per session**. No automatic reconnection. Safari exit/backgrounding stops streaming.
-- Audio-reactive face mouth motion when Safari permits remote-audio analysis, with CSS speaking animation as a fallback; short-response delay indicator from detected end of speech to the first AI transcript/text event (not full audible latency).
-- Playful storyteller / friendly companion / calm learning helper personalities; automatic English-Mandarin switching or a preferred language.
-- Optional **owner-controlled family preference note** up to 240 characters. Only if the Save checkbox is checked, this note is stored in local Safari browser storage. No chat transcripts, camera footage, microphone recordings, API keys or full conversation memory are stored by Mini.
-- **No-key local preview** mode for free camera/microphone testing; NOT an AI conversation.
-
-## V5: Let your child play with Mini
-
-The main screen is now deliberately simple. A child sees the expressive robot face and **three large actions**. No paid AI session starts until a grown-up opens **Parent setup & safety controls**, enters the private access code and confirms the session.
-
-| What the child taps | What Mini does | Requires live AI? |
-|---|---|---|
-| **Pet Mini's face** | Happy/winking eyes, playful sparkles, occasional spoken peekaboo | **No** |
-| **Stories** | Reads one of three original English/Mandarin stories aloud using Safari's speech synthesis; another story button | **No** |
-| **Guess!** | Shows one of six picture-choice quizzes, speaks the clue, reacts to answers | **No** |
-| **Look!** | Gives a short spoken cue to show an object and ask Mini what it sees, if voice chat and camera are enabled | **Yes** for actual object recognition |
-
-**Important behaviour:** Opening **Stories** or **Guess!** ends any active paid Qwen voice session *first*, to avoid spending API credits while a child is playing offline. A grown-up must enter the robot code again to start another AI session. The **Look!** button alone does **not** generate a billed model reply or turn on the camera: the child speaks a question and the already-running model responds.
-
-**Parent setup:** Open the collapsible section near the bottom of the page. All advanced voice, camera, pace, duration, playback, subtitles and memory options are inside. The settings panel is hidden for simplicity, **not** secured by a separate parent PIN. The actual paid-session access code is required for each start and is cleared from the page after successful SDP authorization. The camera is unchecked by default. Parent consent is confirmed before each live session. The child-facing **Stop live chat** button also safely stops streaming.
-
-**Family-friendly language:** In Parent setup, the default is Playful Storyteller and automatic English/Mandarin matching. Qwen is instructed to use short, concrete, age-appropriate replies, encourage offline play, avoid collecting personal information or secrets, and direct safety concerns to a trusted adult. This is a prompt-based precaution, **not a guarantee of child-safe AI output**; adult supervision is recommended.
-
-**Browser voices:** Offline stories and quiz clues use Safari's speech-synthesis voices, which may sound different from the live Qwen voice. They need an iPhone tap to initiate playback. iOS voices and pronunciation can vary, especially in Mandarin. Mini temporarily disables its live microphone while it speaks a local cue so that the model does not hear its own prompt.
-
-**Privacy:** No child face recognition, identity tracking, emotion inference, microphone recording or automatic conversation memory was added. The child mode uses no external images, tracking scripts or third-party assets. Local story/quiz content is included directly in the app. Qwen will see camera frames **only if a grown-up explicitly opts into camera sharing during an active session**. Keep ngrok password protection enabled.
-
-**Design references:** [KEYi Loona Deskmate](https://keyirobot.com/en-us/products/deskmate) (expressive eyes, low-friction conversational presence) and [LOOI](https://looirobot.com/products/looi-robot) (playful biomimetic expressions and local mini-games). Mini doesn't reproduce their hardware or proprietary assets: it is a stationary Safari face, not a motorized robot.
-
-## V4 controls and cost protection
-
-Before a grown-up starts a paid session in Safari:
-
-1. **Reply speed:** Choose Fast (500 ms; default), Balanced (800 ms) or Patient (1200 ms). This is the minimum silence duration for VAD, **not a promise of total response latency**. The indicator labelled *First AI reply* measures the time from the model's speech-ended event to the first streamed reply text/transcript event. Network, inference and audio playback may add more delay.
-2. **Automatic stop:** Choose 5 / 15 / 30 / 45 / 60 minutes. Sessions longer than 15 minutes require a confirmation. While connected, **+5 min · paid** extends the time, up to 60 minutes total from Start. If the session ends because of the timer, network, Safari backgrounding or Model Studio limits, press Start manually to create a new conversation.
-3. **Personality and language:** In **Parent setup**, expand *Mini's personality, languages and memory*. The V5 default is Playful, and language can automatically match speech or favour English/Mandarin.
-4. **Preferences:** Type a short nonsensitive note such as *We like science facts and short bedtime stories*. The note is used for the next AI session. Tick the Save checkbox **only if you want this note remembered locally in Safari**. *Clear saved note* deletes it. No automatic conversation summaries or recordings are saved.
-
-**Cost limitations:** The stop timer runs inside Safari; it is a convenience safeguard, **not a guaranteed spending cap**. Qwen usage depends on audio/video and context tokens. Configure budgets/alerts in your Alibaba Cloud account. A provider timeout can still end a session early. Mini never silently reconnects or restarts paid streaming.
-
-**Privacy limitations:** The note is injected into the session's AI instructions, so Alibaba receives its contents while a live session runs. Don't enter names, addresses, schools, medical details or account information. Stored notes remain only under that Safari website origin, and deleting Safari site data also removes them. Model Studio retains recent conversation context during an active session according to its own documented limits; Mini doesn't save those transcripts to disk.
 
 ## 1. Local setup on Windows
 
@@ -107,7 +81,7 @@ notepad .env
 npm start
 ```
 
-6. Open http://localhost:3001 on Windows (or your chosen `PORT`). The child home appears immediately. Open **Parent setup** to use the private code and start live AI; with no Qwen key, you can test the microphone and camera locally without AI charges. Offline stories and quizzes work without a key.
+6. Open http://localhost:3001 on Windows (or your chosen `PORT`). The child home appears immediately. Open **Parent setup** to use the private code and start live AI; with no Qwen key, you can test the microphone and camera locally without AI charges. The conversation activity buttons require live Qwen; without a key, only the camera and mic can be tested locally.
 
 ### Getting future updates
 
@@ -247,7 +221,7 @@ With a working HTTPS method, say: **"Hello Mini, what can you see in front of yo
 
 - **Live audio:** Continuous microphone track during the session; server VAD detects the end of each speech turn and automatically triggers a response.
 - **Live visual input:** Camera video is sent to Qwen at 1–2 fps while video is enabled. **It does not generate a new AI reply every second.** It uses the frames to provide context when someone speaks.
-- **Proactive observation:** Not implemented in V4; it would require an additional change-detection/trigger loop or AI function logic and may cause higher usage.
+- **Proactive response:** V6 requests one opening question after parent start or selection of a new activity. It does not continuously speak without input or scan objects unprompted.
 - **iOS limits:** A webpage cannot reliably keep capturing mic/video with the screen locked or when Safari is backgrounded. For longer unattended use, consider a dedicated powered device or a native iOS app, subject to iOS capture restrictions.
 
 ## Privacy, safety and cost
@@ -265,6 +239,19 @@ With a working HTTPS method, say: **"Hello Mini, what can you see in front of yo
 Run `npm test` to verify static serving, config secrecy, credentials checks, rate limits, mocked WebRTC SDP proxy, JavaScript syntax, session option clamping, VAD pacing, language/personality prompts and browser-local preference storage. Tests **do not call Alibaba**, and do not independently verify iPhone audio playback, audio-meter animation or provider latency.
 
 ## Troubleshooting
+
+### Daughter answers Mini, but Mini doesn't reply
+
+This was caused by V5's offline game design; update to V6. In V6 check **both** microphone and model speech detection on the home screen.
+
+| Observation | Meaning and action |
+|---|---|
+| Mic bar stays flat | Safari may not have working microphone permission or the mic is muted; stop/restart and check permissions |
+| Mic bar moves, but AI speech detection does not | Qwen did not detect the short turn; use Quiet child, move the phone closer, reduce noise |
+| Qwen transcribes the answer, but remains silent | Speech is reaching Qwen; check response events, AI session state, playback or errors |
+| Mini opens a question with Safari's different voice | Qwen did not start a spontaneous turn; the single local fallback prompt should be followed by a live Qwen reply after the child answers |
+
+Game buttons do not end or restart the paid session. No transcript is saved by Mini.
 
 ### Safari SDP HTTP 401 behind a protected Cloudflare Quick Tunnel
 
@@ -302,5 +289,5 @@ Node.js v22.13.0 and npm 10.9.2 are sufficient for this project. You do **not** 
 | Model silent | Tap the audio player's play control or **Enable speaker audio**. Lower output speaker volume to reduce echo. |
 | SDP negotiation error | Ensure Node >=22, Safari updated, selected model supports WebRTC and workspaces/region match. |
 | Camera preview OK but model cannot see | Stop, select **Direct camera · Safari compatibility**, then restart; you can also try 2 fps. |
-| Stops when switching apps | Deliberate privacy/cost behavior in V5. |
+| Stops when switching apps | Deliberate privacy/cost behavior in V6. |
 | Need to resume | Tap Start again to establish a fresh realtime session; previous conversation context is not persisted. |
