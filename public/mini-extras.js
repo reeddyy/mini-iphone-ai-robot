@@ -184,6 +184,23 @@
     return {quiet:0.25, normal:0.5, noisy:0.7}[value] ?? 0.25;
   }
 
+
+  // Qwen error events may contain prompt excerpts or private input in the
+  // free-text message. Display only the documented structured code/type/param.
+  function modelErrorDetails(error) {
+    const source = error && typeof error === 'object' ? error : {};
+    const clean = (input, fallback) => {
+      if (typeof input !== 'string') return fallback;
+      const safe = input.trim().slice(0, 90).replace(/[^A-Za-z0-9_.:-]/g, '');
+      return safe || fallback;
+    };
+    return Object.freeze({
+      code: clean(source.code, 'unknown'),
+      type: clean(source.type, 'unknown'),
+      param: clean(source.param, ''),
+    });
+  }
+
   window.MiniExtras = Object.freeze({
     NOTE_LIMIT,
     MAX_SESSION_MINUTES,
@@ -197,5 +214,6 @@
     createVoiceMeter,
     createMicInputMeter,
     speechThreshold,
+    modelErrorDetails,
   });
 })();
