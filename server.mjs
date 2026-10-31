@@ -80,6 +80,12 @@ export function createApp({
         return json(res, 200, { mode: upstream ? 'realtime' : 'preview', model: upstream ? MODEL : null, maxSessionMinutes: 15 });
       }
       if (req.method === 'GET' && path === '/favicon.ico') return respond(res, 204, '');
+      // Safe no-AI-cost probe: demonstrates that POST requests reach the actual
+      // Mini origin rather than being rejected by a tunnel authentication layer.
+      if (req.method === 'POST' && path === '/api/diagnostics/post') {
+        console.info('Mini diagnostic POST reached origin (no AI request).');
+        return json(res, 200, {ok:true, origin:'mini', method:'POST'});
+      }
       if (req.method !== 'POST' || path !== '/api/realtime/sdp') return respond(res, 404, 'Not found');
 
       prune(attempts); prune(authFails);
