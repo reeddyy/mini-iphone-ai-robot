@@ -1,0 +1,23 @@
+# Private API credentials and environment settings
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated files
+node_modules/
+coverage/
+dist/
+build/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Credentials and local tooling
+*.pem
+*.p12
+*.pfx
+*.key
+.vscode/settings.json
+.wrangler/
+.cloudflare/
