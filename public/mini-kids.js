@@ -1,87 +1,58 @@
-// Mini Kids: original short stories and no-cost picture games.
-// No external content, tracking, saved child profile or AI network requests.
+// Mini Buddy: child-friendly AI-led activity instructions and safe fallback cues.
+// No separate offline "game" disconnects the live microphone or model.
 (function () {
   'use strict';
-  const stories = [
-    {
-      en: {
-        title: 'Pip and the Moon Button',
-        text: 'One night, Pip the little penguin spotted a shiny button in the snow. “Oh no! Did the moon lose a button?” he wondered. He carried it up a snowy hill and held it towards the sky. The moon glowed brighter, as if it were smiling. Then Pip saw a silver coat button on his own scarf. “Oops! This was mine all along!” He giggled and went home for warm cocoa. What would you do if you found something shiny?',
-      },
-      zh: {
-        title: '小企鹅皮皮和月亮纽扣',
-        text: '一天晚上，小企鹅皮皮在雪地里发现了一颗闪闪发亮的纽扣。“哎呀，难道是月亮掉了纽扣？”他想。皮皮爬上小山，把纽扣高高举向天空。月亮好像笑得更亮了。这时，皮皮发现自己的围巾上少了一颗银色纽扣。“原来是我的呀！”他笑了，回家喝热可可。你发现亮晶晶的东西会怎么办呢？',
-      },
+  const modes = Object.freeze({
+    chat: {
+      en: 'Let us chat!',
+      zh: '一起聊天！',
+      guide: 'Be a friendly curious little robot. For the first turn, greet the child in one short sentence and ask one fun, easy question such as their favourite animal or colour. For every child response, INCLUDING a single word, yes, no, a guess or a short Chinese phrase, acknowledge what they said, respond naturally and ask just one friendly follow-up question. Do not require the child to say Mini or a wake word.',
+      fallback: {en:'Hi! I am Mini! What is your favourite animal?',zh:'你好呀！我是 Mini！你最喜欢什么动物？'},
     },
-    {
-      en: {
-        title: 'Momo and the Rainy-Day Parade',
-        text: 'Momo the rabbit wanted a parade, but the sky was full of rain. “Perfect!” said her turtle friend. They wore bright boots and carried leaf umbrellas. Plip, plop, plip! Every puddle became a tiny drum. The birds joined in with chirps, and a snail waved from a mushroom. When the rain stopped, a rainbow stretched above their little parade. Momo laughed, “I think rainy parades are the best!” What sound would you add to their parade?',
-      },
-      zh: {
-        title: '小兔莫莫的雨天游行',
-        text: '小兔莫莫想举办一场游行，可天空下起了雨。“正好呀！”乌龟朋友说。他们穿上彩色雨靴，撑起树叶小伞。滴答、滴答！每个小水坑都变成了小鼓。小鸟唱着歌，蜗牛在蘑菇旁挥手。雨停后，一道彩虹挂在天上。莫莫笑着说：“雨天游行真有趣！”如果你参加游行，会发出什么声音呢？',
-      },
+    guess: {
+      en: 'Guess with Mini!',
+      zh: '一起猜一猜！',
+      guide: 'Run a two-way spoken animal guessing game for a six-year-old. Start by giving ONE clear age-appropriate clue and asking the child to guess. Do not reveal the answer at first. Wait for their SPOKEN answer even if it is one word or just "dog". After the answer, cheerfully say whether it fits the clue, give another clue if needed, or start a new animal. Ask exactly one question at a time. To match the local starter if you were delayed, the first riddle is: "Which animal has a very long neck?" Answer: giraffe. After that you may choose other familiar animals. Never tell the child to tap a screen choice.',
+      fallback: {en:'Let’s guess! Which animal has a very long neck?',zh:'一起来猜！哪种动物有长长的脖子？'},
     },
-    {
-      en: {
-        title: 'The Sleepy Star Garden',
-        text: 'On a quiet hill, a small fox called Nori planted three glowing seeds. Every morning, she watered them with a thimble of dew. One seed grew into a star-shaped flower. The next became a tiny silver bell. The last seed waited and waited. “Maybe it needs some kindness,” Nori whispered. She sang a soft song, and the final seed blossomed into a glowing lantern. Together, they lit a gentle path home. Can you invent a song for the star garden?',
-      },
-      zh: {
-        title: '会发光的星星花园',
-        text: '安静的小山上，小狐狸诺诺种下三颗发光的种子。每天早上，她用露珠轻轻浇水。第一颗长出了星星形状的花，第二颗变成了银色小铃铛。第三颗却一直没动静。“也许它需要一点温柔。”诺诺轻声说。她唱起一首小歌，最后一颗种子终于开花，变成了一盏小灯笼。三颗种子一起照亮了回家的路。你会给星星花园唱什么歌呢？',
-      },
+    story: {
+      en: 'Make a story!',
+      zh: '一起编故事！',
+      guide: 'Co-create a gentle original story with the child. Start with at most two short sentences and ask the child to CHOOSE an animal, place, colour or action to continue. Then WAIT and genuinely incorporate their spoken answer, including one-word answers, into the next two story sentences. Pause again for one simple choice. Keep the tone playful, safe and never scary. If you were delayed and a local question was spoken already, the first choice was "Should our story hero be a cat or a dragon?" Use their answer.',
+      fallback: {en:'Let’s make a story! Should our hero be a cat or a dragon?',zh:'我们一起编故事吧！主角是小猫还是小龙呢？'},
     },
-  ];
-  const quizzes = [
-    {en:'Which animal says moo?', zh:'哪种动物会“哞哞”叫？', choices:['🐄','🐱','🐘'], correct:0},
-    {en:'Which animal has a very long neck?', zh:'哪种动物有长长的脖子？', choices:['🦒','🐰','🐳'], correct:0},
-    {en:'Which thing grows from a little seed?', zh:'哪一样东西会从小种子长出来？', choices:['🚗','🌱','🧸'], correct:1},
-    {en:'Which animal can swim in the sea?', zh:'哪种动物会在大海里游泳？', choices:['🦁','🐝','🐬'], correct:2},
-    {en:'Which animal hops and has long ears?', zh:'哪种动物会跳跳跳，还有长耳朵？', choices:['🐯','🐰','🐢'], correct:1},
-    {en:'What can keep you dry in the rain?', zh:'下雨时用什么可以挡雨？', choices:['🪁','☂️','🎈'], correct:1},
-  ];
-  const ui = Object.freeze({
-    en: {
-      story:'Storytime', quiz:'Guess the animal!', look:'Show & tell',
-      nextStory:'Another story', nextQuiz:'Next question',
-      right:'Hooray! Great guess!', wrong:'Almost! Try another picture.',
-      offline:'Ask a grown-up to wake my talking brain. We can still play here!',
-      lookOnline:'Show me an object, then ask: “Mini, what do you see?”',
-      lookOffline:'Ask a grown-up to turn on my talking brain and camera. Then show me a toy!',
-      peek:'Peekaboo! You found me!', pet:'Hee-hee! That tickles!',
-      close:'Close', ready:'Tap my face or choose a game. I am ready!',
-      hello:'Hi! I’m Mini! Want to play?', 
-      speaking:'I’m talking!', listening:'I’m listening!', thinking:'Let me think…',
-      asleep:'I am having a little nap. Ask a grown-up to start our voice chat!',
-      startParent:'For voice chat, ask a grown-up to open Parent setup.',
-    },
-    zh: {
-      story:'故事时间', quiz:'猜猜是什么！', look:'看看这是什么',
-      nextStory:'再听一个故事', nextQuiz:'下一道题',
-      right:'太棒啦！猜对了！', wrong:'差一点点，再选一张图片吧！',
-      offline:'请大人帮我开启语音聊天。现在我们也可以一起玩！',
-      lookOnline:'拿一件东西给我看，然后问：“Mini，你看到了什么？”',
-      lookOffline:'请大人帮我开启语音聊天和摄像头，再拿一个玩具给我看看！',
-      peek:'躲猫猫！你找到我啦！', pet:'哈哈，好痒呀！',
-      close:'关闭', ready:'摸摸我的脸，或者选一个游戏！',
-      hello:'嗨！我是 Mini！一起玩吧！',
-      speaking:'我正在说话！', listening:'我在听呢！', thinking:'让我想一想……',
-      asleep:'我正在休息，请大人帮我开启语音聊天！',
-      startParent:'想语音聊天，请大人打开家长设置。',
+    look: {
+      en: 'Show and tell!',
+      zh: '给 Mini 看看！',
+      guide: 'Play show-and-tell with a young child. When the camera is available, begin by inviting them to show one safe object and ask a simple playful question about it. Use current camera frames ONLY when you can actually see them, avoid claiming visual certainty from unclear frames, and respond to short child answers. If the camera is off, clearly say you CANNOT see the object and ask them to describe it; never invent an appearance. The local starter may have already said "Show me a toy and tell me about it".',
+      fallback: {en:'Show me a toy and tell me something about it!',zh:'拿一个小玩具给我看看，跟我说说它吧！'},
     },
   });
+  const labels = Object.freeze({
+    en: {chat:'Talk',guess:'Guess',story:'Story',look:'Show',ready:'I’m listening!',starting:'Mini is waking up…',prompting:'Mini has a question for you…',blocked:'Ask a grown-up to turn on live Mini first.',muted:'Mini’s microphone is muted. Ask a grown-up to unmute it.',queued:'Mini will switch games after finishing its turn.',error:'Could not start the game. Try saying “Mini, let’s play!”',hear:'I hear sound!',speech:'I heard you!',quiet:'Speak to Mini, near the phone.',listening:'Your turn! I’m listening.',playing:'Mini is talking…'},
+    zh: {chat:'聊天',guess:'猜猜',story:'故事',look:'看看',ready:'我在听呢！',starting:'Mini 正在醒来……',prompting:'Mini 有个问题想问你……',blocked:'请大人先开启 Mini 的语音聊天。',muted:'Mini 的麦克风静音了，请大人帮忙打开。',queued:'Mini 说完话就来玩这个游戏。',error:'游戏没有开始，试试说：“Mini，一起玩！”',hear:'我听到声音啦！',speech:'我听到你说话啦！',quiet:'靠近手机和 Mini 说话吧！',listening:'轮到你啦！我在听。',playing:'Mini 正在说话……'},
+  });
   function language(value) { return value === 'zh' ? 'zh' : 'en'; }
-  function story(index, lang) {
-    const item = stories[((index % stories.length) + stories.length) % stories.length];
-    const result = item[language(lang)];
-    return {title:result.title, text:result.text};
+  function mode(value) { return Object.hasOwn(modes, value) ? value : 'chat'; }
+  function instructions(base, value, hasCamera) {
+    const selected = modes[mode(value)];
+    const video = hasCamera
+      ? 'Live camera is enabled. You may describe visible objects only if you can actually see them in incoming frames.'
+      : 'The camera is not shared. You cannot see any objects; do not claim otherwise.';
+    return [
+      String(base || '').slice(0, 5000),
+      video,
+      selected.guide,
+      'IMPORTANT: After Mini asks a question, the child may respond with only ONE short word, yes/no, Mandarin, or a very quiet voice. Treat it as a genuine answer, respond directly, and continue the same activity. Never ignore a reply because it lacks a wake word. Do not ask for identifying personal information.',
+    ].join(' ');
   }
-  function quiz(index, lang) {
-    const item = quizzes[((index % quizzes.length) + quizzes.length) % quizzes.length];
-    return {question:item[language(lang)],choices:[...item.choices],correct:item.correct};
-  }
-  function words(lang) { return ui[language(lang)]; }
-  window.MiniKidsContent = Object.freeze({story,quiz,words,storyCount:stories.length,quizCount:quizzes.length});
+  function getFallback(value, lang) { return modes[mode(value)].fallback[language(lang)]; }
+  function getLabels(lang) { return labels[language(lang)]; }
+  window.MiniKidsContent = Object.freeze({
+    mode,
+    instructions,
+    getFallback,
+    getLabels,
+    modes: Object.freeze(Object.keys(modes)),
+  });
 })();
