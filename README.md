@@ -4,6 +4,18 @@ Mini is an experimental **voice-first English/Mandarin AI companion for a six-ye
 
 **Current version: V6.4 — Expressive Little Companion.** Previous versions put four Talk / Guess / Story / Show buttons on the screen. A child should not need to understand a menu: **V6.3 displays one animated Mini face, a short listening status, and a parent-start control**. The model can switch between chatting, stories, guessing games and describing toys when the child asks out loud.
 
+### Current development updates
+
+- Muting during startup keeps the microphone disabled when permission arrives and when media is attached. The free preview now includes the local microphone level meter.
+- Direct commands such as **“Mini, stop talking now”**, **“Goodbye Mini”**, or **“Mini，别说了”** close the session and stop microphone/camera capture when a completed speech transcript is received. Mentions inside a story and “don't stop” are not stop commands. Recognition and network delay still matter; use the visible **Stop live chat** button to stop immediately without waiting for speech recognition.
+- Adding five paid minutes requires entering the parent access code again. Authorization is checked by Mini's backend, shares the incorrect-code throttle, and does not call Alibaba. The dialog clears the entered code; closing it or stopping cancels a pending extension. The 60-minute maximum remains a browser-side limit, not a financial guarantee.
+- If model audio playback is blocked, **Tap to hear Mini** appears beside the face. Parent setup can stay closed.
+- Opening questions vary within a browser tab, without saving conversation history. The exact local opening is supplied in Qwen's instructions so a short first answer has context.
+- **Offer gentle follow-up questions** controls both Qwen's optional prompts and Safari's fallback. With it off, Mini waits after answering, apart from questions needed for an explicitly requested activity. With it on, ordinary chat can still pause; a local fallback is reserved for an unfinished activity, and recognized story endings are left quiet.
+- Story instructions ask Mini to carry choices into what happens next and allow a complete ending. A visible last-minute notice and a resting message make timed sessions less abrupt without generating extra paid turns.
+
+These changes have automated coverage. Actual Qwen storytelling, recognition, and iPhone Safari audio still require supervised device testing.
+
 > This public repository never needs your private API key or ngrok password committed. Keep `.env`, local policies and any child recordings out of Git.
 
 ## V6.4 — A cuter, more expressive Mini
@@ -34,15 +46,15 @@ The child simply speaks. There are **no child-facing activity buttons**, separat
 - "Look at my toy." / "你看看我的玩具！"
 - "Can we just talk?" / "我们聊聊天吧！"
 
-Qwen is explicitly instructed to respond to these requests **within the ongoing conversation**, without asking the child to tap a control or announcing a mode change. It should answer briefly and ask one relevant, age-appropriate follow-up question, then give the child time to speak. If the child says goodbye or wants to stop, Mini should not keep asking questions.
+Qwen is explicitly instructed to respond to these requests **within the ongoing conversation**, without asking the child to tap a control or announcing a mode change. It should answer briefly and, when follow-ups are enabled and useful, offer one relevant question before waiting. Short acknowledgements and completed stories can stand alone. Direct stop commands end capture when their completed transcript arrives.
 
 When Model Studio supplies a speech transcript, Mini may classify an explicit voice request **locally** to pick a more relevant one-time fallback question. This classification **does not send another `session.update` or `response.create`**. Qwen itself handles conversational topic changes based on its instructions and the audio. If no transcript is available, Mini still talks normally, but the optional fallback may be less specific.
 
 ## How the conversation starts and continues
 
-A **grown-up** opens Parent setup, enters the separate Mini access code and confirms a paid voice session. **The camera is unchecked by default**. Safari says one simple starter question, then Qwen listens for the child's answer. If Safari does not play it, tapping Mini's face retries the local question.
+A **grown-up** opens Parent setup, enters the separate Mini access code and confirms a paid voice session. **The camera is unchecked by default**. Safari says one varied starter question, then Qwen listens for the child's answer with that question included in its instructions. If Safari does not play it, tapping Mini's face retries the local question.
 
-Qwen is asked to acknowledge the child's answer and ask a follow-up **in the same spoken model reply**. If Qwen finishes without a question and a completed audio transcript is available, Mini may ask one short Safari-synthesized follow-up after a pause. That backup voice is not as contextual as Qwen and may sound different. It is **not** another paid AI request and never loops or automatically reconnects. The parent may switch off *Keep the conversation going*.
+Qwen is asked to acknowledge the child's answer and use a relevant question when it helps an ongoing activity. During an unfinished activity, with follow-ups enabled and a completed transcript available, Mini may ask one short Safari-synthesized follow-up after a pause. Ordinary chat and recognized story endings do not trigger that fallback. The backup voice is not as contextual as Qwen and may sound different. It is **not** another paid AI request and never loops or automatically reconnects. The parent may switch off *Offer gentle follow-up questions* to disable both optional model questions and local fallbacks.
 
 For quiet voices, the default speech detector is acoustic `server_vad`, with **Quiet child** sensitivity. Fast/Balanced/Patient pause options remain. Short replies such as "yes", "dog", "cat", or "是的" should work without a wake word, subject to real microphone and provider behaviour.
 
@@ -259,7 +271,7 @@ V5's offline games disconnected the model. V6.3 no longer has those buttons. If 
 | Qwen transcribes the answer, but remains silent | Speech is reaching Qwen; check response events, AI session state, playback or errors |
 | Mini opens a question with Safari's different voice | Qwen did not start a spontaneous turn; the single local fallback prompt should be followed by a live Qwen reply after the child answers |
 
-The one conversational session stays active until the parent stops it or its timer expires. No transcript is saved by Mini.
+The conversational session stays active until someone presses Stop, a direct spoken stop command is recognized, or its timer expires. No transcript is saved by Mini.
 
 ### Safari SDP HTTP 401 behind a protected Cloudflare Quick Tunnel
 

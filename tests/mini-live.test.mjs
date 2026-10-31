@@ -19,13 +19,16 @@ function mockEnvironment() {
       if (timeouts.delete(id)) item.fn();
     }
   };
-  const fake=()=>({
+  const fake=()=>{
+    const classes=new Set();
+    return {
     textContent:'',value:'',checked:false,disabled:false,srcObject:null,
     className:'',
-    classList:{toggle(){},add(){},remove(){}},
+    classList:{toggle(name,force){if(force)classes.add(name);else classes.delete(name);},add(name){classes.add(name);},remove(name){classes.delete(name);},contains:name=>classes.has(name)},
     style:{setProperty(){},removeProperty(){}},
     addEventListener(){},append(){},pause(){},play(){return Promise.resolve();},
-  });
+    showModal(){this.open=true;},close(){this.open=false;},
+  }};
   const get=id=>{if(!elements.has(id))elements.set(id,fake());return elements.get(id)};
   const document={
     getElementById:get,
@@ -44,6 +47,8 @@ function mockEnvironment() {
     sayFallback(mode){calls.push(['fallback',mode]);},
     sayFollowUp(mode,question,lang){calls.push(['followup',mode,question,lang]);return true;},
     onLiveReady(){calls.push(['ready']);},
+    onSessionEnded(){calls.push(['ended']);},
+    onTimeRemaining(seconds){calls.push(['remaining',seconds]);},
     stopSpeech(){},
     onMicLevel(){},
     syncLanguage(){},
@@ -63,15 +68,6 @@ function mockEnvironment() {
         buildInstructions(){return 'family-safe instructions';},
         modelErrorDetails(e){return {code:e?.code||'unknown',type:e?.type||'unknown',param:e?.param||''};},
       },
-      MiniKidsContent:{
-        mode:m=>['chat','guess','story','look'].includes(m)?m:'chat',
-        detectRequestedActivity:(utterance,prev)=>/guess/i.test(utterance)?'guess':/story/i.test(utterance)?'story':prev,
-        instructions:(base,m)=>base+' mode='+m,
-        needsFollowUp:(reply,child,status)=>Boolean(reply?.trim()) &&
-          (status===undefined || status==='completed') &&
-          !/[?？]/.test(reply) && !/bye|goodbye|stop playing/i.test(child||''),
-        getFollowUp:(m,lang)=>lang==='zh'?'我们继续玩，好不好？':'Shall we keep playing?',
-      },
       MiniChildUI:{init:()=>companionUI},
       addEventListener(){},
       isSecureContext:true,
@@ -82,9 +78,10 @@ function mockEnvironment() {
     console,clearTimeout:clearFakeTimeout,setTimeout:setFakeTimeout,setInterval,clearInterval,Date,
     AbortController,Uint8Array,
   });
+  vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-kids.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(app,ctx);
   const s={
-    mode:'realtime',stopped:false,ready:true,mediaReady:true,
+    mode:'realtime',stopped:false,ready:true,mediaReady:true,language:'en',
     activity:'chat',activityUpdatePending:false,awaitingProactiveResponse:false,
     keepConversationGoing:true,followUpCount:0,
     responseActive:false,childSpeaking:false,userSpokeDuringMode:false,
@@ -112,7 +109,7 @@ test('Guess game updates Qwen instructions but relies on VAD, not unsolicited re
   assert.equal(request(env,'guess'),true);
   assert.equal(env.sent.length,1);
   assert.equal(env.sent[0].type,'session.update');
-  assert.match(env.sent[0].session.instructions,/mode=guess/);
+  assert.match(env.sent[0].session.instructions,/Play a spoken animal guessing game/);
   emit(env,'session.updated');
   assert.equal(env.sent.length,1,'no proactive response.create is sent in automatic VAD mode');
   assert.ok(env.calls.some(x=>x[0]==='fallback' && x[1]==='guess'));
@@ -136,7 +133,7 @@ test('Changing activities while Qwen speaks queues the update and preserves the 
   emit(env,'response.done',{response:{status:'completed'}});
   assert.equal(env.sent.length,count+1);
   assert.equal(env.sent[count].type,'session.update');
-  assert.match(env.sent[count].session.instructions,/mode=story/);
+  assert.match(env.sent[count].session.instructions,/Co-create a gentle original story/);
   emit(env,'session.updated');
   assert.equal(env.sent.length,count+1,'no extra response.create after the new game starts');
   assert.ok(env.calls.some(x=>x[0]==='fallback'&&x[1]==='story'));
@@ -267,7 +264,7 @@ test('Game change is deferred while a spoken answer is waiting for Qwen',()=>{
   emit(env,'response.done',{response:{status:'completed'}});
   assert.equal(env.s.turnPending,false);
   assert.equal(env.sent.length,before+1);
-  assert.match(env.sent.at(-1).session.instructions,/mode=story/);
+  assert.match(env.sent.at(-1).session.instructions,/Co-create a gentle original story/);
   emit(env,'session.updated');
   assert.ok(env.calls.some(x=>x[0]==='fallback'&&x[1]==='story'));
   assert.equal(env.s.stopped,false);
@@ -276,6 +273,7 @@ test('Game change is deferred while a spoken answer is waiting for Qwen',()=>{
 
 test('After a short Qwen verdict, Mini asks ONE local follow-up, no added AI request',()=>{
   const env=mockEnvironment();
+  env.s.activity='guess';
   const before=env.sent.length;
   emit(env,'input_audio_buffer.speech_started');
   emit(env,'input_audio_buffer.speech_stopped');
@@ -287,7 +285,7 @@ test('After a short Qwen verdict, Mini asks ONE local follow-up, no added AI req
   env.flushTimeouts(2400);
   const followups=env.calls.filter(x=>x[0]==='followup');
   assert.equal(followups.length,1);
-  assert.equal(followups[0][1],'chat');
+  assert.equal(followups[0][1],'guess');
   assert.match(followups[0][2],/\?/);
   env.flushTimeouts();
   assert.equal(env.calls.filter(x=>x[0]==='followup').length,1,'do not nag in a loop');
@@ -306,10 +304,12 @@ test('A Qwen answer that already asks a question is left alone',()=>{
 
 test('A child who speaks before the delayed follow-up cancels it',()=>{
   const env=mockEnvironment();
+  env.s.activity='story';
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
-  emit(env,'response.audio_transcript.done',{transcript:'Nice work!'});
+  emit(env,'response.audio_transcript.done',{transcript:'The dragon reaches a forest.'});
   emit(env,'response.done',{response:{status:'completed'}});
+  assert.ok(env.s.followupTimer,'a follow-up was queued before the child interrupted');
   emit(env,'input_audio_buffer.speech_started');
   env.flushTimeouts();
   assert.equal(env.calls.filter(x=>x[0]==='followup').length,0);
@@ -345,10 +345,12 @@ test('Never follow up after a rejected/empty Qwen response or a goodbye',()=>{
 
 test('Changing the game before follow-up cancels the old question',()=>{
   const env=mockEnvironment();
+  env.s.activity='guess';
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
-  emit(env,'response.audio_transcript.done',{transcript:'Nice!'});
+  emit(env,'response.audio_transcript.done',{transcript:'Yes, it is a giraffe.'});
   emit(env,'response.done',{response:{status:'completed'}});
+  assert.ok(env.s.followupTimer);
   assert.equal(request(env,'story'),true);
   env.flushTimeouts();
   assert.equal(env.calls.filter(x=>x[0]==='followup').length,0);
@@ -356,11 +358,12 @@ test('Changing the game before follow-up cancels the old question',()=>{
 
 test('Local question waits for Qwen audio to finish before talking',()=>{
   const env=mockEnvironment();
+  env.s.activity='guess';
   let speaking=true;
   env.s.audioMeter={isAudible:()=>speaking};
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
-  emit(env,'response.audio_transcript.done',{transcript:'Correct!'});
+  emit(env,'response.audio_transcript.done',{transcript:'Yes, it is a giraffe.'});
   emit(env,'response.done',{response:{status:'completed'}});
   env.flushTimeouts(2400);
   assert.equal(env.calls.filter(x=>x[0]==='followup').length,0);
@@ -371,10 +374,11 @@ test('Local question waits for Qwen audio to finish before talking',()=>{
 
 test('A Mandarin model reply gets a Mandarin follow-up in Auto language mode',()=>{
   const env=mockEnvironment();
+  env.s.activity='guess';
   env.s.language='auto';
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
-  emit(env,'response.audio_transcript.done',{transcript:'答对了，真棒！'});
+  emit(env,'response.audio_transcript.done',{transcript:'答对了，是长颈鹿！'});
   emit(env,'response.done',{response:{status:'completed'}});
   env.flushTimeouts();
   const followups=env.calls.filter(x=>x[0]==='followup');
@@ -394,4 +398,161 @@ test('Spoken game request updates local follow-up context without another provid
   assert.equal(env.s.activity,'story');
   assert.equal(env.sent.length,before);
   assert.equal(env.s.stopped,false);
+});
+
+test('Muting while permission is pending disables the eventual preview microphone',async()=>{
+  const env=mockEnvironment();
+  await vm.runInContext('Promise.resolve()',env.ctx);
+  let release;
+  const mic={enabled:true,stop(){this.stopped=true;}};
+  env.ctx.navigator={mediaDevices:{getUserMedia:()=>new Promise(resolve=>{release=resolve;})}};
+  vm.runInContext("current=null; mode='preview'; document.getElementById('accessCode').value='test-parent-code';",env.ctx);
+  const starting=vm.runInContext('startMini()',env.ctx);
+  try {
+    vm.runInContext('toggleMute()',env.ctx);
+    release({getAudioTracks:()=>[mic],getTracks:()=>[mic]});
+    await starting;
+    assert.equal(vm.runInContext('current.muted',env.ctx),true);
+    assert.equal(mic.enabled,false);
+  } finally {vm.runInContext('stopMini()',env.ctx);}
+  assert.equal(mic.stopped,true);
+});
+
+test('Live media attachment preserves mute and does not narrate an opening while muted',async()=>{
+  const env=mockEnvironment();
+  const mic={enabled:true};
+  env.s.muted=true;
+  env.s.mediaStarted=false;
+  env.s.mediaReady=false;
+  env.s.localStream={getAudioTracks:()=>[mic]};
+  let enabledAtAttach;
+  env.s.audioSender={replaceTrack:async track=>{enabledAtAttach=track.enabled;}};
+  await vm.runInContext('startSendingMedia(testSession)',env.ctx);
+  assert.equal(enabledAtAttach,false);
+  assert.equal(env.calls.some(x=>x[0]==='fallback'),false);
+});
+
+test('Spoken stop closes media immediately and cancels pending follow-ups',()=>{
+  for(const transcript of ['Mini, stop talking now','Mini，别说了']) {
+    const env=mockEnvironment();
+    const mic={enabled:true,stop(){this.stopped=true;}};
+    const camera={stop(){this.stopped=true;}};
+    env.s.localStream={getTracks:()=>[mic,camera]};
+    env.s.pc={close(){this.closed=true;}};
+    emit(env,'input_audio_buffer.speech_stopped');
+    emit(env,'conversation.item.input_audio_transcription.completed',{transcript});
+    assert.equal(env.s.stopped,true);
+    assert.equal(mic.stopped,true);
+    assert.equal(camera.stopped,true);
+    assert.equal(env.s.pc.closed,true);
+    assert.equal(env.s.abort.signal.aborted,true);
+    env.flushTimeouts();
+    assert.equal(env.calls.some(x=>x[0]==='followup'),false);
+    assert.equal(env.calls.some(x=>x[0]==='ended'),true);
+  }
+});
+
+test('Turning off follow-ups also changes the instructions sent to Qwen',()=>{
+  const env=mockEnvironment();
+  env.s.keepConversationGoing=false;
+  env.s.updateSent=false;
+  env.s.sessionCreated=true;
+  env.s.pc={connectionState:'connected'};
+  env.s.opening='What colour should our spaceship be?';
+  vm.runInContext('tryInitialize(testSession)',env.ctx);
+  assert.match(env.sent[0].session.instructions,/Optional follow-up questions are OFF/);
+  assert.ok(env.sent[0].session.instructions.includes(env.s.opening));
+  request(env,'story');
+  assert.match(env.sent[1].session.instructions,/Optional follow-up questions are OFF/);
+});
+
+test('Paid extension needs successful parent reauthorization and clears the entered code',async()=>{
+  const env=mockEnvironment();
+  const el=id=>env.ctx.document.getElementById(id);
+  const originalEnd=env.s.endsAt;
+  let request;
+  env.ctx.fetch=async(url,options)=>{request={url,options};return {ok:false,json:async()=>({error:'Incorrect private robot access code.'})};};
+  vm.runInContext('extendSession()',env.ctx);
+  assert.equal(el('extendDialog').open,true);
+  assert.equal(env.s.endsAt,originalEnd);
+  el('extensionCode').value='wrong-but-long-code';
+  await vm.runInContext('authorizeExtension({preventDefault(){}})',env.ctx);
+  assert.equal(env.s.endsAt,originalEnd);
+  assert.equal(el('extensionCode').value,'');
+  assert.match(el('extensionMessage').textContent,/Incorrect/);
+  env.ctx.fetch=async(url,options)=>{request={url,options};return {ok:true,json:async()=>({ok:true})};};
+  el('extensionCode').value='test-parent-code';
+  await vm.runInContext('authorizeExtension({preventDefault(){}})',env.ctx);
+  assert.equal(request.url,'/api/parent/authorize');
+  assert.equal(request.options.headers['X-Robot-Access-Code'],'test-parent-code');
+  assert.equal(env.s.endsAt,originalEnd+300000);
+  assert.equal(el('extendDialog').open,false);
+  assert.equal(el('extensionCode').value,'');
+  assert.equal(env.sent.length,0,'authorization creates no AI turn');
+});
+
+test('A cancelled or stopped session cannot be extended by a late authorization response',async()=>{
+  for(const action of ['cancelExtension()','stopMini()']) {
+    const env=mockEnvironment();
+    const before=env.s.endsAt;
+    let resolve;
+    env.ctx.fetch=()=>new Promise(r=>{resolve=r;});
+    vm.runInContext("extendSession(); document.getElementById('extensionCode').value='test-parent-code'",env.ctx);
+    const authorization=vm.runInContext('authorizeExtension({preventDefault(){}})',env.ctx);
+    vm.runInContext(action,env.ctx);
+    resolve({ok:true,json:async()=>({ok:true})});
+    await authorization;
+    assert.equal(env.s.endsAt,before,action);
+    assert.equal(env.ctx.document.getElementById('extensionCode').value,'');
+  }
+});
+
+test('Blocked model audio exposes child recovery and successful playback hides it',async()=>{
+  const env=mockEnvironment();
+  const el=id=>env.ctx.document.getElementById(id);
+  el('parentSetup').open=false;
+  el('remoteAudio').play=()=>Promise.reject(new Error('autoplay blocked'));
+  await vm.runInContext('maybeUnmuteAudio()',env.ctx);
+  assert.equal(el('kidAudioBtn').classList.contains('hidden'),false);
+  assert.match(el('kidAudioBtn').textContent,/Tap to hear Mini/);
+  assert.equal(el('parentSetup').open,false);
+  el('remoteAudio').play=()=>Promise.resolve();
+  await vm.runInContext('maybeUnmuteAudio()',env.ctx);
+  assert.equal(el('kidAudioBtn').classList.contains('hidden'),true);
+});
+
+test('Parent-approved extensions obey the maximum and cannot revive an expired session',async()=>{
+  for(const expired of [false,true]) {
+    const env=mockEnvironment();
+    const maximum=env.s.startedAt+60*60000;
+    env.s.endsAt=expired?Date.now():maximum-2*60000;
+    env.ctx.fetch=async()=>({ok:true,json:async()=>({ok:true})});
+    vm.runInContext("extendSession(); document.getElementById('extensionCode').value='test-parent-code'",env.ctx);
+    await vm.runInContext('authorizeExtension({preventDefault(){}})',env.ctx);
+    if(expired)assert.equal(env.s.stopped,true);
+    else assert.equal(env.s.endsAt,maximum);
+  }
+});
+
+test('A late audio failure cannot expose a recovery button after stopping',async()=>{
+  const env=mockEnvironment();
+  let reject;
+  env.ctx.document.getElementById('remoteAudio').play=()=>new Promise((_,r)=>{reject=r;});
+  const playback=vm.runInContext('maybeUnmuteAudio()',env.ctx);
+  vm.runInContext('stopMini()',env.ctx);
+  reject(new Error('late autoplay failure'));
+  await playback;
+  assert.equal(env.ctx.document.getElementById('kidAudioBtn').classList.contains('hidden'),true);
+});
+
+test('Session deadline shows a break notice then releases the session without a paid turn',()=>{
+  const env=mockEnvironment();
+  env.s.endsAt=Date.now()+30000;
+  vm.runInContext('updateSessionClock(testSession)',env.ctx);
+  assert.ok(env.calls.some(x=>x[0]==='remaining' && x[1]>0 && x[1]<=30));
+  env.s.endsAt=Date.now();
+  vm.runInContext('updateSessionClock(testSession)',env.ctx);
+  assert.equal(env.s.stopped,true);
+  assert.ok(env.calls.some(x=>x[0]==='ended'));
+  assert.equal(env.sent.length,0);
 });

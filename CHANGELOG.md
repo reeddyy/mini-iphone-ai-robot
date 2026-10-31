@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — Child controls and gentler conversation
+
+- Preserve microphone mute during permission requests and live media attachment; wire the local input meter into free preview.
+- End capture on direct English/Mandarin spoken stop commands, with a gentle resting message. Keep Stop available independently of transcription.
+- Require backend-verified parent reauthorization for paid extensions; clear codes and discard late responses after cancellation or stop.
+- Expose blocked-audio recovery beside Mini's face.
+- Vary local opening questions and include their exact text in the model instructions.
+- Apply the follow-up preference to both model instructions and local speech. Allow quiet acknowledgements, meaningful story choices and complete story endings.
+- Show a last-minute break notice without extra model calls, and clear displayed transcripts on stop.
+- Add regression coverage for media races, stop commands, authorization, late responses, audio recovery and conversation preferences. Live provider and iPhone Safari behavior remain device checks.
+
 ## 6.4.0 — Expressive Little Companion
 
 - Redesigned Mini's face with large eyes, pink cheeks, ears, a small antenna, natural blinking and a gentle smile, all in self-contained CSS.

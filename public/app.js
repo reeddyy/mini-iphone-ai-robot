@@ -16,11 +16,16 @@ const els = {
   micBadge: $('micBadge'), videoBadge: $('videoBadge'),
   userText: $('userTranscript'), miniText: $('assistantTranscript'),
   remoteAudio: $('remoteAudio'), playAudio: $('playAudioBtn'), diagnostic: $('modelDiagnostic'),
+  kidAudio: $('kidAudioBtn'),
+  extendDialog: $('extendDialog'), extendForm: $('extendForm'), extensionCode: $('extensionCode'),
+  extensionMessage: $('extensionMessage'), extensionApprove: $('extensionApprove'), extensionCancel: $('extensionCancel'),
 };
 let mode = 'checking';
 let current = null;
 let loading = false;
 let childUI = null;
+let extensionRequest = null;
+let openingRound = Math.floor(Math.random() * 1000);
 
 function setStatus(message, state = 'idle') {
   els.status.className = `status ${state === 'error' ? 'error' : state === 'idle' ? '' : 'connected'}`;
@@ -53,14 +58,23 @@ function render() {
   els.videoBadge.classList.toggle('active', running && s.mode !== 'preview' && s.wantVideo && !s.videoPaused && s.ready);
   els.placeholder.classList.toggle('hidden', !!(running && s.wantVideo && els.preview.srcObject));
 }
-function maybeUnmuteAudio() {
+async function maybeUnmuteAudio() {
+  const s = current;
+  if (!s || s.stopped) return;
   els.remoteAudio.muted = false;
   els.remoteAudio.volume = 1;
   current?.audioMeter?.resume();
   current?.micMeter?.resume();
-  els.remoteAudio.play().catch(() => {
-    els.playAudio.textContent = '▶ Tap to hear Mini';
-  });
+  try {
+    await els.remoteAudio.play();
+    if (current === s && !s.stopped) els.kidAudio.classList.add('hidden');
+  } catch {
+    if (current !== s || s.stopped) return;
+    const label = s.language === 'zh' ? '▶ 点这里听 Mini 说话' : '▶ Tap to hear Mini';
+    els.playAudio.textContent = label;
+    els.kidAudio.textContent = label;
+    els.kidAudio.classList.remove('hidden');
+  }
 }
 async function loadConfig() {
   try {
@@ -92,12 +106,13 @@ function updateSessionClock(s) {
   const remaining = Math.max(0, Math.ceil((s.endsAt - Date.now()) / 1000));
   els.remaining.textContent = 'Remaining: ' + clockText(remaining);
   els.remaining.classList.toggle('warning', remaining <= 60);
-  if (remaining === 0) stopMini('Session automatically stopped to limit costs.');
+  childUI?.onTimeRemaining?.(remaining);
+  if (remaining === 0) stopMini('Session automatically stopped to limit costs.', {gentle:true});
 }
 function scheduleSessionStop(s) {
   clearTimeout(s.deadline);
   s.deadline = setTimeout(() => {
-    if (!s.stopped && current === s) stopMini('Session automatically stopped to limit costs.');
+    if (!s.stopped && current === s) stopMini('Session automatically stopped to limit costs.', {gentle:true});
   }, Math.max(0, s.endsAt - Date.now()));
 }
 function extendSession() {
@@ -105,11 +120,54 @@ function extendSession() {
   if (!s || s.stopped || s.mode !== 'realtime' || !s.ready) return;
   const maximum = s.startedAt + extras.MAX_SESSION_MINUTES * 60000;
   if (s.endsAt >= maximum) return;
-  if (!window.confirm('Add 5 minutes to this paid Qwen session? Microphone and any enabled camera sharing will continue.')) return;
-  s.endsAt = Math.min(maximum, s.endsAt + 5 * 60000);
-  scheduleSessionStop(s);
-  updateSessionClock(s);
-  render();
+  cancelExtension();
+  extensionRequest = {session:s, abort:new AbortController()};
+  els.extensionMessage.textContent = '';
+  els.extensionApprove.disabled = false;
+  els.extendDialog.showModal();
+}
+function cancelExtension() {
+  extensionRequest?.abort.abort();
+  extensionRequest = null;
+  els.extensionCode.value = '';
+  if (els.extendDialog.open) els.extendDialog.close();
+}
+async function authorizeExtension(event) {
+  event.preventDefault();
+  const request = extensionRequest;
+  if (!request || els.extensionApprove.disabled) return;
+  const s = request.session;
+  const code = els.extensionCode.value.trim();
+  els.extensionCode.value = '';
+  if (code.length < 10) {
+    els.extensionMessage.textContent = 'Enter the private parent code (at least 10 characters).';
+    return;
+  }
+  els.extensionApprove.disabled = true;
+  els.extensionMessage.textContent = 'Checking parent code…';
+  try {
+    const response = await fetch('/api/parent/authorize', {
+      method:'POST', headers:{'X-Robot-Access-Code':code},
+      signal:request.abort.signal, cache:'no-store',
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || result?.ok !== true) throw new Error(result?.error || 'Could not verify the parent code. Try again.');
+    if (extensionRequest !== request || current !== s || s.stopped) return;
+    if (s.endsAt <= Date.now()) {
+      cancelExtension();
+      updateSessionClock(s);
+      return;
+    }
+    s.endsAt = Math.min(s.startedAt + extras.MAX_SESSION_MINUTES * 60000, s.endsAt + 5 * 60000);
+    cancelExtension();
+    scheduleSessionStop(s);
+    updateSessionClock(s);
+    render();
+  } catch (error) {
+    if (extensionRequest === request) els.extensionMessage.textContent = error.message || 'Parent authorization failed.';
+  } finally {
+    if (extensionRequest === request) els.extensionApprove.disabled = false;
+  }
 }
 function recordFirstReply(s) {
   if (s.stopped || s.replyMeasured || !Number.isFinite(s.speechEndedAt)) return;
@@ -198,7 +256,7 @@ function cancelCompanionFollowUp(s) {
 }
 function scheduleCompanionFollowUp(s, reply, child, status) {
   cancelCompanionFollowUp(s);
-  if (!s.keepConversationGoing || !kids.needsFollowUp(reply, child, status)) return;
+  if (!s.keepConversationGoing || !kids.needsFollowUp(reply, child, status, s.activity)) return;
   if (!s.mediaReady || s.mode !== 'realtime' || s.muted) return;
   const selectedMode = s.activity;
   const language = s.language === 'zh' ||
@@ -238,7 +296,7 @@ function startActivity(s, value) {
     sendModelEvent(s, {
       type:'session.update',
       event_id:'event_' + crypto.randomUUID(),
-      session:{instructions:kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused)},
+      session:{instructions:kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing})},
     });
   } catch (error) {
     s.activityUpdatePending = false;
@@ -283,7 +341,7 @@ function tryInitialize(s) {
   s.baseInstructions = extras.buildInstructions({personality:s.personality, language:s.language, note:s.note});
   const session = {
     modalities: ['text','audio'],
-    instructions: kids.instructions(s.baseInstructions,'chat',s.wantVideo),
+    instructions: kids.instructions(s.baseInstructions,'chat',s.wantVideo,{keepConversationGoing:s.keepConversationGoing,opening:s.opening}),
     input_audio_format: 'pcm',
     output_audio_format: 'pcm',
     input_audio_transcription: {model:'qwen3-asr-flash-realtime'},
@@ -361,6 +419,10 @@ function receiveEvent(s, ev, channel) {
       els.userText.textContent = `${ev.text || ''}${ev.stash || ''}` || 'Listening…';
       break;
     case 'conversation.item.input_audio_transcription.completed':
+      if (kids.isStopCommand(ev.transcript)) {
+        stopMini('Voice stop · camera and microphone off', {gentle:true});
+        return;
+      }
       els.userText.textContent = ev.transcript || '—';
       if (typeof ev.transcript === 'string') {
         s.lastChildTranscript = ev.transcript.slice(0,240);
@@ -460,6 +522,7 @@ async function startSendingMedia(s) {
   const mic = s.localStream.getAudioTracks()[0];
   if (!mic) throw new Error('No microphone track');
   s.audioInputTrack = mic;
+  mic.enabled = !s.muted;
   await s.audioSender.replaceTrack(mic);
   if (s.stopped) return;
   // The model expects audio to begin before video frames.
@@ -473,11 +536,11 @@ async function startSendingMedia(s) {
     s.micMeter = extras.createMicInputMeter(s.localStream,level=>childUI?.onMicLevel(level));
     childUI?.onLiveReady();
   }
-  setStatus('Mini is live · speak naturally, even one word', 'listening');
+  setStatus(s.muted ? 'Microphone muted · Mini cannot hear you' : 'Mini is live · speak naturally, even one word', s.muted ? 'idle' : 'listening');
   render();
   // The first question uses Safari speech. This is not a paid Qwen turn.
   // No unsupported response.create is sent in automatic VAD mode.
-  if (s.mode === 'realtime') childUI?.sayFallback('chat');
+  if (s.mode === 'realtime' && !s.muted) childUI?.sayFallback('chat',s.opening);
 }
 
 function makeVideoTrack(s) {
@@ -545,6 +608,7 @@ async function startMini() {
     keepConversationGoing:els.keepTalk.checked,
     vadThreshold:extras.speechThreshold(els.sensitivity.value),
     personality:els.personality.value, language:els.language.value,
+    opening:kids.getOpening(els.language.value,openingRound++),
     note:extras.boundedNote(els.note.value),
     muted:false, videoPaused:false, channels:new Set(),
     ready:false, updateSent:false, sessionCreated:false, mediaStarted:false, mediaReady:false,
@@ -569,6 +633,7 @@ async function startMini() {
     });
     if (s.stopped) {s.localStream.getTracks().forEach(t => t.stop()); return;}
     s.audioInputTrack = s.localStream.getAudioTracks()[0];
+    if (s.audioInputTrack) s.audioInputTrack.enabled = !s.muted;
     if (s.wantVideo) {
       els.preview.srcObject = s.localStream;
       els.preview.classList.toggle('rear', s.facing === 'environment');
@@ -578,10 +643,12 @@ async function startMini() {
     s.timer = setInterval(() => updateSessionClock(s), 500);
     scheduleSessionStop(s);
     updateSessionClock(s);
+    if (s.stopped) return;
 
     if (s.mode === 'preview') {
       s.ready = true;
-      setStatus('Local preview: camera and microphone ready · NO AI connection', 'idle');
+      s.micMeter = extras.createMicInputMeter(s.localStream,level=>childUI?.onMicLevel(level));
+      setStatus(s.muted ? 'Local preview · microphone muted · NO AI connection' : 'Local preview: camera and microphone ready · NO AI connection', 'idle');
       els.miniText.textContent = 'Add a Model Studio pay-as-you-go key and Workspace ID to enable continuous AI conversations.';
       return;
     }
@@ -656,9 +723,10 @@ async function startMini() {
   }
 }
 
-function stopMini(reason = 'Mini stopped · camera and microphone off') {
+function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=false} = {}) {
   const s = current;
   if (!s) return;
+  cancelExtension();
   childUI?.stopSpeech();
   s.stopped = true;
   s.abort.abort();
@@ -680,17 +748,24 @@ function stopMini(reason = 'Mini stopped · camera and microphone off') {
   els.remoteAudio.pause();
   els.remoteAudio.srcObject = null;
   els.userText.textContent = '—';
+  els.miniText.textContent = '—';
+  els.kidAudio.classList.add('hidden');
   current = null;
   els.remaining.textContent = 'Remaining: --:--';
   els.remaining.classList.remove('warning');
   setStatus(reason, reason.includes('failed') || reason.includes('error') || reason.includes('Cannot') ? 'error' : 'idle');
   render();
+  if (gentle) childUI?.onSessionEnded?.(s.language);
 }
 
 function toggleMute() {
   const s = current;
   if (!s) return;
   s.muted = !s.muted;
+  if (s.muted) {
+    cancelCompanionFollowUp(s);
+    childUI?.stopSpeech();
+  }
   if (s.audioInputTrack) s.audioInputTrack.enabled = !s.muted;
   setStatus(s.muted ? 'Microphone muted · Mini cannot hear you' : 'Microphone live · listening', s.muted ? 'idle' : 'listening');
   render();
@@ -744,10 +819,15 @@ async function testPostConnection() {
 els.postTest.addEventListener('click', testPostConnection);
 els.start.addEventListener('click', startMini);
 els.extend.addEventListener('click', extendSession);
-els.stop.addEventListener('click', () => stopMini());
+els.extendForm.addEventListener('submit', authorizeExtension);
+els.extensionCancel.addEventListener('click', cancelExtension);
+els.extendDialog.addEventListener('cancel', cancelExtension);
+els.extendDialog.addEventListener('close', cancelExtension);
+els.stop.addEventListener('click', () => stopMini('Mini stopped · camera and microphone off', {gentle:true}));
 els.mute.addEventListener('click', toggleMute);
 els.pauseVideo.addEventListener('click', toggleVideo);
 els.playAudio.addEventListener('click', maybeUnmuteAudio);
+els.kidAudio.addEventListener('click', maybeUnmuteAudio);
 window.addEventListener('pagehide', () => {
   childUI?.stopSpeech();
   stopMini('Page closed · stopped');
@@ -763,7 +843,7 @@ initPreferences();
 childUI = window.MiniChildUI?.init({
   getSession: () => current,
   getLanguage: () => els.language.value,
-  stopSession: reason => stopMini(reason),
+  stopSession: (reason, options) => stopMini(reason, options),
   requestActivity,
 });
 els.language.addEventListener('change', () => childUI?.syncLanguage());

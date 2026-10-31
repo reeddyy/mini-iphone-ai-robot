@@ -41,6 +41,29 @@ test('Preview mode cannot open a billed session',async()=>{
   });
 });
 
+test('Parent reauthorization requires the code and never contacts the AI provider',async()=>{
+  await withApp({apiKey:'sk-payg-test',workspaceId:'ws123abc',fetchFn:()=>{throw Error('Authorization must not call Alibaba');}},async base=>{
+    const authorize=code=>fetch(base+'/api/parent/authorize',{method:'POST',headers:{'x-robot-access-code':code}});
+    assert.equal((await authorize('')).status,401);
+    assert.equal((await authorize('wrong-code')).status,401);
+    const result=await authorize(CODE);
+    assert.equal(result.status,200);
+    assert.deepEqual(await result.json(),{ok:true});
+    assert.equal((await fetch(base+'/api/parent/authorize')).status,404);
+  });
+});
+
+test('Parent reauthorization and startup share incorrect-code throttling',async()=>{
+  await withApp({apiKey:''},async base=>{
+    for(let i=0;i<8;i++) {
+      const path=i%2?'/api/parent/authorize':'/api/realtime/sdp';
+      assert.equal((await fetch(base+path,{method:'POST',headers:{'x-robot-access-code':'wrong'}})).status,401);
+    }
+    assert.equal((await fetch(base+'/api/parent/authorize',{method:'POST',headers:{'x-robot-access-code':CODE}})).status,429);
+    assert.equal((await sdp(base)).status,429);
+  });
+});
+
 test('Reject wrong code, invalid MIME and invalid SDP before upstream',async()=>{
   await withApp({apiKey:'sk-payg-test',workspaceId:'ws123abc',fetchFn:()=>{throw Error('Should not reach upstream');}},async base=>{
     assert.equal((await sdp(base,'bad-code')).status,401);

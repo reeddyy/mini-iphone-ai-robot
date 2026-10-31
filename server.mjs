@@ -90,15 +90,18 @@ export function createApp({
         console.info('Mini diagnostic POST reached origin (no AI request).');
         return json(res, 200, {ok:true, origin:'mini', method:'POST'});
       }
-      if (req.method !== 'POST' || path !== '/api/realtime/sdp') return respond(res, 404, 'Not found');
+      if (req.method !== 'POST' || !['/api/realtime/sdp','/api/parent/authorize'].includes(path)) return respond(res, 404, 'Not found');
 
       prune(attempts); prune(authFails);
       if (authFails.length >= 8) return json(res, 429, {error:'Too many incorrect access codes. Stop and restart your server to try again.'});
       if (!codeMatches(req.headers['x-robot-access-code'], accessCode)) {
         authFails.push(Date.now());
-        console.warn('Mini SDP rejected: private ROBOT_ACCESS_CODE did not match (no secret logged).');
+        console.warn('Mini authorization rejected: private ROBOT_ACCESS_CODE did not match (no secret logged).');
         return json(res, 401, {error:'Incorrect private robot access code. Check ROBOT_ACCESS_CODE in the Windows .env file, restart Mini, and enter the same value in Safari.'});
       }
+      // Reauthorize a parent action without creating another paid AI session.
+      // Shares the access-code failure throttle with session startup.
+      if (path === '/api/parent/authorize') return json(res, 200, {ok:true});
       if (!upstream) return json(res, 412, {error:'Local preview only. Add a Model Studio pay-as-you-go API key and Workspace ID.'});
       if (attempts.length >= 8) return json(res, 429, {error:'Too many live sessions started in 10 minutes. Please try again later.'});
       if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('application/sdp')) {

@@ -56,6 +56,8 @@
       <p id="kidHint" class="kid-hint" role="status" aria-live="polite">Hi! Ask a grown-up to wake up my talking brain.</p>
       <p id="kidGameMode" class="kid-mode-line">💜 You can say anything to Mini.</p>
       <p id="modelDiagnostic" class="kid-model-issue hidden" role="status" aria-live="polite"></p>
+      <p id="kidSessionNotice" class="kid-session-notice hidden" role="status"></p>
+      <button id="kidAudioBtn" class="outline kid-audio hidden" type="button">▶ Tap to hear Mini</button>
       <div class="kid-lower">
         <button id="kidParentLink" class="kid-parent-link" type="button">👨‍👩‍👧 Grown-up: Start Mini</button>
         <button id="kidStopBtn" class="kid-stop hidden" type="button">■ Stop live chat</button>
@@ -95,11 +97,11 @@
         <select id="listenSensitivity"><option value="quiet" selected>Quiet child · more sensitive</option><option value="normal">Normal voice</option><option value="noisy">Noisy room · less sensitive</option></select>
         <label for="responsePace">Reply speed</label>
         <select id="responsePace"><option value="fast" selected>Fast · 500 ms silence</option><option value="balanced">Balanced · 800 ms</option><option value="patient">Patient · 1200 ms</option></select>
-        <label class="toggle-label"><input id="keepConversationGoing" type="checkbox" checked><span>Keep the conversation going · one question after each answer</span></label>
+        <label class="toggle-label"><input id="keepConversationGoing" type="checkbox" checked><span>Offer gentle follow-up questions (allow quiet pauses and story endings)</span></label>
         <label for="sessionLimit">Automatic stop</label>
         <select id="sessionLimit"><option value="5">5 minutes · short test</option><option value="15" selected>15 minutes · recommended</option><option value="30">30 minutes · extended</option><option value="45">45 minutes · extended</option><option value="60">60 minutes · maximum</option></select>
       </div>
-      <p class="help cost-note">Mini asks an opening question using Safari's voice. Qwen should answer your child's reply and ask the next question. If Qwen forgets, Safari asks one short follow-up (no extra model request). More sensitive listening may also hear background noise. Longer sessions cost more. There is no automatic paid reconnect.</p>
+      <p class="help cost-note">Mini asks a varied opening question using Safari's voice. Qwen follows your child's interests and choices. With follow-ups enabled, Safari may supply one question during an unfinished game or story (no extra model request). Turn follow-ups off for child-led conversation. Say “Mini, stop” or “Mini，别说了” to end a session when speech recognition is available; the Stop button always works. More sensitive listening may hear background noise. Longer sessions cost more. Adding time requires the parent code again. There is no automatic paid reconnect.</p>
       <div class="actions session-actions">
         <button id="startBtn" class="primary" type="button">● Parent: Start voice chat</button>
         <button id="stopBtn" class="outline hidden" type="button">■ Stop session</button>
@@ -155,5 +157,18 @@
         </details>
     <footer>Mini V6.3 · Voice-first companion · Parent-started paid AI · Camera opt-in</footer>
   </main>
+  <dialog id="extendDialog" class="parent-dialog" aria-labelledby="extendTitle">
+    <form id="extendForm">
+      <h2 id="extendTitle">Grown-up: add 5 minutes?</h2>
+      <p>Microphone and any enabled camera sharing will continue. Paid usage continues, up to the 60-minute session maximum.</p>
+      <label for="extensionCode">Enter the parent access code again</label>
+      <input id="extensionCode" class="wide-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus>
+      <p id="extensionMessage" role="status" aria-live="polite"></p>
+      <div class="actions">
+        <button id="extensionCancel" class="outline" type="button">Cancel</button>
+        <button id="extensionApprove" class="primary" type="submit">Approve +5 minutes</button>
+      </div>
+    </form>
+  </dialog>
 </body>
 </html>

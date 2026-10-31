@@ -17,6 +17,7 @@
     const vadStatus = $('kidVadStatus');
     const micHelp = $('kidMicHelp');
     const kidStop = $('kidStopBtn');
+    const sessionNotice = $('kidSessionNotice');
     let activity = 'chat';
     let touchCount = 0;
     let speechActive = false;
@@ -33,7 +34,9 @@
     function setModeLabel() {
       const session = options.getSession();
       if (session?.ready && session.mode === 'realtime' && !session.stopped) {
-        modeLine.textContent = language() === 'zh'
+        modeLine.textContent = session.muted
+          ? language() === 'zh' ? '麦克风已静音' : 'The microphone is off'
+          : language() === 'zh'
           ? '💜 直接跟 Mini 说话吧！' : '💜 Just talk to Mini!';
       } else {
         modeLine.textContent = language() === 'zh'
@@ -135,14 +138,17 @@
     function onStatus(info={}) {
       const online=Boolean(info.online);
       tag.classList.toggle('active',online);
-      tag.textContent=online?'● AI READY':'♡ NEEDS GROWN-UP';
+      tag.textContent=online?(options.getSession()?.muted?'● MIC MUTED':'● AI READY'):'♡ NEEDS GROWN-UP';
       kidStop.classList.toggle('hidden',!info.running);
       if(!info.running) {
+        sessionNotice.classList.add('hidden');
         micStatus.textContent='🎤 Microphone off';
         micBar.style.width='0%';
         vadStatus.textContent='AI speech detection: off';
         micHelp.textContent='Ask a grown-up to start Mini. Then answer out loud, even with one word.';
         setHint(words().blocked);
+      } else if(options.getSession()?.muted) {
+        setHint(words().muted);
       } else if(!online) {
         const session=options.getSession();
         micStatus.textContent=session?.mode==='preview'?'🎤 Local preview only':'🎤 Connecting…';
@@ -159,7 +165,7 @@
     function onLiveReady() {
       activity='chat';
       speechActive=false;
-      micStatus.textContent='🎤 Microphone on';
+      micStatus.textContent=options.getSession()?.muted?'🔇 Microphone muted':'🎤 Microphone on';
       micHelp.textContent='When Mini asks, answer normally. Mini now listens for one-word replies.';
       vadStatus.textContent='AI speech detection: ready';
       parent.open=false;
@@ -168,6 +174,21 @@
       setHint(words().starting);
       mood('happy',1150);
       sparkle('💜');
+    }
+    function onTimeRemaining(seconds) {
+      const soon = seconds > 0 && seconds <= 60;
+      sessionNotice.classList.toggle('hidden', !soon);
+      const message = language() === 'zh'
+        ? 'Mini 快要休息啦。我们可以把故事说完，然后歇一歇。'
+        : 'Mini will rest soon. Let’s finish this little moment, then take a break.';
+      if (soon && sessionNotice.textContent !== message) sessionNotice.textContent = message;
+    }
+    function onSessionEnded(replyLanguage) {
+      sessionNotice.classList.add('hidden');
+      const zh = replyLanguage === 'zh';
+      setHint(zh ? 'Mini 休息啦。谢谢你一起玩！' : 'Mini is resting now. Thanks for playing!');
+      modeLine.textContent = zh ? '麦克风和摄像头已关闭。休息一下吧。' : 'Microphone and camera are off. Time for a little break.';
+      tag.textContent = zh ? '♡ 休息中' : '♡ RESTING';
     }
     function onActivityStart(value,queued=false) {
       activity=content.mode(value);
@@ -261,13 +282,15 @@
     });
     kidStop.addEventListener('click',()=>{
       stopSpeech();
-      options.stopSession('Live AI stopped by family.');
+      options.stopSession('Live AI stopped by family.', {gentle:true});
     });
     setModeLabel();
     setHint(words().blocked);
     return Object.freeze({
       onStatus,
       onLiveReady,
+      onTimeRemaining,
+      onSessionEnded,
       onActivityStart,
       onResponseStarted,
       onResponseFinished,
