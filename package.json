@@ -1,9 +1,9 @@
 {
   "name": "mini-iphone-qwen-live",
-  "version": "6.2.0",
+  "version": "6.3.0",
   "private": true,
   "type": "module",
-  "description": "A live child-focused iPhone Safari Qwen robot with two-way games, short-voice detection and parent-controlled camera",
+  "description": "A voice-first iPhone Safari companion with conversational stories and games plus parent-controlled Qwen AI",
   "scripts": {
     "start": "node --env-file=.env server.mjs",
     "test": "node --test tests/*.test.mjs"
