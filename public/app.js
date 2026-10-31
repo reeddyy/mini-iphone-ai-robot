@@ -15,7 +15,7 @@ const els = {
   mute: $('muteBtn'), pauseVideo: $('pauseVideoBtn'), clock: $('sessionClock'),
   micBadge: $('micBadge'), videoBadge: $('videoBadge'),
   userText: $('userTranscript'), miniText: $('assistantTranscript'),
-  remoteAudio: $('remoteAudio'), playAudio: $('playAudioBtn'),
+  remoteAudio: $('remoteAudio'), playAudio: $('playAudioBtn'), diagnostic: $('modelDiagnostic'),
 };
 let mode = 'checking';
 let current = null;
@@ -175,29 +175,37 @@ function sendModelEvent(s, event) {
   s.eventChannel.send(JSON.stringify(event));
 }
 
-// One live Qwen session drives every activity. Updating instructions selects a
-// game; a single response.create invites the child. Later spoken answers are
-// handled by normal WebRTC audio and VAD, not by any fake offline button.
+// The model is in automatic server VAD mode. Its *normal* replies are triggered
+// by the child's voice: do NOT send response.create without committed user input.
+// The documented event is normally used for manual turns and tool continuations.
+function showModelIssue(summary) {
+  els.diagnostic.textContent = summary;
+  els.diagnostic.classList.remove('hidden');
+}
+function qwenErrorLabel(error) {
+  const safe = extras.modelErrorDetails(error);
+  return 'code=' + safe.code + ', type=' + safe.type +
+    (safe.param ? ', param=' + safe.param : '');
+}
 function startActivity(s, value) {
   if (!s || s.stopped || !s.mediaReady || s.mode !== 'realtime') return;
   childUI?.stopSpeech();
+  s.previousActivity = s.activeActivity || 'chat';
   s.activity = kids.mode(value);
   s.userSpokeDuringMode = false;
   s.activityUpdatePending = true;
-  s.activityUpdateEventId = 'event_' + crypto.randomUUID();
-  clearTimeout(s.proactiveTimer);
-  s.awaitingProactiveResponse = false;
   childUI?.onActivityStart(s.activity);
   try {
     sendModelEvent(s, {
       type:'session.update',
-      event_id:s.activityUpdateEventId,
+      event_id:'event_' + crypto.randomUUID(),
       session:{instructions:kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused)},
     });
   } catch (error) {
     s.activityUpdatePending = false;
+    s.activity = s.previousActivity;
+    showModelIssue('Mini could not switch games (local channel closed). Live chat may still work.');
     console.warn('Mini could not set activity:', error.message);
-    childUI?.sayFallback(s.activity);
   }
 }
 function requestActivity(value) {
@@ -205,52 +213,21 @@ function requestActivity(value) {
   if (!s || s.stopped || s.mode !== 'realtime' || !s.mediaReady ||
       s.eventChannel?.readyState !== 'open') return false;
   const activity = kids.mode(value);
-  s.micMeter?.resume(); // Safari sometimes defers WebAudio until a fresh tap.
-  if (s.responseActive || s.childSpeaking || s.activityUpdatePending || s.awaitingProactiveResponse) {
+  s.micMeter?.resume();
+  if (s.responseActive || s.childSpeaking || s.activityUpdatePending) {
     s.queuedActivity = activity;
-    childUI?.onActivityStart(activity,true);
+    childUI?.onActivityStart(activity, true);
     return true;
   }
-  startActivity(s,activity);
+  startActivity(s, activity);
   return true;
-}
-function promptActivity(s) {
-  if (!s || s.stopped || !s.mediaReady || s.activityUpdatePending ||
-      s.childSpeaking || s.responseActive || s.userSpokeDuringMode) return;
-  s.awaitingProactiveResponse = true;
-  s.proactiveEventId = 'event_' + crypto.randomUUID();
-  try {
-    sendModelEvent(s,{type:'response.create',event_id:s.proactiveEventId});
-  } catch (error) {
-    s.awaitingProactiveResponse = false;
-    childUI?.sayFallback(s.activity);
-    return;
-  }
-  // Some provider versions do not start speaking without a user turn.
-  // Fall back to ONE local prompt, while the live mic remains active for the
-  // child's answer. Cancel the fallback if a model reply arrives.
-  clearTimeout(s.proactiveTimer);
-  s.proactiveTimer = setTimeout(()=>{
-    if (s.stopped || !s.awaitingProactiveResponse || s.responseActive ||
-        s.childSpeaking || s.userSpokeDuringMode) return;
-    s.awaitingProactiveResponse = false;
-    if (s.queuedActivity) {
-      const next = s.queuedActivity;
-      s.queuedActivity = null;
-      startActivity(s,next);
-    } else {
-      childUI?.sayFallback(s.activity);
-    }
-  },6000);
 }
 function afterResponse(s) {
   s.responseActive = false;
-  s.awaitingProactiveResponse = false;
-  clearTimeout(s.proactiveTimer);
   if (s.queuedActivity) {
     const activity = s.queuedActivity;
     s.queuedActivity = null;
-    startActivity(s,activity);
+    startActivity(s, activity);
   } else {
     childUI?.onResponseFinished();
   }
@@ -298,21 +275,23 @@ function receiveEvent(s, ev, channel) {
         });
       } else if (s.activityUpdatePending && s.mediaReady) {
         s.activityUpdatePending = false;
+        s.activeActivity = s.activity;
         if (s.queuedActivity && s.queuedActivity !== s.activity) {
           const next = s.queuedActivity;
           s.queuedActivity = null;
-          startActivity(s,next);
-        } else if (!s.responseActive && !s.childSpeaking) {
+          startActivity(s, next);
+        } else {
           s.queuedActivity = null;
-          promptActivity(s);
+          // Say one starter locally. Subsequent AI replies come from user audio.
+          if (!s.responseActive && !s.childSpeaking && !s.userSpokeDuringMode) {
+            childUI?.sayFallback(s.activity);
+          }
         }
       }
       break;
     case 'input_audio_buffer.speech_started':
       s.childSpeaking = true;
       s.userSpokeDuringMode = true;
-      clearTimeout(s.proactiveTimer);
-      s.awaitingProactiveResponse = false;
       childUI?.onVoiceDetected(true);
       els.delay.textContent = 'First AI reply: waiting…';
       els.userText.textContent = 'Listening…';
@@ -333,60 +312,52 @@ function receiveEvent(s, ev, channel) {
       childUI?.onTranscription(ev.transcript);
       break;
     case 'response.created':
-      s.proactiveResponseActive = Boolean(s.awaitingProactiveResponse);
-      s.proactiveTextSeen = false;
       s.responseActive = true;
-      s.awaitingProactiveResponse = false;
-      clearTimeout(s.proactiveTimer);
       childUI?.onResponseStarted();
       els.miniText.textContent = '';
       setStatus('Mini is responding…', 'speaking');
       break;
     case 'response.audio_transcript.delta':
-      if (ev.delta) s.proactiveTextSeen = true;
       recordFirstReply(s);
       els.miniText.textContent += ev.delta || '';
       if (ev.delta) setStatus('Mini is speaking…', 'speaking');
       break;
     case 'response.audio_transcript.done':
-      if (ev.transcript) s.proactiveTextSeen = true;
       recordFirstReply(s);
       els.miniText.textContent = ev.transcript || els.miniText.textContent || '—';
       break;
     case 'response.text.delta':
-      if (ev.delta) s.proactiveTextSeen = true;
       recordFirstReply(s);
       break;
     case 'response.done': {
-      const hasOutput = Array.isArray(ev.response?.output) && ev.response.output.length > 0;
-      const needFallback = s.proactiveResponseActive && !s.proactiveTextSeen &&
-                           !hasOutput && !s.queuedActivity;
-      s.proactiveResponseActive = false;
+      const status = ev.response?.status;
+      if (status === 'failed' || status === 'incomplete') {
+        const detail = qwenErrorLabel(ev.response?.status_details?.error);
+        showModelIssue('Qwen reply ' + status + ' (' + detail +
+          '). The session is still connected; try speaking again.');
+      }
       setStatus('Live · ask Mini another question', 'listening');
       afterResponse(s);
-      if (needFallback) childUI?.sayFallback(s.activity);
       break;
     }
     case 'error': {
-      console.error('Realtime model error code:', ev.error?.code || 'unknown');
-      const failedId = ev.error?.event_id || ev.error?.eventId || null;
-      if ((failedId && failedId === s.proactiveEventId) ||
-          (s.awaitingProactiveResponse && !s.responseActive && !s.childSpeaking)) {
-        s.awaitingProactiveResponse = false;
-        clearTimeout(s.proactiveTimer);
-        if (s.queuedActivity) {
-          const next = s.queuedActivity;
-          s.queuedActivity = null;
-          startActivity(s,next);
-        } else childUI?.sayFallback(s.activity);
-        break;
-      }
-      if (failedId && failedId === s.activityUpdateEventId) {
+      // Alibaba's top-level event_id identifies the SERVER error event, not
+      // necessarily the client request; never match it to our request ID.
+      const detail = qwenErrorLabel(ev.error);
+      const safe = extras.modelErrorDetails(ev.error);
+      console.warn('Mini Qwen error (structured fields only):', detail);
+      if (s.activityUpdatePending &&
+          (safe.type === 'invalid_request_error' || safe.param.startsWith('session.'))) {
         s.activityUpdatePending = false;
-        childUI?.sayFallback(s.activity);
+        s.activity = s.previousActivity || 'chat';
+        showModelIssue('Qwen declined a game change (' + detail +
+          '). The live connection is still available. Try Talk or speak normally.');
+        childUI?.onActivityStart(s.activity);
         break;
       }
-      stopMini('Model error. Check Model Studio settings and retry.');
+      showModelIssue('Qwen stopped this session (' + detail +
+        '). No API key or private speech is shown here. Tell a grown-up this code.');
+      stopMini('Qwen error (' + detail + '). Session stopped; copy the code shown below.');
       break;
     }
     default:
@@ -427,7 +398,9 @@ async function startSendingMedia(s) {
   }
   setStatus('Mini is live · speak naturally, even one word', 'listening');
   render();
-  if (s.mode === 'realtime') requestActivity('chat');
+  // The first question uses Safari speech. This is not a paid Qwen turn.
+  // No unsupported response.create is sent in automatic VAD mode.
+  if (s.mode === 'realtime') childUI?.sayFallback('chat');
 }
 
 function makeVideoTrack(s) {
@@ -497,11 +470,13 @@ async function startMini() {
     note:extras.boundedNote(els.note.value),
     muted:false, videoPaused:false, channels:new Set(),
     ready:false, updateSent:false, sessionCreated:false, mediaStarted:false, mediaReady:false,
-    activity:'chat', activityUpdatePending:false, userSpokeDuringMode:false,
-    responseActive:false, childSpeaking:false, awaitingProactiveResponse:false,
+    activity:'chat', activeActivity:'chat', activityUpdatePending:false,
+    userSpokeDuringMode:false, responseActive:false, childSpeaking:false,
     startedAt:Date.now(),
   };
   if (s.mode === 'realtime' && !window.confirm('Grown-up check: Start a paid Qwen voice session for up to ' + s.limit + ' minutes? The microphone and any camera you enable will stream while connected.')) return;
+  els.diagnostic.textContent = '';
+  els.diagnostic.classList.add('hidden');
   s.endsAt = s.startedAt + s.limit * 60000;
   if (s.mode === 'realtime') s.audioMeter = extras.createVoiceMeter(els.face);
   current = s;
@@ -611,7 +586,6 @@ function stopMini(reason = 'Mini stopped · camera and microphone off') {
   clearInterval(s.timer);
   clearTimeout(s.deadline);
   clearTimeout(s.disconnectedTimer);
-  clearTimeout(s.proactiveTimer);
   s.audioMeter?.stop();
   s.micMeter?.stop();
   if (s.drawRaf) cancelAnimationFrame(s.drawRaf);
