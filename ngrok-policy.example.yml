@@ -1,0 +1,15 @@
+# Copy this file to ngrok-policy.yml (ignored by Git), then replace the
+# placeholder with the email address of the Google account you sign in with.
+# IMPORTANT: Requiring Google OAuth alone allows any Google account.
+# This second deny rule restricts access to your chosen email address.
+on_http_request:
+  - actions:
+      - type: oauth
+        config:
+          provider: google
+  - expressions:
+      - "actions.ngrok.oauth.identity.email != 'your-google-account@example.com'"
+    actions:
+      - type: deny
+        config:
+          status_code: 403
