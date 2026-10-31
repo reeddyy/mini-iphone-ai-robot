@@ -9,6 +9,16 @@ function mockEnvironment() {
   const sent=[];
   const calls=[];
   const elements=new Map();
+  const timeouts=new Map();
+  let timeoutId=0;
+  const setFakeTimeout=(fn,ms)=>{const id=++timeoutId;timeouts.set(id,{fn,ms});return id;};
+  const clearFakeTimeout=id=>{timeouts.delete(id);};
+  const flushTimeouts=(maxDelay=Infinity)=>{
+    const ready=[...timeouts].filter(([,item])=>item.ms<=maxDelay);
+    for(const [id,item] of ready) {
+      if (timeouts.delete(id)) item.fn();
+    }
+  };
   const fake=()=>({
     textContent:'',value:'',checked:false,disabled:false,srcObject:null,
     className:'',
@@ -32,6 +42,7 @@ function mockEnvironment() {
     onVoiceDetected(v){calls.push(['voice',v]);},
     onTranscription(text){calls.push(['transcript',text]);},
     sayFallback(mode){calls.push(['fallback',mode]);},
+    sayFollowUp(mode,question,lang){calls.push(['followup',mode,question,lang]);return true;},
     onLiveReady(){calls.push(['ready']);},
     stopSpeech(){},
     onMicLevel(){},
@@ -55,6 +66,10 @@ function mockEnvironment() {
       MiniKidsContent:{
         mode:m=>['chat','guess','story','look'].includes(m)?m:'chat',
         instructions:(base,m)=>base+' mode='+m,
+        needsFollowUp:(reply,child,status)=>Boolean(reply?.trim()) &&
+          (status===undefined || status==='completed') &&
+          !/[?？]/.test(reply) && !/bye|goodbye|stop playing/i.test(child||''),
+        getFollowUp:(m,lang)=>lang==='zh'?'我们继续玩，好不好？':'Shall we keep playing?',
       },
       MiniChildUI:{init:()=>companionUI},
       addEventListener(){},
@@ -63,13 +78,14 @@ function mockEnvironment() {
     fetch:async()=>({ok:true,json:async()=>({mode:'realtime',model:'test',maxSessionMinutes:60})}),
     crypto:{randomUUID:()=>String(++eventId)},
     performance:{now:()=>1000},
-    console,clearTimeout,setTimeout,setInterval,clearInterval,Date,
+    console,clearTimeout:clearFakeTimeout,setTimeout:setFakeTimeout,setInterval,clearInterval,Date,
     AbortController,Uint8Array,
   });
   vm.runInContext(app,ctx);
   const s={
     mode:'realtime',stopped:false,ready:true,mediaReady:true,
     activity:'chat',activityUpdatePending:false,awaitingProactiveResponse:false,
+    keepConversationGoing:true,followUpCount:0,
     responseActive:false,childSpeaking:false,userSpokeDuringMode:false,
     baseInstructions:'family-safe instructions',
     wantVideo:false,videoPaused:false,startedAt:Date.now(),endsAt:Date.now()+900000,
@@ -79,7 +95,7 @@ function mockEnvironment() {
   };
   ctx.testSession=s;
   vm.runInContext('current = testSession',ctx);
-  return {ctx,s,sent,calls};
+  return {ctx,s,sent,calls,flushTimeouts,timeouts};
 }
 const emit=(env,type,extra={})=>{
   env.ctx.ev={type,...extra};
