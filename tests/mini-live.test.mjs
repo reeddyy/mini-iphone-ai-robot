@@ -233,3 +233,25 @@ test('Blocked Safari fallback speech does not mute the child microphone',()=>{
   assert.equal(mic.enabled,true,'restore the microphone when local TTS ends');
   child.stopSpeech();
 });
+
+
+test('Game change is deferred while a spoken answer is waiting for Qwen',()=>{
+  const env=mockEnvironment();
+  request(env,'guess');
+  emit(env,'session.updated');
+  emit(env,'input_audio_buffer.speech_started');
+  emit(env,'input_audio_buffer.speech_stopped');
+  assert.equal(env.s.turnPending,true);
+  const before=env.sent.length;
+  assert.equal(request(env,'story'),true);
+  assert.equal(env.sent.length,before,'do not send session.update during pending inference');
+  emit(env,'response.created');
+  assert.equal(env.sent.length,before);
+  emit(env,'response.done',{response:{status:'completed'}});
+  assert.equal(env.s.turnPending,false);
+  assert.equal(env.sent.length,before+1);
+  assert.match(env.sent.at(-1).session.instructions,/mode=story/);
+  emit(env,'session.updated');
+  assert.ok(env.calls.some(x=>x[0]==='fallback'&&x[1]==='story'));
+  assert.equal(env.s.stopped,false);
+});
