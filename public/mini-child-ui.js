@@ -64,18 +64,20 @@
       try { window.speechSynthesis?.cancel(); } catch {}
       releaseSpeech();
     }
-    function sayFallback(mode) {
-      const message = content.getFallback(mode,language());
+    function sayFallback(mode, phrase=null, replyLanguage=null) {
+      const spokenLanguage = replyLanguage === 'zh' ? 'zh' : replyLanguage === 'en' ? 'en' : language();
+      const message = typeof phrase === 'string' && phrase.trim()
+        ? phrase.trim().slice(0,300) : content.getFallback(mode,spokenLanguage);
       stopSpeech();
-      pendingStarter = mode;
+      pendingStarter = {mode,text:message,language:spokenLanguage};
       setHint(message);
-      micHelp.textContent='If I am silent, tap my face to hear the question again.';
+      micHelp.textContent='Answer Mini out loud. If the voice is silent, tap Mini’s face to hear the question.';
       if (!canSpeak) return;
       const session = options.getSession();
       if (!session?.ready || session.stopped) return;
       const mic = session.audioInputTrack;
       const utterance = new window.SpeechSynthesisUtterance(message);
-      utterance.lang = language() === 'zh' ? 'zh-CN' : 'en-US';
+      utterance.lang = spokenLanguage === 'zh' ? 'zh-CN' : 'en-US';
       utterance.rate = 0.9;
       utterance.pitch = 1.05;
       const item = {mic,session,restore:false,guard:null};
@@ -94,6 +96,13 @@
       utterance.onerror = () => { done(); micHelp.textContent='Tap Mini’s face to try hearing the question again.'; };
       try { window.speechSynthesis.speak(utterance); }
       catch { done(); }
+    }
+    function sayFollowUp(mode, phrase, replyLanguage) {
+      const session=options.getSession();
+      if (!session?.ready || session.stopped || session.muted || speechActive) return false;
+      sayFallback(mode, phrase, replyLanguage);
+      micHelp.textContent='Mini has another question for you. Answer it out loud!';
+      return true;
     }
     function mood(type, duration=850) {
       clearTimeout(moodTimer);
@@ -116,7 +125,7 @@
     function tapFace() {
       if (pendingStarter && options.getSession()?.ready) {
         const again = pendingStarter;
-        sayFallback(again); // Direct iPhone touch gesture can unlock Safari narration.
+        sayFallback(again.mode, again.text, again.language); // A touch can unlock Safari narration.
         return;
       }
       touchCount+=1;
@@ -271,6 +280,7 @@
       onTranscription,
       onMicLevel,
       sayFallback,
+      sayFollowUp,
       stopSpeech,
       syncLanguage:()=>{setModeLabel();setHint(options.getSession()?.ready?words().ready:words().blocked);},
     });
