@@ -2,7 +2,7 @@
 
 This is a personal prototype, **not a production-hardened service**.
 
-- Keep this GitHub repository **private**, at least while experimenting.
+- This repository is **public**: anyone can read and copy its source. Never rely on code or repository visibility to keep credentials private. Store secrets only in your local, Git-ignored `.env` file.
 - Never commit `.env`, `.env.*`, Alibaba API keys, access codes, cloud credentials, or recordings. `.env.example` contains only placeholders.
 - Run the robot server on `127.0.0.1`; use a restricted HTTPS tunnel for iPhone access. Do not forward port 3000 directly to the internet.
 - Rotate any API key or access code immediately if exposed, even in a private commit. Removing it from the latest file does not remove it from Git history.
