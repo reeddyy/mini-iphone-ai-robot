@@ -306,14 +306,21 @@ function makeVideoTrack(s) {
     if (!track) throw new Error('No canvas video track');
     s.canvasStream = stream;
     s.videoOutTrack = track;
-    function pump() {
+    // Keep the <video> preview smooth, but do expensive canvas draws only
+    // when a new 1-2 fps AI frame is due. Older iPhones benefit especially.
+    let lastFrameAt = -Infinity;
+    function pump(now) {
       if (s.stopped) return;
-      if (els.preview.videoWidth > 0 && els.preview.videoHeight > 0) {
-        try { ctx.drawImage(els.preview, 0, 0, canvas.width, canvas.height); } catch {}
+      if (now - lastFrameAt >= 1000 / s.fps &&
+          els.preview.videoWidth > 0 && els.preview.videoHeight > 0) {
+        try {
+          ctx.drawImage(els.preview, 0, 0, canvas.width, canvas.height);
+          lastFrameAt = now;
+        } catch {}
       }
       s.drawRaf = requestAnimationFrame(pump);
     }
-    pump();
+    s.drawRaf = requestAnimationFrame(pump);
   } catch (error) {
     console.warn('Canvas video unavailable; using a low-fps camera track:', error.message);
     // Fallback for older Safari implementations. Local preview may become choppy.
