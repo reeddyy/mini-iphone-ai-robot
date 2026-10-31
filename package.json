@@ -1,6 +1,6 @@
 {
   "name": "mini-iphone-qwen-live",
-  "version": "6.3.0",
+  "version": "6.4.0",
   "private": true,
   "type": "module",
   "description": "A voice-first iPhone Safari companion with conversational stories and games plus parent-controlled Qwen AI",
