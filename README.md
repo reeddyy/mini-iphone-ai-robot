@@ -100,9 +100,46 @@ The client sends an SDP offer to your own Node backend, the backend forwards it 
 
 ## 3. Open the live robot on iPhone 12 Pro
 
-Safari camera and microphone capture require a **secure HTTPS origin**. Mini uses your local Windows backend and can be accessed on your phone through Tailscale Serve (recommended) or a protected Cloudflare Tunnel. First verify that the app works at `http://localhost:3001` (or your configured port) on Windows.
+Safari camera and microphone capture require a **secure HTTPS origin**. You can use **Safari alone** on an iPhone, with no iOS app installation. Keep Mini running at `http://localhost:3001` on Windows and use an HTTPS tunnel from your PC.
 
-### Recommended: private Tailscale Serve connection
+### Recommended for Safari-only iPhone: ngrok + Google sign-in
+
+This option needs an ngrok account and the ngrok agent **only on Windows**. The iPhone uses Safari; no iPhone app, VPN, or Cloudflare Quick Tunnel email PIN is required.
+
+1. On Windows, install [ngrok](https://ngrok.com/download/windows) and create/sign in to your [ngrok account](https://dashboard.ngrok.com/). One installation option is:
+
+```powershell
+winget install ngrok -s msstore
+```
+
+2. Copy your account's ngrok **authtoken** from the dashboard and add it locally. Replace the placeholder; never publish the actual token or paste it into chat:
+
+```powershell
+ngrok config add-authtoken "PASTE_YOUR_NGROK_AUTHTOKEN_HERE"
+```
+
+3. In the existing Mini project folder, create a **local, Git-ignored** traffic policy and open it in Notepad:
+
+```powershell
+Copy-Item ngrok-policy.example.yml ngrok-policy.yml
+notepad ngrok-policy.yml
+```
+
+Replace `your-google-account@example.com` with the **exact email address of your own Google account**, then save. This example requires Google OAuth and **denies any other signed-in email**. Simply enabling Google OAuth without this restriction would allow all Google accounts. Do not commit your `ngrok-policy.yml`.
+
+4. Keep `npm start` running in one PowerShell window (with `PORT=3001`). In **another** PowerShell window in the Mini project folder, start the protected tunnel:
+
+```powershell
+ngrok http 3001 --traffic-policy-file .\ngrok-policy.yml
+```
+
+5. Open the **HTTPS Forwarding URL printed by ngrok** in Safari on your iPhone 12 Pro. The free plan may show an initial browser warning—continue only if this is the URL you just created. Sign in with the approved Google account, then enter Mini's separate `ROBOT_ACCESS_CODE`. Tap **Test tunnel POST (free)** twice, then try **Start live Mini** if both tests succeed.
+
+Your free ngrok account gets an assigned development domain, with request and bandwidth limits. Ngrok provides HTTPS but the URL is otherwise internet-reachable: **keep Google OAuth with the exact email restriction enabled**, use a private robot access code, and stop ngrok when not testing. Do not use an unprotected public endpoint for live camera/audio access.
+
+References: [ngrok Windows install](https://ngrok.com/download/windows) · [ngrok OAuth & traffic policy](https://ngrok.com/docs/share-localhost/auth) · [ngrok free plan limits](https://ngrok.com/docs/pricing-limits/free-plan-limits)
+
+### Alternative: Tailscale Serve (requires an iPhone VPN app)
 
 [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve) supplies an HTTPS URL reachable **only within your private tailnet**. It does not expose Mini publicly and avoids Cloudflare Quick Tunnel email-session issues.
 
@@ -130,9 +167,9 @@ cloudflared tunnel --url http://localhost:3001 --allowed-mail you@example.com
 
 Close/reopen PowerShell after installation if `cloudflared` is not recognized. Open the displayed `https://....trycloudflare.com` URL in iPhone Safari, complete the email PIN challenge, and enter Mini's separate private access code.
 
-**Known Cloudflare issue (October 2026):** Some `--allowed-mail` Quick Tunnel sessions expire shortly after sign-in; subsequent POST requests return a **plain HTTP 401**, including Mini's `/api/realtime/sdp` request. This matches [cloudflare/cloudflared issue #1752](https://github.com/cloudflare/cloudflared/issues/1752). If the local Windows app works but Safari reports a generic SDP HTTP 401 behind the email-protected tunnel, use Tailscale Serve instead. **Do not disable email protection to bypass the problem** on a public URL.
+**Known Cloudflare issue (October 2026):** Some `--allowed-mail` Quick Tunnel sessions expire shortly after sign-in; subsequent POST requests return a **plain HTTP 401**, including Mini's `/api/realtime/sdp` request. This matches [cloudflare/cloudflared issue #1752](https://github.com/cloudflare/cloudflared/issues/1752). If localhost works but Safari reports a generic SDP HTTP 401 behind the email-protected tunnel, use **ngrok with Google OAuth** instead (no iPhone app needed). **Do not disable email protection to bypass the problem** on a public URL.
 
-With either HTTPS method, say: **"Hello Mini, what can you see in front of you?"** and try **"你好 Mini，你看到什么？"**. If Safari refuses to play the model's voice, tap **Enable speaker audio** and raise the iPhone volume. Keep Safari open and the screen awake; backgrounding Safari intentionally stops the session.
+With a working HTTPS method, say: **"Hello Mini, what can you see in front of you?"** and try **"你好 Mini，你看到什么？"**. If Safari refuses to play the model's voice, tap **Enable speaker audio** and raise the iPhone volume. Keep Safari open and the screen awake; backgrounding Safari intentionally stops the session.
 
 ## What is / is not continuous
 
@@ -186,7 +223,7 @@ Node.js v22.13.0 and npm 10.9.2 are sufficient for this project. You do **not** 
 | Symptom | Next step |
 |---|---|
 | LOCAL PREVIEW ONLY | Set both `.env` pay-as-you-go variables and restart Node. |
-| Authentication 401 from Mini | Check `ROBOT_ACCESS_CODE` in `.env` and the code entered in Safari; restart Mini after editing `.env`. A **generic non-JSON SDP HTTP 401** may be caused by the [Cloudflare `--allowed-mail` session-expiration bug](https://github.com/cloudflare/cloudflared/issues/1752); if localhost works, try private Tailscale Serve instead. |
+| Authentication 401 from Mini | Check `ROBOT_ACCESS_CODE` in `.env` and the code entered in Safari; restart Mini after editing `.env`. A **generic non-JSON SDP HTTP 401** may be caused by the [Cloudflare `--allowed-mail` session-expiration bug](https://github.com/cloudflare/cloudflared/issues/1752); if localhost works, try ngrok with Google OAuth and an exact-email allowlist. |
 | Server rejects Token Plan | Expected; custom robot app must use pay-as-you-go. |
 | Model Studio 403 / 404 | Check Workspace ID, Singapore key, permissions and availability of realtime model. |
 | No camera | Use HTTPS, foreground Safari, allow permissions. Try front camera first. |
