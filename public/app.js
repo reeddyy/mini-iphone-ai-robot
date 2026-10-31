@@ -390,6 +390,8 @@ function receiveEvent(s, ev, channel) {
       recordFirstReply(s);
       if (typeof ev.transcript === 'string' && ev.transcript.trim()) s.replyTranscript = ev.transcript.slice(-1800);
       els.miniText.textContent = ev.transcript || els.miniText.textContent || '—';
+      // Only paint a playful expression; this never changes model requests.
+      childUI?.reactToMiniSpeech?.(ev.transcript);
       break;
     case 'response.text.delta':
       recordFirstReply(s);
