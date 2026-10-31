@@ -105,7 +105,7 @@
       activity.setAttribute('aria-hidden', 'true');
       choices.textContent = '';
       openActivity = '';
-      setHint(options.getSession()?.ready ? words().ready : words().asleep);
+      setHint(options.getSession()?.ready ? words().ready : words().hello);
     }
     function showActivity(name, heading, text) {
       openActivity = name;
@@ -184,7 +184,7 @@
       else if (info.state === 'thinking' && live) setHint(words().thinking);
       else if (live) setHint(words().ready);
       else if (info.running) setHint(words().hello);
-      else setHint(words().asleep);
+      else setHint(words().hello);
     }
 
     face.setAttribute('role', 'button');
