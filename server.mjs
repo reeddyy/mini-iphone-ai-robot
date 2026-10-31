@@ -9,6 +9,8 @@ const STATIC = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/mini-extras.js', ['mini-extras.js', 'text/javascript; charset=utf-8']],
+  ['/mini-kids.js', ['mini-kids.js', 'text/javascript; charset=utf-8']],
+  ['/mini-child-ui.js', ['mini-child-ui.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ]);
 const WINDOW_MS = 600_000;
