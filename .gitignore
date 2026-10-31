@@ -24,3 +24,6 @@ Thumbs.db
 
 # Personal ngrok access policy (the tracked example is safe)
 ngrok-policy.yml
+
+# Personal password-based ngrok policy (never commit secrets)
+ngrok-password-policy.yml
