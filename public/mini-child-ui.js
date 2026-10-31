@@ -43,6 +43,7 @@
     function releaseSpeech() {
       const value = activeNarration;
       activeNarration = null;
+      delete face.dataset.localVoice;
       if (!value) return;
       clearTimeout(value.guard);
       if (value.mic && value.restore && !value.session?.stopped && !value.session?.muted) {
@@ -75,7 +76,9 @@
       // Do NOT disable the child's microphone before Safari actually speaks.
       // If Safari blocks speech synthesis, their answer must still reach Qwen.
       utterance.onstart = () => {
-        if (activeNarration === item && mic?.enabled && !session.stopped && !session.muted) {
+        if (activeNarration !== item) return;
+        face.dataset.localVoice = 'true';
+        if (mic?.enabled && !session.stopped && !session.muted) {
           item.restore = true;
           mic.enabled = false;
         }
@@ -98,8 +101,13 @@
       clearTimeout(moodTimer);
       face.classList.remove('kid-happy','kid-wink','kid-peek','kid-surprised');
       void face.offsetWidth;
+      // setStatus() rewrites className. Dataset expression survives it.
+      face.dataset.expression = type;
       face.classList.add('kid-'+type);
-      moodTimer = setTimeout(()=>face.classList.remove('kid-'+type),duration);
+      moodTimer = setTimeout(()=>{
+        face.classList.remove('kid-'+type);
+        if (face.dataset.expression === type) delete face.dataset.expression;
+      },duration);
     }
     function sparkle(symbol='💜') {
       clearTimeout(sparkleTimer);
@@ -158,6 +166,8 @@
       window.scrollTo({top:0,behavior:'smooth'});
       setModeLabel();
       setHint(words().starting);
+      mood('happy',1150);
+      sparkle('💜');
     }
     function onActivityStart(value,queued=false) {
       activity=content.mode(value);
@@ -172,6 +182,21 @@
       stopSpeech();
       setHint(words().playing);
     }
+    function reactToMiniSpeech(transcript) {
+      // React only to Mini's own reply, not to the child's face or inferred emotion.
+      if (typeof transcript !== 'string' || !transcript.trim()) return;
+      const t = transcript.toLowerCase().slice(0,1100);
+      if (/\b(?:correct|great job|well done|you got it|brilliant|excellent|awesome)\b|答对|真棒|太棒|厉害|做得好/i.test(t)) {
+        mood('proud',1200);
+        sparkle('⭐');
+      } else if (/\b(?:wow|whoa|amazing|oh my|surprise)\b|哇|真的吗|惊喜/i.test(t)) {
+        mood('surprised',1000);
+      } else if (/[?？][\s”’"']*$/.test(t)) {
+        mood('curious',800);
+      } else {
+        mood('happy',650);
+      }
+    }
     function onResponseFinished() {
       if(speechActive) return;
       setHint(words().listening);
@@ -183,7 +208,7 @@
         lastVoiceAt=Date.now();
         vadStatus.textContent='✅ '+words().speech;
         setHint(words().speech);
-        mood('surprised',600);
+        mood('curious',680);
       } else {
         vadStatus.textContent='✅ AI detected your voice · making a reply';
         setHint(words().prompting);
@@ -246,6 +271,7 @@
       onActivityStart,
       onResponseStarted,
       onResponseFinished,
+      reactToMiniSpeech,
       onVoiceDetected,
       onTranscription,
       onMicLevel,
