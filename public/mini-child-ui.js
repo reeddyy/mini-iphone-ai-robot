@@ -1,250 +1,261 @@
-// Mini's default child-friendly companion screen.
-// Touch play and original offline activities require no Model Studio calls.
-// Parent setup remains responsible for starting every paid AI session.
+// Mini V6 companion surface: all activity buttons use the SAME live Qwen session.
+// No activity stops the microphone or starts an offline fake conversation.
 (function () {
   'use strict';
   function init(options) {
     const $ = id => document.getElementById(id);
     const content = window.MiniKidsContent;
-    if (!content) throw new Error('Mini Kids content is missing');
+    if (!content) throw new Error('Mini activity instructions missing');
     const face = $('robotFace');
     const hint = $('kidHint');
+    const modeLine = $('kidGameMode');
     const tag = $('kidLiveTag');
     const sparkles = $('kidSparkles');
-    const activity = $('kidActivity');
-    const title = $('kidActivityTitle');
-    const body = $('kidActivityBody');
-    const choices = $('kidChoices');
-    const next = $('kidNext');
-    const close = $('kidClose');
     const parent = $('parentSetup');
+    const micStatus = $('kidMicStatus');
+    const micBar = $('kidMicBar');
+    const vadStatus = $('kidVadStatus');
+    const micHelp = $('kidMicHelp');
     const kidStop = $('kidStopBtn');
     const buttons = [
-      {id:'kidStory', kind:'story'},
-      {id:'kidGuess', kind:'quiz'},
-      {id:'kidLook', kind:'look'},
+      {id:'kidChat', mode:'chat'},
+      {id:'kidGuess', mode:'guess'},
+      {id:'kidStory', mode:'story'},
+      {id:'kidLook', mode:'look'},
     ];
-    let storyIndex = 0;
-    let quizIndex = 0;
-    let openActivity = '';
+    let activity = 'chat';
     let touchCount = 0;
-    let moodTimeout = null;
-    let sparkleTimeout = null;
-    let activeSpeech = null;
-    const localSpeechAvailable = Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance);
-
-    function currentLanguage() {
-      return options.getLanguage() === 'zh' ? 'zh' : 'en';
-    }
-    function words() { return content.words(currentLanguage()); }
+    let speechActive = false;
+    let lastLevel = -1;
+    let activeNarration = null;
+    let moodTimer = null;
+    let sparkleTimer = null;
+    let lastVoiceAt = 0;
+    const canSpeak = Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance);
+    const language = () => options.getLanguage() === 'zh' ? 'zh' : 'en';
+    const words = () => content.getLabels(language());
     function setHint(message) { hint.textContent = message; }
+    function setModeLabel() {
+      const labels = words();
+      for (const item of buttons) {
+        const button = $(item.id);
+        const selected = item.mode === activity;
+        button.classList.toggle('selected',selected);
+        button.setAttribute('aria-pressed',String(selected));
+        button.querySelector('strong').textContent = labels[item.mode];
+      }
+      modeLine.textContent = options.getSession()?.ready
+        ? '🎲 ' + labels[activity] + ' · AI conversation'
+        : '🎤 Ask a grown-up to start the AI';
+    }
     function releaseSpeech() {
-      const spoken = activeSpeech;
-      activeSpeech = null;
-      if (!spoken) return;
-      clearTimeout(spoken.guardTimer);
-      if (spoken.mic && spoken.restore && !spoken.session?.stopped && !spoken.session?.muted) {
-        spoken.mic.enabled = true;
+      const value = activeNarration;
+      activeNarration = null;
+      if (!value) return;
+      clearTimeout(value.guard);
+      if (value.mic && value.restore && !value.session?.stopped && !value.session?.muted) {
+        value.mic.enabled = true;
       }
     }
     function stopSpeech() {
       try { window.speechSynthesis?.cancel(); } catch {}
       releaseSpeech();
     }
-    function speakLocal(message) {
+    function sayFallback(mode) {
+      const message = content.getFallback(mode,language());
+      setHint(message);
       stopSpeech();
-      if (!message || !localSpeechAvailable) return false;
+      if (!canSpeak) return;
       const session = options.getSession();
-      const mic = session?.audioInputTrack;
-      const restore = Boolean(mic?.enabled && !session?.muted);
-      if (restore) mic.enabled = false; // Don't send our own local voice back to Qwen.
+      if (!session?.ready || session.stopped) return;
+      const mic = session.audioInputTrack;
+      const restore = Boolean(mic?.enabled && !session.muted);
+      if (restore) mic.enabled = false; // Local backup prompt must not be heard by Qwen.
       const utterance = new window.SpeechSynthesisUtterance(message);
-      utterance.lang = currentLanguage() === 'zh' ? 'zh-CN' : 'en-US';
-      utterance.rate = currentLanguage() === 'zh' ? 0.86 : 0.9;
-      utterance.pitch = 1.07;
-      utterance.volume = 0.95;
-      const spoken = {mic, session, restore, guardTimer:null};
-      activeSpeech = spoken;
-      const finish = () => { if (activeSpeech === spoken) releaseSpeech(); };
-      spoken.guardTimer = setTimeout(finish, 90000);
-      utterance.onend = finish;
-      utterance.onerror = finish;
-      try { window.speechSynthesis.speak(utterance); return true; }
-      catch { finish(); return false; }
+      utterance.lang = language() === 'zh' ? 'zh-CN' : 'en-US';
+      utterance.rate = 0.9;
+      utterance.pitch = 1.05;
+      const item = {mic,session,restore,guard:null};
+      activeNarration = item;
+      const done = () => { if (activeNarration === item) releaseSpeech(); };
+      item.guard = setTimeout(done, 20000);
+      utterance.onend = done;
+      utterance.onerror = done;
+      try { window.speechSynthesis.speak(utterance); }
+      catch { done(); }
     }
-    function mood(name, duration = 1000) {
-      clearTimeout(moodTimeout);
+    function mood(type, duration=850) {
+      clearTimeout(moodTimer);
       face.classList.remove('kid-happy','kid-wink','kid-peek','kid-surprised');
       void face.offsetWidth;
-      face.classList.add('kid-' + name);
-      moodTimeout = setTimeout(() => face.classList.remove('kid-' + name), duration);
+      face.classList.add('kid-'+type);
+      moodTimer = setTimeout(()=>face.classList.remove('kid-'+type),duration);
     }
-    function sparkle(message = '💜') {
-      clearTimeout(sparkleTimeout);
+    function sparkle(symbol='💜') {
+      clearTimeout(sparkleTimer);
       sparkles.textContent = '';
-      for (let i = 0; i < 4; i++) {
-        const bit = document.createElement('span');
-        bit.textContent = i % 2 ? '✦' : message;
-        bit.className = 'kid-spark';
-        bit.style.setProperty('--spark-i', String(i));
-        sparkles.appendChild(bit);
+      for(let i=0;i<4;i++){
+        const span=document.createElement('span');
+        span.className='kid-spark';
+        span.textContent=i%2?'✦':symbol;
+        sparkles.appendChild(span);
       }
-      sparkleTimeout = setTimeout(() => { sparkles.textContent = ''; }, 1400);
+      sparkleTimer=setTimeout(()=>{sparkles.textContent='';},1400);
     }
-    function touchFace() {
-      touchCount += 1;
-      const peekaboo = touchCount % 4 === 0;
-      mood(peekaboo ? 'peek' : 'happy', peekaboo ? 1350 : 900);
-      sparkle(peekaboo ? '✨' : '💜');
-      setHint(peekaboo ? words().peek : words().pet);
-      if (peekaboo) speakLocal(words().peek);
+    function tapFace() {
+      touchCount+=1;
+      const isPeek=touchCount%4===0;
+      mood(isPeek?'peek':'happy',isPeek?1250:850);
+      sparkle(isPeek?'✨':'💜');
+      setHint(isPeek ? 'Peekaboo!' : words().ready);
     }
-    function closeActivity() {
+    function showParentHelp(message) {
+      setHint(message);
+      parent.open=true;
+      parent.scrollIntoView({block:'start',behavior:'smooth'});
+    }
+    function select(mode) {
+      const session=options.getSession();
+      if(!session?.ready || session.mode!=='realtime' || session.stopped) {
+        showParentHelp(words().blocked);
+        return;
+      }
+      if(session.muted || !session.audioInputTrack?.enabled) {
+        setHint(words().muted);
+        return;
+      }
+      activity=content.mode(mode);
+      setModeLabel();
+      options.requestActivity(activity);
+    }
+    function onStatus(info={}) {
+      const online=Boolean(info.online);
+      tag.classList.toggle('active',online);
+      tag.textContent=online?'● AI READY':'♡ NEEDS GROWN-UP';
+      kidStop.classList.toggle('hidden',!info.running);
+      if(!info.running) {
+        micStatus.textContent='🎤 Microphone off';
+        micBar.style.width='0%';
+        vadStatus.textContent='AI speech detection: off';
+        micHelp.textContent='Ask a grown-up to start Mini. Then answer out loud, even with one word.';
+        setHint(words().blocked);
+      } else if(!online) {
+        micStatus.textContent='🎤 Connecting…';
+        vadStatus.textContent='AI speech detection: waiting';
+      } else if(info.state==='speaking') {
+        setHint(words().playing);
+      } else if(info.state==='thinking') {
+        setHint(words().prompting);
+      } else if(info.state==='listening' && !speechActive) {
+        setHint(words().listening);
+      }
+      setModeLabel();
+    }
+    function onLiveReady() {
+      activity='chat';
+      speechActive=false;
+      micStatus.textContent='🎤 Microphone on';
+      micHelp.textContent='When Mini asks, answer normally. Mini now listens for one-word replies.';
+      vadStatus.textContent='AI speech detection: ready';
+      parent.open=false;
+      window.scrollTo({top:0,behavior:'smooth'});
+      setModeLabel();
+      setHint(words().starting);
+    }
+    function onActivityStart(value,queued=false) {
+      activity=content.mode(value);
+      setModeLabel();
+      setHint(queued?words().queued:words().prompting);
+      if (!queued) {
+        mood('happy');
+        sparkle('✨');
+      }
+    }
+    function onResponseStarted() {
       stopSpeech();
-      activity.classList.add('hidden');
-      activity.setAttribute('aria-hidden', 'true');
-      choices.textContent = '';
-      openActivity = '';
-      setHint(options.getSession()?.ready ? words().ready : words().hello);
+      setHint(words().playing);
     }
-    function showActivity(name, heading, text) {
-      openActivity = name;
-      activity.classList.remove('hidden');
-      activity.setAttribute('aria-hidden', 'false');
-      title.textContent = heading;
-      body.textContent = text;
-      choices.textContent = '';
-      setHint(heading);
+    function onResponseFinished() {
+      if(speechActive) return;
+      setHint(words().listening);
     }
-    function switchToOfflinePlay() {
-      const session = options.getSession();
-      if (session && !session.stopped && session.mode === 'realtime') {
-        options.stopSession('Switched to free offline play. Paid AI disconnected.');
+    function onVoiceDetected(heard) {
+      speechActive=heard;
+      if(heard) {
+        lastVoiceAt=Date.now();
+        vadStatus.textContent='✅ '+words().speech;
+        setHint(words().speech);
+        mood('surprised',600);
+      } else {
+        vadStatus.textContent='✅ AI detected your voice · making a reply';
+        setHint(words().prompting);
       }
     }
-    function story() {
-      switchToOfflinePlay();
-      const item = content.story(storyIndex++, currentLanguage());
-      showActivity('story', '📖 ' + item.title, item.text);
-      next.textContent = words().nextStory;
-      next.classList.remove('hidden');
-      mood('happy');
-      speakLocal(item.text);
+    function onTranscription(value) {
+      if(typeof value!=='string'||!value.trim())return;
+      vadStatus.textContent='✅ AI heard: '+value.trim().slice(0,60);
+      lastVoiceAt=Date.now();
     }
-    function quiz() {
-      switchToOfflinePlay();
-      const item = content.quiz(quizIndex++, currentLanguage());
-      showActivity('quiz', '🐾 ' + words().quiz, item.question);
-      next.textContent = words().nextQuiz;
-      next.classList.remove('hidden');
-      const idx = quizIndex;
-      item.choices.forEach((emoji, choiceIndex) => {
-        const button = document.createElement('button');
-        button.className = 'kid-choice';
-        button.type = 'button';
-        button.textContent = emoji;
-        button.setAttribute('aria-label', 'Choice ' + (choiceIndex + 1) + ': ' + emoji);
-        button.addEventListener('click', () => {
-          if (openActivity !== 'quiz' || idx !== quizIndex) return;
-          if (choiceIndex === item.correct) {
-            mood('happy');
-            sparkle('⭐');
-            body.textContent = words().right;
-            for (const child of choices.children) child.disabled = true;
-            speakLocal(words().right);
-          } else {
-            mood('surprised');
-            body.textContent = words().wrong;
-            speakLocal(words().wrong);
-          }
-        });
-        choices.appendChild(button);
-      });
-      speakLocal(item.question);
-    }
-    function look() {
-      const session = options.getSession();
-      const canSee = session?.ready && session.mode === 'realtime' &&
-        session.wantVideo && !session.videoPaused;
-      const message = canSee ? words().lookOnline : words().lookOffline;
-      showActivity('look', '👀 ' + words().look, message);
-      next.classList.add('hidden');
-      mood(canSee ? 'happy' : 'surprised');
-      speakLocal(message);
-    }
-    function onStatus(info = {}) {
-      const live = Boolean(info.online);
-      tag.textContent = live ? '● LIVE' : '♡ QUIET PLAY';
-      tag.classList.toggle('active', live);
-      kidStop.classList.toggle('hidden', !info.running);
-      // Leave activity instructions on screen until the child dismisses them.
-      if (openActivity) return;
-      if (info.state === 'speaking') setHint(words().speaking);
-      else if (info.state === 'listening' && live) setHint(words().listening);
-      else if (info.state === 'thinking' && live) setHint(words().thinking);
-      else if (live) setHint(words().ready);
-      else if (info.running) setHint(words().hello);
-      else setHint(words().hello);
+    function onMicLevel(value) {
+      const level=Number.isFinite(value)?Math.max(0,Math.min(100,Math.round(value))):0;
+      if(Math.abs(level-lastLevel)<3 && level!==0)return;
+      lastLevel=level;
+      micBar.style.width=level+'%';
+      const session=options.getSession();
+      if(!session?.ready || session.stopped) return;
+      micStatus.textContent=session.muted||!session.audioInputTrack?.enabled
+        ? '🔇 Microphone muted'
+        : level>=8?'🎤 Sound reaching mic':'🎤 Mic on · speak near phone';
+      // Mic sound is only a local signal, not proof the model recognised speech.
+      if(level>=8 && !speechActive && Date.now()-lastVoiceAt>7000) {
+        micHelp.textContent='Sound is reaching the phone. If Mini stays silent, speak a little louder or try Normal sensitivity.';
+      }
     }
 
-    face.setAttribute('role', 'button');
-    face.setAttribute('tabindex', '0');
-    face.setAttribute('aria-label', 'Pet Mini to make it smile and react');
+    face.setAttribute('role','button');
+    face.setAttribute('tabindex','0');
+    face.setAttribute('aria-label','Tap Mini to make it react');
     face.removeAttribute('aria-hidden');
-    face.addEventListener('click', touchFace);
-    face.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        touchFace();
-      }
+    face.addEventListener('click',tapFace);
+    face.addEventListener('keydown',event=>{
+      if(event.key==='Enter'||event.key===' '){event.preventDefault();tapFace();}
     });
-    face.addEventListener('pointermove', event => {
-      if (event.pointerType === 'touch') return;
-      const rect = face.getBoundingClientRect();
-      const dx = Math.max(-8, Math.min(8, (event.clientX - rect.left - rect.width / 2) / 9));
-      const dy = Math.max(-5, Math.min(5, (event.clientY - rect.top - rect.height / 2) / 14));
-      face.style.setProperty('--look-x', dx.toFixed(1) + 'px');
-      face.style.setProperty('--look-y', dy.toFixed(1) + 'px');
+    face.addEventListener('pointermove',event=>{
+      if(event.pointerType==='touch')return;
+      const rect=face.getBoundingClientRect();
+      const x=Math.max(-8,Math.min(8,(event.clientX-rect.left-rect.width/2)/9));
+      const y=Math.max(-5,Math.min(5,(event.clientY-rect.top-rect.height/2)/14));
+      face.style.setProperty('--look-x',x.toFixed(1)+'px');
+      face.style.setProperty('--look-y',y.toFixed(1)+'px');
     });
-    face.addEventListener('pointerleave', () => {
+    face.addEventListener('pointerleave',()=>{
       face.style.removeProperty('--look-x');
       face.style.removeProperty('--look-y');
     });
-
-    for (const entry of buttons) {
-      $(entry.id).addEventListener('click', () => {
-        if (entry.kind === 'story') story();
-        if (entry.kind === 'quiz') quiz();
-        if (entry.kind === 'look') look();
-      });
-    }
-    next.addEventListener('click', () => {
-      if (openActivity === 'story') story();
-      else if (openActivity === 'quiz') quiz();
-    });
-    close.addEventListener('click', closeActivity);
-    kidStop.addEventListener('click', () => {
-      stopSpeech();
-      options.stopSession('A grown-up stopped the live voice and camera.');
-      closeActivity();
-    });
-    $('kidParentLink').addEventListener('click', () => {
-      parent.open = true;
+    for(const item of buttons) $(item.id).addEventListener('click',()=>select(item.mode));
+    $('kidParentLink').addEventListener('click',()=>{
+      parent.open=true;
       parent.scrollIntoView({block:'start',behavior:'smooth'});
     });
-    setHint(words().hello);
-    return {
+    kidStop.addEventListener('click',()=>{
+      stopSpeech();
+      options.stopSession('Live AI stopped by family.');
+    });
+    setModeLabel();
+    setHint(words().blocked);
+    return Object.freeze({
       onStatus,
+      onLiveReady,
+      onActivityStart,
+      onResponseStarted,
+      onResponseFinished,
+      onVoiceDetected,
+      onTranscription,
+      onMicLevel,
+      sayFallback,
       stopSpeech,
-      stopAll() { stopSpeech(); closeActivity(); },
-      onLiveReady() {
-        if (openActivity) closeActivity();
-        parent.open = false;
-        window.scrollTo({top:0,behavior:'smooth'});
-        setHint(words().ready);
-      },
-      syncLanguage() { if (!openActivity) setHint(words().hello); },
-    };
+      syncLanguage:()=>{setModeLabel();setHint(options.getSession()?.ready?words().ready:words().blocked);},
+    });
   }
-  window.MiniChildUI = Object.freeze({init});
+  window.MiniChildUI=Object.freeze({init});
 })();
