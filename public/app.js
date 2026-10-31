@@ -214,7 +214,7 @@ function requestActivity(value) {
       s.eventChannel?.readyState !== 'open') return false;
   const activity = kids.mode(value);
   s.micMeter?.resume();
-  if (s.responseActive || s.childSpeaking || s.activityUpdatePending) {
+  if (s.responseActive || s.childSpeaking || s.turnPending || s.activityUpdatePending) {
     s.queuedActivity = activity;
     childUI?.onActivityStart(activity, true);
     return true;
@@ -224,6 +224,8 @@ function requestActivity(value) {
 }
 function afterResponse(s) {
   s.responseActive = false;
+  s.turnPending = false;
+  clearTimeout(s.thinkingWatchdog);
   if (s.queuedActivity) {
     const activity = s.queuedActivity;
     s.queuedActivity = null;
@@ -299,6 +301,14 @@ function receiveEvent(s, ev, channel) {
       break;
     case 'input_audio_buffer.speech_stopped':
       s.childSpeaking = false;
+      s.turnPending = true;
+      clearTimeout(s.thinkingWatchdog);
+      // Never trigger a second paid response. This only helps diagnose silence.
+      s.thinkingWatchdog = setTimeout(() => {
+        if (!s.stopped && s.turnPending && !s.responseActive) {
+          showModelIssue('Mini detected the answer, but Qwen has not started replying after 15 seconds. Stop and restart the session if it stays silent.');
+        }
+      }, 15000);
       childUI?.onVoiceDetected(false);
       s.speechEndedAt = performance.now();
       s.replyMeasured = false;
@@ -312,6 +322,7 @@ function receiveEvent(s, ev, channel) {
       childUI?.onTranscription(ev.transcript);
       break;
     case 'response.created':
+      clearTimeout(s.thinkingWatchdog);
       s.responseActive = true;
       childUI?.onResponseStarted();
       els.miniText.textContent = '';
@@ -472,6 +483,7 @@ async function startMini() {
     ready:false, updateSent:false, sessionCreated:false, mediaStarted:false, mediaReady:false,
     activity:'chat', activeActivity:'chat', activityUpdatePending:false,
     userSpokeDuringMode:false, responseActive:false, childSpeaking:false,
+    turnPending:false,
     startedAt:Date.now(),
   };
   if (s.mode === 'realtime' && !window.confirm('Grown-up check: Start a paid Qwen voice session for up to ' + s.limit + ' minutes? The microphone and any camera you enable will stream while connected.')) return;
@@ -586,6 +598,7 @@ function stopMini(reason = 'Mini stopped · camera and microphone off') {
   clearInterval(s.timer);
   clearTimeout(s.deadline);
   clearTimeout(s.disconnectedTimer);
+  clearTimeout(s.thinkingWatchdog);
   s.audioMeter?.stop();
   s.micMeter?.stop();
   if (s.drawRaf) cancelAnimationFrame(s.drawRaf);
