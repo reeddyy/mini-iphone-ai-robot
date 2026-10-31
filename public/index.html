@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101426">
-  <meta name="description" content="Mini: a child-focused live AI companion with interactive Qwen games, short-voice detection and parent-controlled camera">
-  <title>Mini V6.2 · Talking Buddy</title>
+  <meta name="description" content="Mini: a simple, voice-first child companion with parent-controlled live AI and camera">
+  <title>Mini V6.3 · Just Talk to Mini</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/mini-extras.js" defer></script>
   <script src="/mini-kids.js" defer></script>
@@ -16,7 +16,7 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand-mark" aria-hidden="true">✦</div>
-      <div><div class="eyebrow">A real talking buddy · V6.2</div><h1>Hi, I’m Mini<span class="dot">!</span></h1></div>
+      <div><div class="eyebrow">Just talk to Mini · V6.3</div><h1>Hi, I’m Mini<span class="dot">!</span></h1></div>
       <div id="kidLiveTag" class="kid-live-tag">♡ NEEDS GROWN-UP</div>
     </header>
     <section class="robot-stage" aria-label="Animated robot face">
@@ -27,34 +27,33 @@
         <div class="mouth"><span></span><span></span><span></span><span></span><span></span></div>
       </div>
       <div id="status" class="status" role="status" aria-live="polite"><span class="status-light"></span>Mini is resting</div>
-      <div class="tip">Talk with me, play together, or show me something!</div>
+      <div class="tip">No buttons to learn. Just talk to me! 💜</div>
     </section>
 
     <section class="kid-home" aria-label="Talk with Mini">
       <p id="kidHint" class="kid-hint" role="status" aria-live="polite">Hi! Ask a grown-up to wake up my talking brain.</p>
-      <p id="kidGameMode" class="kid-mode-line" aria-live="polite">Mini is not listening yet</p>
-      <div class="kid-actions">
-        <button class="kid-action talk" id="kidChat" type="button"><span class="kid-emoji" aria-hidden="true">💬</span><strong>Talk</strong><small>ASK ME ANYTHING</small></button>
-        <button class="kid-action guess" id="kidGuess" type="button"><span class="kid-emoji" aria-hidden="true">🐯</span><strong>Guess!</strong><small>I ASK, YOU ANSWER</small></button>
-        <button class="kid-action story" id="kidStory" type="button"><span class="kid-emoji" aria-hidden="true">📖</span><strong>Story</strong><small>WE MAKE IT TOGETHER</small></button>
-        <button class="kid-action look" id="kidLook" type="button"><span class="kid-emoji" aria-hidden="true">👀</span><strong>Show</strong><small>SEE MY TOY</small></button>
-      </div>
-      <div class="kid-listening" role="group" aria-label="Microphone and speech detection">
-        <div class="kid-listening-head"><span id="kidMicStatus">🎤 Microphone off</span><span id="kidVadStatus">AI speech detection: waiting</span></div>
-        <div class="kid-mic-track"><span id="kidMicBar"></span></div>
-        <p id="kidMicHelp">Ask a grown-up to start live Mini. When it asks a question, answer aloud — even one word!</p>
-        <p id="modelDiagnostic" class="kid-model-issue hidden" role="status" aria-live="polite"></p>
-      </div>
+      <p id="kidGameMode" class="kid-mode-line">💜 You can say anything to Mini.</p>
       <div class="kid-lower">
         <button id="kidParentLink" class="kid-parent-link" type="button">👨‍👩‍👧 Grown-up: Start Mini</button>
         <button id="kidStopBtn" class="kid-stop hidden" type="button">■ Stop live chat</button>
       </div>
-      <p class="kid-parent-note">Live AI is started by a grown-up. These activities use the same ongoing AI conversation — no separate offline quiz.</p>
+      <p class="kid-parent-note">A grown-up starts the voice session. You can ask Mini for a story, a guessing game, or about a toy—just by speaking.</p>
     </section>
 
     <details id="parentSetup" class="parent-setup">
       <summary>⚙️ Parent setup &amp; safety controls</summary>
       <p class="help parent-intro">Only a grown-up can start a paid Qwen voice session. Once started, Mini asks your child a question, listens to short answers and continues the conversation. Camera sharing is optional and off by default. These settings are collapsed, not separately PIN-locked.</p>
+      <details class="parent-diagnostics" id="parentDiagnostics">
+        <summary>Microphone and AI hearing diagnostics</summary>
+      <div class="kid-listening" role="group" aria-label="Microphone and speech detection">
+        <div class="kid-listening-head"><span id="kidMicStatus">🎤 Microphone off</span><span id="kidVadStatus">AI speech detection: waiting</span></div>
+        <div class="kid-mic-track"><span id="kidMicBar"></span></div>
+        <p id="kidMicHelp">Ask a grown-up to start live Mini. When it asks a question, answer aloud — even one word!</p>
+
+      </div>
+
+      </details>
+      <p id="modelDiagnostic" class="kid-model-issue hidden" role="status" aria-live="polite"></p>
     <section class="panel" aria-label="Live session">
       <div class="section-head"><h2>1 · Start a voice chat (grown-ups)</h2><span id="modeTag" class="tag">CHECKING</span></div>
       <p id="modeInfo" class="help">Checking server configuration…</p>
@@ -131,7 +130,7 @@
       <p class="help">If Safari blocks automatic audio playback, tap Enable speaker audio. Use phone speaker volume or headphones to reduce echo.</p>
     </section>
         </details>
-    <footer>Mini V6.2 · Live conversational play · Parent-started paid AI · Camera opt-in</footer>
+    <footer>Mini V6.3 · Voice-first companion · Parent-started paid AI · Camera opt-in</footer>
   </main>
 </body>
 </html>
