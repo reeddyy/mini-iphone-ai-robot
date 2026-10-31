@@ -138,3 +138,30 @@ select:disabled{opacity:.5}.actions button{min-width:0;white-space:normal}
  .face.kid-happy .eye,.face.kid-peek .eye,.face.kid-surprised .eye,.face.kid-wink .eye,
  .kid-spark{animation:none!important}
 }
+
+
+/* Mini V6: make the live conversation obvious; no disconnected "offline" games. */
+.kid-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.kid-action{min-height:118px;border-radius:22px}
+.kid-action strong{font-size:22px}
+.kid-action .kid-emoji{font-size:40px}
+.kid-action.talk{background:linear-gradient(145deg,#5d8edb,#3749a0);color:#fff}
+.kid-action.selected{border-color:#fff;box-shadow:0 0 0 3px #c6c1ff48,0 6px 0 #070b1d6b}
+.kid-action small{font-size:9px}
+.kid-mode-line{text-align:center;font-weight:760;font-size:13px;letter-spacing:.03em;
+  color:#bbd1fb;margin:0 0 12px}
+.kid-listening{border:1px solid #5e78968a;background:#17263c;border-radius:16px;
+  padding:13px 14px;margin:15px 0}
+.kid-listening-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.kid-listening-head span{font-size:11px;color:#dce5f9;font-weight:730;line-height:1.3;min-width:0}
+#kidVadStatus{font-size:10px;color:#92b4d0;text-align:right;max-width:52%}
+.kid-mic-track{height:8px;background:#39435e;border-radius:20px;margin:11px 0 0;overflow:hidden}
+#kidMicBar{display:block;width:0;height:100%;border-radius:20px;background:linear-gradient(90deg,#71d6b2,#f3d891);transition:width .15s}
+#kidMicHelp{font-size:11px;color:#a9c4db;line-height:1.45;margin:8px 0 0}
+@media(max-width:400px){
+  .kid-actions{gap:10px}
+  .kid-action{min-height:110px;border-radius:17px}
+  .kid-action strong{font-size:20px}
+  .kid-action .kid-emoji{font-size:36px}
+  .kid-listening-head{gap:6px}
+}
