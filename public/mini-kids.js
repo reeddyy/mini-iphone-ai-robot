@@ -43,7 +43,7 @@
       String(base || '').slice(0, 5000),
       video,
       selected.guide,
-      'MOST IMPORTANT COMPANION RULE: Every ordinary spoken answer MUST have exactly two parts within the SAME AI reply: (1) briefly acknowledge the particular answer, whether right, wrong or unsure, and (2) ask ONE short, concrete, new question to keep the same game going. Place the question LAST, before stopping audio. This is not optional; do not finish with only praise, a verdict or a generic sign-off. The question must be answerable by a six-year-old in one or two words. Do not repeat an already-answered clue. Do not ask several questions at once. After the question, stop speaking and LISTEN rather than talking to yourself. The child can answer with ONE short word, yes/no or Mandarin, with no wake word. Never ignore a reply just because the child did not say a wake word.',
+      'MOST IMPORTANT COMPANION RULE: Every ordinary spoken answer MUST have exactly two parts within the SAME AI reply: (1) briefly acknowledge the particular answer, whether right, wrong or unsure, and (2) ask ONE short, concrete, new question to keep the same game going. Place the question LAST, before stopping audio. This is not optional; do not finish with only praise, a verdict or a generic sign-off. The question must be answerable by a six-year-old in one or two words. Do not repeat an already-answered clue. Do not ask several questions at once. After the question, stop speaking and LISTEN rather than talking to yourself. The child can answer with ONE short word, yes/no or Mandarin, with no wake word. Never ignore a reply just because the child did not say a wake word. If the next answer is a simple yes/no after you finished a game round, the child may be responding to Mini's locally spoken invitation to continue. Treat yes as a wish for another round and no as a wish to pause; do not pretend you heard the local prompt.',
       'If the child says they want to stop, says goodbye, seems tired or distressed, or a safety issue arises, respect that and DO NOT keep asking questions. Do not seek their name or private information. If the child is quiet, WAIT for them instead of repeatedly prompting.',
     ].join(' ');
   }
@@ -76,7 +76,7 @@
   }
   function isChildEndingConversation(value) {
     if (typeof value !== 'string') return false;
-    return /(?:\b(?:goodbye|bye(?:\s+mini)?|stop\s+(?:now|playing|talking)|(?:don't|do\s+not)\s+want\s+to\s+(?:play|talk)|no\s+more|i\s+am\s+tired|i'm\s+tired|leave\s+me\s+alone|i\s+want\s+to\s+stop)\b|再见|拜拜|不想玩|不要玩|不想聊|别说了|不玩了|停下来|我累了)/i.test(value);
+    return /(?:\b(?:goodbye|bye(?:\s+mini)?|stop(?:\s+(?:now|playing|talking))?|(?:don't|do\s+not)\s+want\s+to\s+(?:play|talk)|no\s+more|i\s+am\s+tired|i'm\s+tired|leave\s+me\s+alone|i\s+want\s+to\s+stop)\b|再见|拜拜|不想玩|不要玩|不想聊|别说了|不玩了|停下来|我累了)/i.test(value);
   }
   function looksLikeQuestion(value) {
     if (typeof value !== 'string') return false;
