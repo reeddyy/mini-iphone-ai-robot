@@ -271,3 +271,113 @@ test('Game change is deferred while a spoken answer is waiting for Qwen',()=>{
   assert.ok(env.calls.some(x=>x[0]==='fallback'&&x[1]==='story'));
   assert.equal(env.s.stopped,false);
 });
+
+
+test('After a short Qwen verdict, Mini asks ONE local follow-up, no added AI request',()=>{
+  const env=mockEnvironment();
+  const before=env.sent.length;
+  emit(env,'input_audio_buffer.speech_started');
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Giraffe'});
+  emit(env,'response.created');
+  emit(env,'response.audio_transcript.done',{transcript:'You are right! A giraffe. Good job!'});
+  emit(env,'response.done',{response:{status:'completed'}});
+  assert.equal(env.calls.filter(x=>x[0]==='followup').length,0,'do not interrupt streamed speech');
+  env.flushTimeouts(2400);
+  const followups=env.calls.filter(x=>x[0]==='followup');
+  assert.equal(followups.length,1);
+  assert.equal(followups[0][1],'chat');
+  assert.match(followups[0][2],/\?/);
+  env.flushTimeouts();
+  assert.equal(env.calls.filter(x=>x[0]==='followup').length,1,'do not nag in a loop');
+  assert.equal(env.sent.length,before,'must not send new Qwen request');
+});
+
+test('A Qwen answer that already asks a question is left alone',()=>{
+  const env=mockEnvironment();
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'response.created');
+  emit(env,'response.audio_transcript.delta',{delta:'Correct! Which animal has stripes?'});
+  emit(env,'response.done',{response:{status:'completed'}});
+  env.flushTimeouts();
+  assert.equal(env.calls.filter(x=>x[0]==='followup').length,0);
+});
+
+test('A child who speaks before the delayed follow-up cancels it',()=>{
+  const env=mockEnvironment();
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'response.created');
+  emit(env,'response.audio_transcript.done',{transcript:'Nice work!'});
+  emit(env,'response.done',{response:{status:'completed'}});
+  emit(env,'input_audio_buffer.speech_started');
+  env.flushTimeouts();
+  assert.equal(env.calls.filter(x=>x[0]==='followup').length,0);
+});
+
+test('The parent can turn off automatic local questions',()=>{
+  const env=mockEnvironment();
+  env.s.keepConversationGoing=false;
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'response.created');
+  emit(env,'response.audio_transcript.done',{transcript:'Great guessing!'});
+  emit(env,'response.done',{response:{status:'completed'}});
+  env.flushTimeouts();
+  assert.equal(env.calls.filter(x=>x[0]==='followup').length,0);
+});
+
+test('Never follow up after a rejected/empty Qwen response or a goodbye',()=>{
+  for(const {status,text,child} of [
+    {status:'failed',text:'Well done!',child:'giraffe'},
+    {status:'completed',text:'',child:'giraffe'},
+    {status:'completed',text:'Goodbye!',child:'bye'},
+  ]) {
+    const env=mockEnvironment();
+    emit(env,'input_audio_buffer.speech_stopped');
+    emit(env,'conversation.item.input_audio_transcription.completed',{transcript:child});
+    emit(env,'response.created');
+    if(text)emit(env,'response.audio_transcript.done',{transcript:text});
+    emit(env,'response.done',{response:{status}});
+    env.flushTimeouts();
+    assert.equal(env.calls.filter(x=>x[0]==='followup').length,0,status+' '+text);
+  }
+});
+
+test('Changing the game before follow-up cancels the old question',()=>{
+  const env=mockEnvironment();
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'response.created');
+  emit(env,'response.audio_transcript.done',{transcript:'Nice!'});
+  emit(env,'response.done',{response:{status:'completed'}});
+  assert.equal(request(env,'story'),true);
+  env.flushTimeouts();
+  assert.equal(env.calls.filter(x=>x[0]==='followup').length,0);
+});
+
+test('Local question waits for Qwen audio to finish before talking',()=>{
+  const env=mockEnvironment();
+  let speaking=true;
+  env.s.audioMeter={isAudible:()=>speaking};
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'response.created');
+  emit(env,'response.audio_transcript.done',{transcript:'Correct!'});
+  emit(env,'response.done',{response:{status:'completed'}});
+  env.flushTimeouts(2400);
+  assert.equal(env.calls.filter(x=>x[0]==='followup').length,0);
+  speaking=false;
+  env.flushTimeouts(450);
+  assert.equal(env.calls.filter(x=>x[0]==='followup').length,1);
+});
+
+test('A Mandarin model reply gets a Mandarin follow-up in Auto language mode',()=>{
+  const env=mockEnvironment();
+  env.s.language='auto';
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'response.created');
+  emit(env,'response.audio_transcript.done',{transcript:'答对了，真棒！'});
+  emit(env,'response.done',{response:{status:'completed'}});
+  env.flushTimeouts();
+  const followups=env.calls.filter(x=>x[0]==='followup');
+  assert.equal(followups.length,1);
+  assert.equal(followups[0][3],'zh');
+  assert.match(followups[0][2],/？/);
+});
