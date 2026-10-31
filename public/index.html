@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101426">
+  <meta name="description" content="Mini: a live speech and vision robot using iPhone 12 Pro and Qwen Omni Realtime">
+  <title>Mini V3 · Live iPhone Robot</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">✦</div>
+      <div><div class="eyebrow">iPhone-powered robot · prototype 03</div><h1>Meet Mini<span class="dot">.</span></h1></div>
+      <div class="badge">QWEN LIVE</div>
+    </header>
+    <section class="robot-stage" aria-label="Animated robot face">
+      <div class="halo"></div>
+      <div id="robotFace" class="face idle" aria-hidden="true">
+        <div class="eyes"><div class="eye"><div class="pupil"></div><div class="glint"></div></div><div class="eye"><div class="pupil"></div><div class="glint"></div></div></div>
+        <div class="mouth"><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <div id="status" class="status" role="status" aria-live="polite"><span class="status-light"></span>Mini is sleeping</div>
+      <div class="tip">Speak naturally once connected. Mini listens until you press Stop.</div>
+    </section>
+
+    <section class="panel" aria-label="Live session">
+      <div class="section-head"><h2>1 · Live session</h2><span id="modeTag" class="tag">CHECKING</span></div>
+      <p id="modeInfo" class="help">Checking server configuration…</p>
+      <label class="top-label" for="accessCode">Private access code</label>
+      <input id="accessCode" class="wide-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Code in your .env file">
+      <div class="settings-grid">
+        <label class="toggle-label"><input id="sendVideo" type="checkbox" checked><span>Share live camera with AI</span></label>
+        <label for="facing">Camera</label>
+        <select id="facing"><option value="user">Front · sees you</option><option value="environment">Rear · sees objects</option></select>
+        <label for="videoMode">Video method</label>
+        <select id="videoMode"><option value="canvas">Smooth preview + reduced video (recommended)</option><option value="direct">Direct camera · Safari compatibility</option></select>
+        <label for="fps">Video sent to AI</label>
+        <select id="fps"><option value="1">1 frame/sec (recommended)</option><option value="2">2 frames/sec</option></select>
+        <label for="sessionLimit">Automatic stop</label>
+        <select id="sessionLimit"><option value="5">5 minutes (recommended)</option><option value="10">10 minutes</option><option value="15">15 minutes</option></select>
+      </div>
+      <div class="actions session-actions">
+        <button id="startBtn" class="primary" type="button">● Start live Mini</button>
+        <button id="stopBtn" class="outline hidden" type="button">■ Stop session</button>
+      </div>
+      <div class="live-stats"><span id="sessionClock">00:00</span><span id="micBadge">Microphone off</span><span id="videoBadge">Camera off</span></div>
+      <p class="help">Microphone streams continuously after Start. If camera sharing is checked, video frames stream continuously too. Stop ends both. No recording is saved by this app.</p>
+    </section>
+
+    <section class="panel" aria-label="Live vision">
+      <div class="section-head"><div><h2>2 · Mini's eyes</h2><p>Local preview is smooth; AI sees 1–2 frames per second.</p></div><span class="tag">LIVE VISION</span></div>
+      <div class="camera-frame">
+        <video id="preview" autoplay muted playsinline aria-label="Camera preview"></video>
+        <div id="cameraPlaceholder" class="camera-placeholder"><span class="camera-icon">◉</span><span>Camera starts after you tap Start</span></div>
+      </div>
+      <div class="actions">
+        <button id="muteBtn" class="outline" type="button" disabled>Mute microphone</button>
+        <button id="pauseVideoBtn" class="outline" type="button" disabled>Pause visual sharing</button>
+      </div>
+      <p class="help">Pausing visual sharing stops frames going to the AI, but keeps the local camera preview on. Press Stop to turn the camera off fully. Change front/rear camera before starting a session.</p>
+    </section>
+
+    <section class="panel transcript" aria-label="Live subtitles">
+      <div class="section-head"><h2>3 · What Mini hears and says</h2><span class="tag">LIVE SUBTITLES</span></div>
+      <p class="subtitle-label">You said</p><p id="userTranscript" class="transcript-line" aria-live="polite">—</p>
+      <p class="subtitle-label">Mini says</p><p id="assistantTranscript" class="transcript-line" aria-live="polite">—</p>
+      <audio id="remoteAudio" controls autoplay playsinline aria-label="Mini's voice player"></audio>
+      <button id="playAudioBtn" class="outline" type="button">▶ Enable speaker audio</button>
+      <p class="help">If Safari blocks automatic audio playback, tap Enable speaker audio. Use phone speaker volume or headphones to reduce echo.</p>
+    </section>
+    <footer>Qwen Omni realtime · Pay-as-you-go required for live AI · Stops on page exit or when Safari becomes hidden</footer>
+  </main>
+</body>
+</html>
