@@ -50,6 +50,7 @@ function mockEnvironment() {
         speechThreshold(){return 0.25;},
         boundedNote(){return '';},
         buildInstructions(){return 'family-safe instructions';},
+        modelErrorDetails(e){return {code:e?.code||'unknown',type:e?.type||'unknown',param:e?.param||''};},
       },
       MiniKidsContent:{
         mode:m=>['chat','guess','story','look'].includes(m)?m:'chat',
@@ -89,51 +90,46 @@ const request=(env,m)=>{
   return vm.runInContext('requestActivity(which)',env.ctx);
 };
 
-test('Guessing game switches instructions and asks one real model question',()=>{
+test('Guess game updates Qwen instructions but relies on VAD, not unsolicited response.create',()=>{
   const env=mockEnvironment();
   assert.equal(request(env,'guess'),true);
   assert.equal(env.sent.length,1);
   assert.equal(env.sent[0].type,'session.update');
   assert.match(env.sent[0].session.instructions,/mode=guess/);
-  assert.equal(env.s.stopped,false);
   emit(env,'session.updated');
-  assert.equal(env.sent.length,2);
-  assert.equal(env.sent[1].type,'response.create');
-  emit(env,'response.created');
-  assert.equal(env.s.responseActive,true);
-  assert.equal(env.s.awaitingProactiveResponse,false);
-  emit(env,'response.done');
-  assert.equal(env.s.responseActive,false);
+  assert.equal(env.sent.length,1,'no proactive response.create is sent in automatic VAD mode');
+  assert.ok(env.calls.some(x=>x[0]==='fallback' && x[1]==='guess'));
   assert.equal(env.s.stopped,false);
+  emit(env,'input_audio_buffer.speech_started');
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'response.created');
+  emit(env,'response.done',{response:{status:'completed'}});
   assert.ok(env.calls.some(x=>x[0]==='response_done'));
+  assert.equal(env.s.stopped,false);
 });
 
-test('Switching modes while Mini speaks waits, then keeps the same live session',()=>{
+test('Changing activities while Qwen speaks queues the update and preserves the same session',()=>{
   const env=mockEnvironment();
-  assert.equal(request(env,'chat'),true);
+  assert.equal(request(env,'guess'),true);
   emit(env,'session.updated');
   emit(env,'response.created');
   const count=env.sent.length;
   assert.equal(request(env,'story'),true);
-  assert.equal(env.sent.length,count,'no overlapping Qwen instructions');
-  emit(env,'response.done');
-  assert.equal(env.s.stopped,false);
+  assert.equal(env.sent.length,count,'do not change instructions mid-response');
+  emit(env,'response.done',{response:{status:'completed'}});
   assert.equal(env.sent.length,count+1);
   assert.equal(env.sent[count].type,'session.update');
   assert.match(env.sent[count].session.instructions,/mode=story/);
   emit(env,'session.updated');
-  assert.equal(env.sent.at(-1).type,'response.create');
-  emit(env,'response.created');
-  emit(env,'response.done');
+  assert.equal(env.sent.length,count+1,'no extra response.create after the new game starts');
+  assert.ok(env.calls.some(x=>x[0]==='fallback'&&x[1]==='story'));
   assert.equal(env.s.stopped,false);
 });
 
-test('Short spoken reply changes listening state and gets passed to existing VAD',()=>{
+test('One-word child answer is recognised by event handler while session stays live',()=>{
   const env=mockEnvironment();
   request(env,'guess');
   emit(env,'session.updated');
-  emit(env,'response.created');
-  emit(env,'response.done');
   emit(env,'input_audio_buffer.speech_started');
   assert.equal(env.s.childSpeaking,true);
   emit(env,'input_audio_buffer.speech_stopped');
@@ -144,18 +140,43 @@ test('Short spoken reply changes listening state and gets passed to existing VAD
   assert.equal(env.s.stopped,false);
 });
 
-test('A rejected optional greeting falls back without disconnecting paid microphone',()=>{
+test('Rejected game instructions show the error code but do not disconnect a healthy session',()=>{
   const env=mockEnvironment();
-  request(env,'chat');
-  emit(env,'session.updated');
-  const eventId=env.s.proactiveEventId;
-  emit(env,'error',{error:{code:'InvalidState',event_id:eventId}});
+  request(env,'guess');
+  emit(env,'error',{error:{
+    type:'invalid_request_error',code:'invalid_value',param:'session.instructions',
+    message:'private prompt should not be shown',
+  }});
   assert.equal(env.s.stopped,false);
-  assert.ok(env.calls.some(x=>x[0]==='fallback'&&x[1]==='chat'));
-  assert.equal(env.s.awaitingProactiveResponse,false);
+  assert.equal(env.s.activity,'chat');
+  assert.equal(env.s.activityUpdatePending,false);
+  const details=env.ctx.document.getElementById('modelDiagnostic').textContent;
+  assert.match(details,/invalid_value/);
+  assert.doesNotMatch(details,/private prompt/);
 });
 
-test('Joining a live session auto-requests the first Chat greeting',async()=>{
+test('A fatal provider error exposes only structured code and then shuts down media',()=>{
+  const env=mockEnvironment();
+  emit(env,'error',{error:{type:'server_error',code:'rate_limit',message:'child secret phrase'}});
+  assert.equal(env.s.stopped,true);
+  const details=env.ctx.document.getElementById('modelDiagnostic').textContent;
+  assert.match(details,/rate_limit/);
+  assert.doesNotMatch(details,/child secret phrase/);
+});
+
+test('A failed individual response reports code without claiming the whole session died',()=>{
+  const env=mockEnvironment();
+  emit(env,'response.created');
+  emit(env,'response.done',{response:{status:'failed',status_details:{error:{
+    code:'internal_error',type:'server_error',message:'private audio text',
+  }}}});
+  const details=env.ctx.document.getElementById('modelDiagnostic').textContent;
+  assert.match(details,/internal_error/);
+  assert.doesNotMatch(details,/private audio text/);
+  assert.equal(env.s.stopped,false);
+});
+
+test('Joining a live session starts a local question and never sends response.create',async()=>{
   const env=mockEnvironment();
   env.s.mediaReady=false;
   env.s.mediaStarted=false;
@@ -164,10 +185,10 @@ test('Joining a live session auto-requests the first Chat greeting',async()=>{
   env.s.wantVideo=false;
   await vm.runInContext('startSendingMedia(testSession)',env.ctx);
   assert.equal(env.s.mediaReady,true);
-  assert.equal(env.sent.length,1);
-  assert.equal(env.sent[0].type,'session.update');
-  assert.match(env.sent[0].session.instructions,/mode=chat/);
+  assert.equal(env.sent.length,0);
   assert.ok(env.calls.some(x=>x[0]==='ready'));
+  assert.ok(env.calls.some(x=>x[0]==='fallback'&&x[1]==='chat'));
+  assert.doesNotMatch(app,/type:'response\.create'/);
 });
 
 
