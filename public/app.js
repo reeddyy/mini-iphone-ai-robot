@@ -324,8 +324,15 @@ async function startMini() {
       cache:'no-store',
     });
     if (!response.ok) {
-      const msg = await response.json().catch(() => ({error:`SDP connection failed: HTTP ${response.status}`}));
-      throw new Error(msg.error || 'Model Studio session failed');
+      // Our own backend returns JSON errors. A non-JSON 401 generally means an
+      // authentication gateway (e.g. a protected Cloudflare Tunnel) rejected the
+      // request before it reached the Mini server.
+      const msg = await response.json().catch(() => null);
+      const serverMessage = typeof msg?.error === 'string' ? msg.error : null;
+      const fallback = response.status === 401
+        ? 'Authentication failed (HTTP 401) before Mini received a readable server response. If using a protected Cloudflare Tunnel, complete its email PIN sign-in in this same Safari browser, then refresh and retry. Test localhost on Windows to isolate the tunnel.'
+        : `SDP connection failed: HTTP ${response.status}`;
+      throw new Error(serverMessage || fallback);
     }
     const raw = await response.text();
     const answer = raw.trim().replace(/\r?\n/g,'\r\n') + '\r\n';
