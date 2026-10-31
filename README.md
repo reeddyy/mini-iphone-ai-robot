@@ -162,7 +162,7 @@ Node.js v22.13.0 and npm 10.9.2 are sufficient for this project. You do **not** 
 | Symptom | Next step |
 |---|---|
 | LOCAL PREVIEW ONLY | Set both `.env` pay-as-you-go variables and restart Node. |
-| Authentication 401 | Check the private `ROBOT_ACCESS_CODE`. |
+| Authentication 401 from Mini | Check `ROBOT_ACCESS_CODE` in `.env` and the code entered in Safari; restart Mini after editing `.env`. A generic 401 without Mini's JSON error may instead be from the protected tunnel. Complete the tunnel's email login in Safari and refresh. |
 | Server rejects Token Plan | Expected; custom robot app must use pay-as-you-go. |
 | Model Studio 403 / 404 | Check Workspace ID, Singapore key, permissions and availability of realtime model. |
 | No camera | Use HTTPS, foreground Safari, allow permissions. Try front camera first. |
