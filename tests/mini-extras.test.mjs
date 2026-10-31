@@ -98,3 +98,22 @@ test('HTML includes the controls expected by app.js and the separate helper scri
   assert.match(app, /extras\.createVoiceMeter/);
   assert.match(css, /face\.audible/);
 });
+
+
+test('Qwen diagnostics expose only structured error fields, never free-text child speech', () => {
+  const {extras} = loadExtras();
+  const error = {
+    type:'invalid_request_error',
+    code:'invalid_value',
+    param:'session.instructions',
+    message:'Secret phrase or transcript that must not be displayed',
+  };
+  const safe = extras.modelErrorDetails(error);
+  assert.equal(safe.type,'invalid_request_error');
+  assert.equal(safe.code,'invalid_value');
+  assert.equal(safe.param,'session.instructions');
+  assert.equal(JSON.stringify(safe).includes('Secret phrase'),false);
+  assert.equal(extras.modelErrorDetails({code:'unsafe <script>'}).code,'unsafescript');
+  assert.equal(extras.modelErrorDetails(null).code,'unknown');
+  assert.equal(extras.modelErrorDetails({code:'x'.repeat(200)}).code.length,90);
+});
