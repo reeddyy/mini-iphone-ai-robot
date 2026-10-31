@@ -157,6 +157,16 @@ Run `npm test` to verify static serving, config secrecy, credentials checks, rat
 
 ## Troubleshooting
 
+### Safari SDP HTTP 401 behind a protected Cloudflare Quick Tunnel
+
+On the iPhone, complete the Cloudflare email PIN sign-in, then open Mini. Tap **Test tunnel POST (free)** before pressing Start. This sends a small POST request of the same content type as the WebRTC setup, but **does not call Alibaba or charge for AI**. Repeat the test after 10 seconds.
+
+- **POST reached Mini successfully:** The origin was reachable at that moment. If a later test returns 401, the Cloudflare authentication session may have expired.
+- **POST blocked: HTTP 401:** Mini's test endpoint does not require the robot code; the 401 is coming from the tunnel or another gateway. A [reported protected Quick Tunnel bug](https://github.com/cloudflare/cloudflared/issues/1752) matches this pattern. Use Tailscale Serve as the preferred workaround.
+- **POST succeeds repeatedly but the real SDP still fails:** Verify the robot's private access code and check Windows logs. A Model Studio 401 appears as a backend 502; a wrong Mini code appears as a JSON 401.
+
+Do not disable Cloudflare protection on a public URL as a workaround.
+
 ### Windows: port already in use (`EADDRINUSE`)
 
 If `npm start` reports `listen EADDRINUSE: address already in use 127.0.0.1:3000`, another app is already using port 3000. This is **not** an npm version problem.
