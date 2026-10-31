@@ -187,6 +187,25 @@
 .robot-stage #robotFace.kid-peek .mini-lid{animation:mini-peek 1.1s ease-in-out 1}
 .robot-stage #robotFace.idle .eye .pupil,
 .robot-stage #robotFace.idle .eye .glint{animation:mini-look-around 9s ease-in-out infinite}
+/* Local Safari speech is animated too; this doesn't use network audio. */
+.robot-stage #robotFace[data-local-voice="true"] .mouth{
+  width:55px;height:33px;border-radius:11px 11px 27px 27px;
+}
+.robot-stage #robotFace[data-local-voice="true"] .mouth span:nth-child(odd){
+  animation:mini-talk .42s ease-in-out infinite alternate;
+}
+.robot-stage #robotFace[data-local-voice="true"] .mouth span:nth-child(even){
+  animation:mini-talk .54s ease-in-out infinite alternate-reverse;
+}
+.robot-stage #robotFace[data-expression="curious"] .mini-brow:first-child{
+  transform:rotate(8deg) translateY(-4px);
+}
+.robot-stage #robotFace[data-expression="curious"] .mini-brow:last-child{
+  transform:rotate(-11deg) translateY(1px);
+}
+.robot-stage #robotFace[data-expression="curious"] .eye .pupil{
+  transform:translate(2px,-3px);
+}
 @keyframes mini-float{0%,100%{transform:translateY(0) rotate(-.25deg)}50%{transform:translateY(-4px) rotate(.25deg)}}
 @keyframes mini-antenna-glow{0%,100%{box-shadow:0 0 12px #ffaddda6}50%{box-shadow:0 0 21px #ffc4e3da}}
 @keyframes mini-blink{0%,39%,42%,68%,71%,100%{height:0}40.5%,69.5%{height:103%}}
