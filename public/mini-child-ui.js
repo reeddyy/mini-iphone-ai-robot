@@ -238,6 +238,7 @@
       stopSpeech,
       stopAll() { stopSpeech(); closeActivity(); },
       onLiveReady() {
+        if (openActivity) closeActivity();
         parent.open = false;
         window.scrollTo({top:0,behavior:'smooth'});
         setHint(words().ready);
