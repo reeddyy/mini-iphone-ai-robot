@@ -24,17 +24,23 @@ test('Child scripts and WebRTC app are syntactically valid',()=>{
   }
 });
 
-test('Child home has four live conversation buttons and microphone feedback',()=>{
+test('Child home shows one talking Mini and keeps diagnostics under parent controls',()=>{
   const html=readFileSync(htmlFile,'utf8');
   const kid=html.indexOf('class="kid-home"'),adult=html.indexOf('id="parentSetup"');
   assert.ok(kid>0 && adult>kid);
-  for(const id of ['kidChat','kidGuess','kidStory','kidLook','kidMicStatus','kidMicBar','kidVadStatus','kidMicHelp','listenSensitivity']) {
+  for(const id of ['kidChat','kidGuess','kidStory','kidLook']) {
+    assert.doesNotMatch(html,new RegExp('id="'+id+'"'),id+' should not be visible');
+  }
+  for(const id of ['robotFace','kidHint','kidGameMode','kidMicStatus','kidMicBar','kidVadStatus',
+                   'kidMicHelp','listenSensitivity','kidParentLink','kidStopBtn','modelDiagnostic']) {
     assert.ok(html.includes('id="'+id+'"'),id);
   }
-  assert.match(html,/<input id="sendVideo" type="checkbox">/,'camera is opt-in');
+  assert.ok(html.indexOf('id="parentDiagnostics"')>adult,'hearing diagnostics are in parent area');
+  assert.ok(html.indexOf('id="kidMicBar"')>adult,'mic status does not clutter the child screen');
+  assert.ok(html.indexOf('id="modelDiagnostic"')<adult,'urgent errors remain visible');
+  assert.match(html,/<input id="sendVideo" type="checkbox">/,'camera remains opt-in');
   assert.match(html,/<details id="parentSetup" class="parent-setup">/);
-  assert.ok(html.indexOf('id="startBtn"')>adult,'paid AI starts under parent area');
-  assert.doesNotMatch(html,/FREE · OFFLINE|OFFLINE<\/small>/);
+  assert.ok(html.indexOf('id="startBtn"')>adult,'paid AI still starts under parent setup');
 });
 
 test('Games build live AI instructions; answers in one word count',()=>{
@@ -56,17 +62,45 @@ test('Games build live AI instructions; answers in one word count',()=>{
   assert.match(kid.getLabels('zh').chat,/聊天/);
 });
 
-test('The child UI never stops Qwen simply because a game is selected',()=>{
+test('Child UI uses Mini face and speech, not activity buttons',()=>{
   const script=readFileSync(uiFile,'utf8');
-  assert.match(script,/options\.requestActivity\(activity\)/);
+  for(const id of ['kidChat','kidGuess','kidStory','kidLook']) assert.doesNotMatch(script,new RegExp(id));
+  assert.doesNotMatch(script,/options\.requestActivity\(activity\)/);
   assert.doesNotMatch(script,/Switched to free offline play/);
   assert.doesNotMatch(script,/function switchToOfflinePlay/);
   assert.doesNotMatch(script,/fetch\(|RTCPeerConnection\(/);
+  assert.match(script,/face\.addEventListener\('click',tapFace\)/);
   assert.match(script,/onVoiceDetected/);
   assert.match(script,/onMicLevel/);
   assert.match(script,/onTranscription/);
-  assert.match(script,/mic\.enabled = false/,'brief local fallback avoids echo');
-  assert.match(script,/mic\.enabled = true/,'mic is restored after fallback');
+  assert.match(script,/mic\.enabled = false/,'local TTS briefly disables mic to avoid echo');
+  assert.match(script,/mic\.enabled = true/,'mic is restored after local TTS');
+});
+
+test('Voice requests change context without a child-facing menu or an extra AI request',()=>{
+  const kids=kidsContent();
+  const examples=[
+    ['Mini, tell me a story','chat','story'],
+    ['请给我讲故事','chat','story'],
+    ['Let us play a guessing game','chat','guess'],
+    ['我们猜动物吧','chat','guess'],
+    ['Look at my toy','story','look'],
+    ['你看看这个玩具','chat','look'],
+    ["Let's chat",'guess','chat'],
+    ['我想聊天','story','chat'],
+    ['Giraffe','guess','guess'],
+    ['forest','story','story'],
+    ['Stop','guess','chat'],
+  ];
+  for(const [text,from,want] of examples) {
+    assert.equal(kids.detectRequestedActivity(text,from),want,JSON.stringify(text));
+  }
+  const prompt=kids.instructions('Family safety rules','chat',false);
+  assert.match(prompt,/NO activity buttons/);
+  assert.match(prompt,/story/);
+  assert.match(prompt,/guess/);
+  assert.match(prompt,/same conversation/i);
+  assert.match(prompt,/cannot see any objects/i);
 });
 
 test('Qwen game changes use session.update and local starter voice, not response.create',()=>{
