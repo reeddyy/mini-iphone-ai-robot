@@ -12,6 +12,7 @@ const STATIC = new Map([
   ['/mini-kids.js', ['mini-kids.js', 'text/javascript; charset=utf-8']],
   ['/mini-child-ui.js', ['mini-child-ui.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
+  ['/mini-face.css', ['mini-face.css', 'text/css; charset=utf-8']],
 ]);
 const WINDOW_MS = 600_000;
 const MAX_SDP_BYTES = 120_000;
