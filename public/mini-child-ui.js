@@ -102,7 +102,7 @@
     }
     function mood(type, duration=850) {
       clearTimeout(moodTimer);
-      face.classList.remove('kid-happy','kid-wink','kid-peek','kid-surprised');
+      face.classList.remove('kid-happy','kid-wink','kid-peek','kid-surprised','kid-proud','kid-curious','kid-gentle');
       void face.offsetWidth;
       // setStatus() rewrites className. Dataset expression survives it.
       face.dataset.expression = type;
@@ -130,13 +130,18 @@
         return;
       }
       touchCount+=1;
-      const isPeek=touchCount%4===0;
-      mood(isPeek?'peek':'happy',isPeek?1250:850);
+      const reaction=['happy','wink','surprised','peek'][(touchCount-1)%4];
+      const isPeek=reaction==='peek';
+      mood(reaction,isPeek?1250:1000);
       sparkle(isPeek?'✨':'💜');
-      setHint(isPeek ? 'Peekaboo!' : words().ready);
+      const session=options.getSession();
+      setHint(isPeek ? (language()==='zh'?'躲猫猫！':'Peekaboo!')
+        : session?.ready && !session.muted ? words().ready
+        : language()==='zh'?'碰一下，笑一下！':'Boop! Hello, little friend.');
     }
     function onStatus(info={}) {
       const online=Boolean(info.online);
+      if(info.running && face.dataset.expression==='sleepy') delete face.dataset.expression;
       tag.classList.toggle('active',online);
       tag.textContent=online?(options.getSession()?.muted?'● MIC MUTED':'● AI READY'):'♡ NEEDS GROWN-UP';
       kidStop.classList.toggle('hidden',!info.running);
@@ -184,6 +189,10 @@
       if (soon && sessionNotice.textContent !== message) sessionNotice.textContent = message;
     }
     function onSessionEnded(replyLanguage) {
+      clearTimeout(moodTimer);
+      clearTimeout(sparkleTimer);
+      sparkles.textContent='';
+      face.dataset.expression='sleepy';
       sessionNotice.classList.add('hidden');
       const zh = replyLanguage === 'zh';
       setHint(zh ? 'Mini 休息啦。谢谢你一起玩！' : 'Mini is resting now. Thanks for playing!');
@@ -212,6 +221,8 @@
         sparkle('⭐');
       } else if (/\b(?:wow|whoa|amazing|oh my|surprise)\b|哇|真的吗|惊喜/i.test(t)) {
         mood('surprised',1000);
+      } else if (/\b(?:it(?:'|’)s okay|no worries|take your time|that(?:'|’)s okay)\b|没关系|慢慢来|别着急/i.test(t)) {
+        mood('gentle',1600);
       } else if (/[?？][\s”’"']*$/.test(t)) {
         mood('curious',800);
       } else {

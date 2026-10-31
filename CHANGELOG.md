@@ -2,6 +2,7 @@
 
 ## Unreleased — Child controls and gentler conversation
 
+- Redesigned Mini as a soft lavender character with oversized glossy plum eyes, rosy cheeks and a small smile. Added distinct delight, curiosity, wink, surprise, reassurance and resting expressions; the mouth still follows incoming audio. Preserved keyboard/touch access and reduced-motion support.
 - Preserve microphone mute during permission requests and live media attachment; wire the local input meter into free preview.
 - End capture on direct English/Mandarin spoken stop commands, with a gentle resting message. Keep Stop available independently of transcription.
 - Require backend-verified parent reauthorization for paid extensions; clear codes and discard late responses after cancellation or stop.

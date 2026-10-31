@@ -20,14 +20,15 @@ These changes have automated coverage. Actual Qwen storytelling, recognition, an
 
 ## V6.4 — A cuter, more expressive Mini
 
-The child screen still has **no game selection buttons**. The character now has a softly rounded lavender/indigo face, large bright eyes with two highlights, rosy cheeks, tiny ears, an antenna and a smile that moves when Mini speaks.
+The child screen still has **no game selection buttons**. The character now has a soft marshmallow-like lavender face, oversized glossy plum eyes, rosy cheeks, tiny ears, an antenna and a small smile that moves when Mini speaks.
 
 - **Relaxing:** A gentle floating motion, occasional blinking and curious eye movements make the face feel alive even between replies.
 - **Listening:** Eyes become attentive and the brows lift when your daughter speaks.
 - **Thinking:** Eyes look upward and the mouth forms a small thoughtful circle.
 - **Talking:** Mouth animates from Qwen's incoming audio signal (with a CSS fallback); it also moves when Safari speaks the local conversation starter or follow-up question.
-- **Celebrating:** A positive Mini reply can trigger a proud smile, cheek blush and sparkles. Other phrases can trigger a surprised face, and questions prompt a curious expression.
-- **Touching:** A tap gives a happy reaction; every fourth tap triggers peekaboo. Tapping during a blocked Safari opening prompt still retries that prompt.
+- **Celebrating:** A positive Mini reply can trigger crescent eyes, a delighted smile, cheek blush and sparkles. Surprises widen the eyes, questions bring a curious head tilt, and reassuring words bring a softer expression.
+- **Touching:** Taps cycle through delight, a wink, surprise and peekaboo. Tapping during a blocked Safari opening prompt still retries that prompt.
+- **Resting:** Ending a session closes Mini's eyes and droops the antenna. Starting again wakes the face. Expressions remain distinguishable when reduced motion is enabled.
 
 Mini reacts to **its own spoken words** and the existing conversation state; it does **not** infer or classify your daughter's facial expression or emotions. The redesign is implemented with local HTML/CSS and existing JavaScript, with no new third-party image assets, servers, tracking, API requests or changes to Qwen credentials. The dedicated stylesheet is `public/mini-face.css` and is explicitly served by `server.mjs`.
 

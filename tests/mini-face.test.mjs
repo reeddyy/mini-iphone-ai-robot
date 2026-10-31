@@ -86,6 +86,14 @@ test('Mini reacts to its own positive replies, surprises and questions', () => {
   assert.equal(face.dataset.expression,'surprised');
   ui.reactToMiniSpeech('Which animal do you like?');
   assert.equal(face.dataset.expression,'curious');
+  ui.reactToMiniSpeech('Take your time. No worries.');
+  assert.equal(face.dataset.expression,'gentle');
+  ui.reactToMiniSpeech('没关系，我们慢慢来。');
+  assert.equal(face.dataset.expression,'gentle');
   ui.onVoiceDetected(true);
   assert.equal(face.dataset.expression,'curious');
+  ui.onSessionEnded('en');
+  assert.equal(face.dataset.expression,'sleepy');
+  ui.onStatus({running:true,online:false,state:'thinking'});
+  assert.notEqual(face.dataset.expression,'sleepy','a new session wakes Mini up');
 });
