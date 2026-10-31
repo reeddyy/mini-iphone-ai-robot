@@ -69,16 +69,16 @@ test('The child UI never stops Qwen simply because a game is selected',()=>{
   assert.match(script,/mic\.enabled = true/,'mic is restored after fallback');
 });
 
-test('Qwen activity transitions send a session update and single spoken reply',()=>{
+test('Qwen game changes use session.update and local starter voice, not response.create',()=>{
   const script=readFileSync(appFile,'utf8');
   assert.match(script,/function requestActivity/);
   assert.match(script,/function startActivity/);
   assert.match(script,/type:'session\.update'/);
-  assert.match(script,/type:'response\.create'/);
+  assert.doesNotMatch(script,/type:'response\.create'/);
   assert.match(script,/case 'session\.updated'/);
   assert.match(script,/case 'response\.done'/);
   assert.match(script,/childUI\?\.onLiveReady\(\)/);
-  assert.match(script,/requestActivity\('chat'\)/,'AI greets child on first connection');
+  assert.match(script,/childUI\?\.sayFallback\('chat'\)/,'Safari starts the chat while Qwen listens via VAD');
   assert.match(script,/case 'input_audio_buffer\.speech_started'/);
   assert.match(script,/case 'input_audio_buffer\.speech_stopped'/);
   assert.match(script,/childUI\?\.onVoiceDetected/);
