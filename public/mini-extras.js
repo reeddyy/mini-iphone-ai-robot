@@ -128,6 +128,62 @@
     };
   }
 
+
+  // Local-only volume indicator for troubleshooting quiet voices in Safari.
+  // This reads the existing microphone stream; it does not record or send data.
+  // Analyser is NOT connected to a speaker (avoid feedback loops).
+  function createMicInputMeter(stream, onLevel) {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor || typeof onLevel !== 'function' ||
+        !stream?.getAudioTracks?.().length || !window.requestAnimationFrame) return null;
+    let audio, analyser, source, frame = null, active = false, lastFrame = 0;
+    try {
+      audio = new Ctor();
+      analyser = audio.createAnalyser();
+      analyser.fftSize = 512;
+      source = audio.createMediaStreamSource(stream);
+      source.connect(analyser);
+      active = true;
+      audio.resume().catch(() => {});
+    } catch (error) {
+      try { source?.disconnect(); } catch {}
+      try { audio?.close().catch(() => {}); } catch {}
+      return null;
+    }
+    const samples = new Uint8Array(analyser.fftSize);
+    function update(now) {
+      if (!active) return;
+      if (now - lastFrame >= 110) {
+        lastFrame = now;
+        analyser.getByteTimeDomainData(samples);
+        let energy = 0;
+        for (let i = 0; i < samples.length; i++) {
+          const centered = (samples[i] - 128) / 128;
+          energy += centered * centered;
+        }
+        const rms = Math.sqrt(energy / samples.length);
+        try { onLevel(Math.round(Math.min(100, rms * 800))); } catch {}
+      }
+      frame = window.requestAnimationFrame(update);
+    }
+    frame = window.requestAnimationFrame(update);
+    return {
+      resume() { return audio.resume().catch(() => {}); },
+      stop() {
+        if (!active) return;
+        active = false;
+        if (frame !== null) window.cancelAnimationFrame(frame);
+        try { onLevel(0); } catch {}
+        try { source?.disconnect(); } catch {}
+        audio.close().catch(() => {});
+      },
+    };
+  }
+
+  function speechThreshold(value) {
+    return {quiet:0.25, normal:0.5, noisy:0.7}[value] ?? 0.25;
+  }
+
   window.MiniExtras = Object.freeze({
     NOTE_LIMIT,
     MAX_SESSION_MINUTES,
@@ -139,5 +195,7 @@
     saveNote,
     clearNote,
     createVoiceMeter,
+    createMicInputMeter,
+    speechThreshold,
   });
 })();
