@@ -18,7 +18,7 @@
     story: {
       en: 'Make a story!',
       zh: '一起编故事！',
-      guide: 'Co-create a gentle original story with the child in short spoken turns. Each time the child supplies a character, place or choice (even one word), include their choice in ONE or TWO new sentences of the story, then ALWAYS ask one simple specific question about what happens next IN THE SAME AUDIO RESPONSE. Example: "The dragon flies over a rainbow! Should it land in a forest or at a castle?" Never finish a story segment with just praise or a statement; wait after one question. The first local question is "Should our story hero be a cat or a dragon?" Include the answer in the next part.',
+      guide: 'Co-create a gentle original story with the child in short spoken turns. Each time the child supplies a character, place or choice (even one word), incorporate their spoken answer in ONE or TWO new sentences of the story, then ALWAYS ask one simple specific question about what happens next IN THE SAME AUDIO RESPONSE. Example: "The dragon flies over a rainbow! Should it land in a forest or at a castle?" Never finish a story segment with just praise or a statement; wait after one question. The first local question is "Should our story hero be a cat or a dragon?" Include the answer in the next part.',
       fallback: {en:'Let’s make a story! Should our hero be a cat or a dragon?',zh:'我们一起编故事吧！主角是小猫还是小龙呢？'},
     },
     look: {
