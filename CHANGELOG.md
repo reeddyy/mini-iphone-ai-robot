@@ -1,5 +1,15 @@
 # Changelog
 
+## 6.0.0 — Conversational Buddy (experimental)
+
+- Corrected V5's major flaw: clicking a game no longer disconnects Qwen or pretends to listen during an offline quiz.
+- All four child activity buttons use the **same live AI session**, with updated Qwen instructions for Talk, Guess, Story and Show.
+- Requests a spoken opening question on connection and on selecting a game. Uses a single Safari voice fallback if the provider does not start the response.
+- Added child-friendly acoustic server VAD with a lower sensitivity threshold for one-word, quiet replies and a normal/noisy-room option.
+- Added real-time microphone sound meter, Qwen speech-detected and child transcript indicators, so parents can diagnose whether a reply reached the AI.
+- Added simulated model events for conversation starts, voice answers and non-disconnecting activity changes, plus updated browser script tests.
+- Model event sequencing and child-audio detection still require actual iPhone testing. No automated test calls Alibaba.
+
 ## 5.0.0 — Little Companion for children (experimental)
 
 - Reorganized Safari home around a large expressive face with tap/peekaboo reactions and eye movement.
