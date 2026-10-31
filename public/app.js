@@ -545,10 +545,16 @@ els.stop.addEventListener('click', () => stopMini());
 els.mute.addEventListener('click', toggleMute);
 els.pauseVideo.addEventListener('click', toggleVideo);
 els.playAudio.addEventListener('click', maybeUnmuteAudio);
-window.addEventListener('pagehide', () => stopMini('Page closed · stopped'));
+window.addEventListener('pagehide', () => {
+  childUI?.stopSpeech();
+  stopMini('Page closed · stopped');
+});
 document.addEventListener('visibilitychange', () => {
-  // Avoid unintentional audio/video billing when the iPhone changes apps or locks.
-  if (document.hidden && current) stopMini('Safari hidden · live session stopped for privacy');
+  // Stop *both* paid AI and local story narration when Safari is hidden.
+  if (document.hidden) {
+    childUI?.stopSpeech();
+    if (current) stopMini('Safari hidden · live session stopped for privacy');
+  }
 });
 initPreferences();
 childUI = window.MiniChildUI?.init({
