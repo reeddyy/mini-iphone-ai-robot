@@ -28,6 +28,7 @@
     let speechActive = false;
     let lastLevel = -1;
     let activeNarration = null;
+    let pendingStarter = null;
     let moodTimer = null;
     let sparkleTimer = null;
     let lastVoiceAt = 0;
@@ -59,13 +60,16 @@
       }
     }
     function stopSpeech() {
+      pendingStarter = null;
       try { window.speechSynthesis?.cancel(); } catch {}
       releaseSpeech();
     }
     function sayFallback(mode) {
       const message = content.getFallback(mode,language());
-      setHint(message);
       stopSpeech();
+      pendingStarter = mode;
+      setHint(message);
+      micHelp.textContent='If I am silent, tap my face to hear the question again.';
       if (!canSpeak) return;
       const session = options.getSession();
       if (!session?.ready || session.stopped) return;
@@ -86,8 +90,8 @@
       };
       const done = () => { if (activeNarration === item) releaseSpeech(); };
       item.guard = setTimeout(done, 12000);
-      utterance.onend = done;
-      utterance.onerror = done;
+      utterance.onend = () => { done(); pendingStarter = null; };
+      utterance.onerror = () => { done(); micHelp.textContent='Tap Mini’s face to try hearing the question again.'; };
       try { window.speechSynthesis.speak(utterance); }
       catch { done(); }
     }
@@ -110,6 +114,11 @@
       sparkleTimer=setTimeout(()=>{sparkles.textContent='';},1400);
     }
     function tapFace() {
+      if (pendingStarter && options.getSession()?.ready) {
+        const again = pendingStarter;
+        sayFallback(again); // Direct iPhone touch gesture can unlock Safari narration.
+        return;
+      }
       touchCount+=1;
       const isPeek=touchCount%4===0;
       mood(isPeek?'peek':'happy',isPeek?1250:850);
@@ -190,6 +199,7 @@
     function onVoiceDetected(heard) {
       speechActive=heard;
       if(heard) {
+        pendingStarter = null;
         lastVoiceAt=Date.now();
         vadStatus.textContent='✅ '+words().speech;
         setHint(words().speech);
