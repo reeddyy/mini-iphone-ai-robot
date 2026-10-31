@@ -1,5 +1,15 @@
 # Changelog
 
+## 6.2.0 — Mini asks the next question (experimental)
+
+- Stronger child-friendly Qwen instructions: every ordinary answer should acknowledge the child's specific reply and end with exactly one relevant question in the SAME audio response. Respect goodbyes, breaks and safety concerns.
+- The parent can enable or disable "Keep the conversation going" (on by default).
+- Where a completed Qwen transcript has no question, Safari can voice exactly one short activity-appropriate follow-up after a pause. No additional response.create, repeat prompting or paid reconnections.
+- The fallback checks the live microphone and the timing of Qwen audio, and is cancelled if the child speaks, the session stops, the game changes, or Qwen already asked a question.
+- Follow-up questions are intentionally limited and may sound different or be less context-aware than Qwen. No conversation transcript or audio is persisted.
+- Added tests for Qwen questions, child stop requests, English and Mandarin, fallback cancellation, audio overlap and provider request counts.
+- Real iPhone Safari audio timing, children's speech and follow-up naturalness need on-device testing; CI only simulates events.
+
 ## 6.0.1 — Fix unexpected mid-session Qwen model errors
 
 - Removed extra `response.create` requests while automatic Qwen server VAD is enabled, following Alibaba's documented automatic response flow.
