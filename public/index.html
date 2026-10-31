@@ -57,6 +57,7 @@
       <div class="section-head"><h2>1 · Start a voice chat (grown-ups)</h2><span id="modeTag" class="tag">CHECKING</span></div>
       <p id="modeInfo" class="help">Checking server configuration…</p>
       <label class="top-label" for="accessCode">Parent access code</label>
+      <p class="help">Enter it each time you start a session. Mini clears the code after connecting so children cannot restart paid AI just by pressing Start.</p>
       <input id="accessCode" class="wide-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Code in your .env file">
       <div class="settings-grid">
         <label class="toggle-label"><input id="sendVideo" type="checkbox"><span>Allow AI to see the camera (off by default)</span></label>
@@ -91,7 +92,7 @@
       <p class="help">Choose before starting. Mini understands English and Mandarin. Your choices apply during the next session.</p>
       <div class="settings-grid">
         <label for="personality">Personality</label>
-        <select id="personality"><option value="friendly">Friendly companion</option><option value="playful">Playful storyteller</option><option value="calm">Calm learning helper</option></select>
+        <select id="personality"><option value="friendly">Friendly companion</option><option value="playful" selected>Playful storyteller</option><option value="calm">Calm learning helper</option></select>
         <label for="language">Reply language</label>
         <select id="language"><option value="auto">Auto · follow speaker</option><option value="en">Prefer English</option><option value="zh">Prefer Mandarin 中文</option></select>
       </div>
