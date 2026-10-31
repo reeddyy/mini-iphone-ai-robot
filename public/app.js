@@ -19,6 +19,7 @@ const els = {
 let mode = 'checking';
 let current = null;
 let loading = false;
+let childUI = null;
 
 function setStatus(message, state = 'idle') {
   els.status.className = `status ${state === 'error' ? 'error' : state === 'idle' ? '' : 'connected'}`;
@@ -27,6 +28,7 @@ function setStatus(message, state = 'idle') {
   dot.className = 'status-light';
   els.status.append(dot, document.createTextNode(message));
   els.face.className = `face ${state}`;
+  childUI?.onStatus({state, online:Boolean(current?.ready && current.mode === 'realtime' && !current.stopped), running:Boolean(current && !current.stopped)});
 }
 function render() {
   const s = current;
@@ -37,7 +39,7 @@ function render() {
   els.start.classList.toggle('hidden', running);
   els.stop.classList.toggle('hidden', !running);
   els.start.disabled = loading || mode === 'checking';
-  els.start.textContent = mode === 'preview' ? '● Test local camera and mic' : '● Start live Mini';
+  els.start.textContent = mode === 'preview' ? '● Parent: Test camera & mic' : '● Parent: Start live voice';
   for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps, els.limit, els.pace, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
   els.clearMemory.disabled = running || loading;
   els.mute.disabled = !running;
@@ -281,6 +283,7 @@ async function startSendingMedia(s) {
   }
   if (s.stopped) return;
   setStatus('Mini is live · speak or show an object', 'listening');
+  childUI?.onLiveReady();
   render();
 }
 
@@ -331,6 +334,7 @@ function makeVideoTrack(s) {
 
 async function startMini() {
   if (current || loading || mode === 'checking') return;
+  childUI?.stopSpeech();
   if (els.code.value.trim().length < 10) {
     setStatus('Enter your private access code (at least 10 characters).', 'error');
     return;
@@ -351,7 +355,7 @@ async function startMini() {
     ready:false, updateSent:false, sessionCreated:false, mediaStarted:false,
     startedAt:Date.now(),
   };
-  if (s.mode === 'realtime' && s.limit > 15 && !window.confirm('Start a paid Qwen session for up to ' + s.limit + ' minutes? Camera and microphone streams may incur charges throughout.')) return;
+  if (s.mode === 'realtime' && !window.confirm('Grown-up check: Start a paid Qwen voice session for up to ' + s.limit + ' minutes? The microphone and any camera you enable will stream while connected.')) return;
   s.endsAt = s.startedAt + s.limit * 60000;
   if (s.mode === 'realtime') s.audioMeter = extras.createVoiceMeter(els.face);
   current = s;
@@ -438,6 +442,8 @@ async function startMini() {
       throw new Error(serverMessage || fallback);
     }
     const raw = await response.text();
+    // Do not leave the private robot code in the page once authorization succeeds.
+    els.code.value = '';
     const answer = raw.trim().replace(/\r?\n/g,'\r\n') + '\r\n';
     if (s.stopped) return;
     await s.pc.setRemoteDescription({type:'answer',sdp:answer});
@@ -453,6 +459,7 @@ async function startMini() {
 function stopMini(reason = 'Mini stopped · camera and microphone off') {
   const s = current;
   if (!s) return;
+  childUI?.stopSpeech();
   s.stopped = true;
   s.abort.abort();
   clearInterval(s.timer);
@@ -544,5 +551,12 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && current) stopMini('Safari hidden · live session stopped for privacy');
 });
 initPreferences();
+childUI = window.MiniChildUI?.init({
+  getSession: () => current,
+  getLanguage: () => els.language.value,
+  stopSession: reason => stopMini(reason),
+});
+els.language.addEventListener('change', () => childUI?.syncLanguage());
 loadConfig();
 render();
+childUI?.onStatus({state:'idle',online:false,running:false});
