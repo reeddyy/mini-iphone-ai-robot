@@ -3,10 +3,11 @@
 An experimental **iPhone 12 Pro robot companion** with continuous microphone
 input, camera vision and spoken AI replies powered by Alibaba Qwen Omni Realtime.
 
-**Current version:** V3 (experimental). This repo has been structured for GitHub,
-but real iPhone/Qwen streaming still requires testing with a compatible Model
-Studio pay-as-you-go API key. The existing Alibaba Token Plan should not be used
-as the backend of a standalone robot app.
+**Current version:** V4 (experimental). V3 live voice, spoken replies and camera
+recognition have been confirmed working on an iPhone 12 Pro in Safari with an
+ngrok password-protected tunnel. **V4's new responsiveness and interaction features
+still need device testing.** Use a Singapore Model Studio pay-as-you-go API key,
+not an Alibaba Token Plan key, for this standalone app.
 
 **Quick links:** [Windows setup](#1-local-setup-on-windows) ·
 [Security notes](SECURITY.md) · [Automated tests](#tests).
@@ -16,9 +17,9 @@ as the backend of a standalone robot app.
 
 ---
 
-## V3 — Live audio + continuous camera vision (iPhone Safari)
+## V4 — Family robot with live audio and camera vision (iPhone Safari)
 
-**Status:** Implementation starter; server proxy is unit-tested. Real model audio/video must still be tested on your iPhone with your own Alibaba Model Studio pay-as-you-go credentials. No real API key or credit has been used to test this project.
+**Status:** Core microphone, spoken AI responses and object recognition were user-tested on iPhone Safari with V3. V4 adds controlled longer sessions, more responsive turn detection, face animation and optional user-managed preferences. Its new browser behaviours still need real-device retesting. Automated tests use mocks and **never make chargeable Alibaba API calls**.
 
 Based on Alibaba Cloud's official WebRTC best practices for `qwen3.8-omni-flash-realtime`. The model accepts streaming microphone audio + video frames and outputs spoken audio. The phone runs the camera, microphone, UI and speaker; a Windows PC only hosts the secure SDP-exchange proxy. The phone's WebRTC streams go directly to Alibaba after connection establishment.
 
@@ -31,14 +32,29 @@ Official references:
 ## Features
 
 - One WebRTC session for **continuous microphone audio**, **continuous video input** (1 fps by default, optional 2 fps), and **streaming model voice replies**.
-- Qwen `semantic_vad` detects speech pauses automatically; **no push-to-talk**.
+- Qwen `semantic_vad` detects speech pauses automatically; **no push-to-talk**. V4 defaults to a shorter **500 ms** pause (vs 800 ms previously), with Balanced 800 ms and Patient 1200 ms choices. Faster detection can prematurely cut off pauses in longer sentences.
 - Front or rear camera selectable **before** starting. The front camera sees the user facing the screen; rear sees objects on the other side.
 - Local camera preview at 20–30 fps; outgoing video is downsampled via `canvas.captureStream(fps)`. If canvas streaming is unavailable, fall back to the original camera track with a requested lower FPS. You can also select **Direct camera · Safari compatibility** before pressing Start.
 - Live speech subtitles when the model emits text/transcription events.
 - Mute microphone; pause video transmission (local preview remains on); stop everything.
-- Automatic stop after **5 minutes by default**, adjustable to 10 or 15 minutes; also stops when the page exits or Safari becomes hidden.
-- No media recording or log of transcripts on disk. No persistence of API key in the browser.
+- Automatic stop after **15 minutes by default**, adjustable to 5, 30, 45 or 60 minutes. A session can be manually extended in 5-minute increments, with a **hard browser timer cap of 60 minutes per session**. Durations over 15 minutes and extensions require confirmation; no automatic reconnection. Safari exit/backgrounding stops streaming.
+- Audio-reactive face mouth motion when Safari permits remote-audio analysis, with CSS speaking animation as a fallback; short-response delay indicator from detected end of speech to the first AI transcript/text event (not full audible latency).
+- Playful storyteller / friendly companion / calm learning helper personalities; automatic English-Mandarin switching or a preferred language.
+- Optional **owner-controlled family preference note** up to 240 characters. Only if the Save checkbox is checked, this note is stored in local Safari browser storage. No chat transcripts, camera footage, microphone recordings, API keys or full conversation memory are stored by Mini.
 - **No-key local preview** mode for free camera/microphone testing; NOT an AI conversation.
+
+## V4 controls and cost protection
+
+Before pressing Start in Safari:
+
+1. **Reply speed:** Choose Fast (500 ms; default), Balanced (800 ms) or Patient (1200 ms). This is the minimum silence duration for VAD, **not a promise of total response latency**. The indicator labelled *First AI reply* measures the time from the model's speech-ended event to the first streamed reply text/transcript event. Network, inference and audio playback may add more delay.
+2. **Automatic stop:** Choose 5 / 15 / 30 / 45 / 60 minutes. Sessions longer than 15 minutes require a confirmation. While connected, **+5 min · paid** extends the time, up to 60 minutes total from Start. If the session ends because of the timer, network, Safari backgrounding or Model Studio limits, press Start manually to create a new conversation.
+3. **Personality and language:** Open *Mini's personality, languages and memory*. Choose Friendly, Playful or Calm. Language can automatically match speech, favour English or favour Mandarin.
+4. **Preferences:** Type a short nonsensitive note such as *We like science facts and short bedtime stories*. The note is used for the next AI session. Tick the Save checkbox **only if you want this note remembered locally in Safari**. *Clear saved note* deletes it. No automatic conversation summaries or recordings are saved.
+
+**Cost limitations:** The stop timer runs inside Safari; it is a convenience safeguard, **not a guaranteed spending cap**. Qwen usage depends on audio/video and context tokens. Configure budgets/alerts in your Alibaba Cloud account. A provider timeout can still end a session early. Mini never silently reconnects or restarts paid streaming.
+
+**Privacy limitations:** The note is injected into the session's AI instructions, so Alibaba receives its contents while a live session runs. Don't enter names, addresses, schools, medical details or account information. Stored notes remain only under that Safari website origin, and deleting Safari site data also removes them. Model Studio retains recent conversation context during an active session according to its own documented limits; Mini doesn't save those transcripts to disk.
 
 ## 1. Local setup on Windows
 
@@ -206,22 +222,22 @@ With a working HTTPS method, say: **"Hello Mini, what can you see in front of yo
 
 - **Live audio:** Continuous microphone track during the session; server VAD detects the end of each speech turn and automatically triggers a response.
 - **Live visual input:** Camera video is sent to Qwen at 1–2 fps while video is enabled. **It does not generate a new AI reply every second.** It uses the frames to provide context when someone speaks.
-- **Proactive observation:** Not implemented in V3; it would require an additional change-detection/trigger loop or AI function logic and may cause higher usage.
+- **Proactive observation:** Not implemented in V4; it would require an additional change-detection/trigger loop or AI function logic and may cause higher usage.
 - **iOS limits:** A webpage cannot reliably keep capturing mic/video with the screen locked or when Safari is backgrounded. For longer unattended use, consider a dedicated powered device or a native iOS app, subject to iOS capture restrictions.
 
 ## Privacy, safety and cost
 
 - Pay-as-you-go **API charges are incurred** during real sessions; Token Plan subscriptions do not offset these charges.
 - Qwen may bill current audio/video plus retained history across many turns; costs are not equal to a fixed number of cents per minute. Monitor the Alibaba Cloud console.
-- Use 1 fps with video aggregation for lower costs; for a first test start with **one 5-minute session**.
+- Use 1 fps for lower camera bandwidth/cost; start with one **5-minute test session**. Longer duration is opt-in, and an hourly browser-side safety timer is not a financial limit.
 - The server proxies only the setup SDP, not the voice/video data. Video and voice go directly to Alibaba over WebRTC; do not stream private material or record children without appropriate consent.
-- Access protection uses a private access code and Cloudflare's email-protected tunnel. The project is a **hobby prototype**, not production-grade auth or budget enforcement. Browser-side timers are best-effort. Keep the server/tunnel closed when you are done.
+- Access protection uses a private Mini access code and an HTTPS gateway. In the working iPhone setup, ngrok HTTP Basic Auth runs in front of Mini; Cloudflare's email-protected Quick Tunnel had issues with 401 responses. This is a **hobby prototype**, not production-grade auth or budget enforcement. Browser-side timers are best-effort. Keep the server/tunnel closed when you are done.
 - Disable any camera-sharing option if you want voice-only mode. Pausing visual sharing does not turn off the local camera; press Stop for that.
 - If your iPhone version displays frozen/black camera imagery in the model, try voice-only first, then update iOS/Safari and consider a native iOS client. `canvas.captureStream()` on some older iOS WebKit builds has had bugs.
 
 ## Tests
 
-Run `npm test` to verify static serving, config secrecy, credentials checks, rate limits and the mocked WebRTC SDP proxy. Tests **do not call Alibaba** and do not confirm real iPhone compatibility; that requires real credentials and a device.
+Run `npm test` to verify static serving, config secrecy, credentials checks, rate limits, mocked WebRTC SDP proxy, JavaScript syntax, session option clamping, VAD pacing, language/personality prompts and browser-local preference storage. Tests **do not call Alibaba**, and do not independently verify iPhone audio playback, audio-meter animation or provider latency.
 
 ## Troubleshooting
 
@@ -230,7 +246,7 @@ Run `npm test` to verify static serving, config secrecy, credentials checks, rat
 On the iPhone, complete the Cloudflare email PIN sign-in, then open Mini. Tap **Test tunnel POST (free)** before pressing Start. This sends a small POST request of the same content type as the WebRTC setup, but **does not call Alibaba or charge for AI**. Repeat the test after 10 seconds.
 
 - **POST reached Mini successfully:** The origin was reachable at that moment. If a later test returns 401, the Cloudflare authentication session may have expired.
-- **POST blocked: HTTP 401:** Mini's test endpoint does not require the robot code; the 401 is coming from the tunnel or another gateway. A [reported protected Quick Tunnel bug](https://github.com/cloudflare/cloudflared/issues/1752) matches this pattern. Use Tailscale Serve as the preferred workaround.
+- **POST blocked: HTTP 401:** Mini's test endpoint does not require the robot code; the 401 is coming from the tunnel or another gateway. A [reported protected Quick Tunnel bug](https://github.com/cloudflare/cloudflared/issues/1752) matches this pattern. Use ngrok with a restrictive Google-login or password policy as a Safari-only workaround.
 - **POST succeeds repeatedly but the real SDP still fails:** Verify the robot's private access code and check Windows logs. A Model Studio 401 appears as a backend 502; a wrong Mini code appears as a JSON 401.
 
 Do not disable Cloudflare protection on a public URL as a workaround.
@@ -261,5 +277,5 @@ Node.js v22.13.0 and npm 10.9.2 are sufficient for this project. You do **not** 
 | Model silent | Tap the audio player's play control or **Enable speaker audio**. Lower output speaker volume to reduce echo. |
 | SDP negotiation error | Ensure Node >=22, Safari updated, selected model supports WebRTC and workspaces/region match. |
 | Camera preview OK but model cannot see | Stop, select **Direct camera · Safari compatibility**, then restart; you can also try 2 fps. |
-| Stops when switching apps | Deliberate privacy/cost behavior in V3. |
+| Stops when switching apps | Deliberate privacy/cost behavior in V4. |
 | Need to resume | Tap Start again to establish a fresh realtime session; previous conversation context is not persisted. |
