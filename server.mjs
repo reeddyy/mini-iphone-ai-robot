@@ -8,6 +8,7 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const STATIC = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
+  ['/mini-extras.js', ['mini-extras.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ]);
 const WINDOW_MS = 600_000;
@@ -77,7 +78,7 @@ export function createApp({
         return respond(res, 200, await readFile(join(ROOT, 'public', file)), type);
       }
       if (req.method === 'GET' && path === '/api/config') {
-        return json(res, 200, { mode: upstream ? 'realtime' : 'preview', model: upstream ? MODEL : null, maxSessionMinutes: 15 });
+        return json(res, 200, { mode: upstream ? 'realtime' : 'preview', model: upstream ? MODEL : null, maxSessionMinutes: 60 });
       }
       if (req.method === 'GET' && path === '/favicon.ico') return respond(res, 204, '');
       // Safe no-AI-cost probe: demonstrates that POST requests reach the actual
