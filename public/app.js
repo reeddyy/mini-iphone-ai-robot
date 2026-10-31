@@ -362,7 +362,12 @@ function receiveEvent(s, ev, channel) {
       break;
     case 'conversation.item.input_audio_transcription.completed':
       els.userText.textContent = ev.transcript || '—';
-      if (typeof ev.transcript === 'string') s.lastChildTranscript = ev.transcript.slice(0,240);
+      if (typeof ev.transcript === 'string') {
+        s.lastChildTranscript = ev.transcript.slice(0,240);
+        // For a relevant local follow-up only: allow voice requests to change
+        // story / guessing / show-and-tell without extra Qwen control events.
+        s.activity = kids.detectRequestedActivity?.(ev.transcript, s.activity) || s.activity;
+      }
       childUI?.onTranscription(ev.transcript);
       break;
     case 'response.created':
