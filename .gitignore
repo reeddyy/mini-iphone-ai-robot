@@ -21,3 +21,6 @@ Thumbs.db
 .vscode/settings.json
 .wrangler/
 .cloudflare/
+
+# Personal ngrok access policy (the tracked example is safe)
+ngrok-policy.yml
