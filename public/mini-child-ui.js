@@ -70,16 +70,22 @@
       const session = options.getSession();
       if (!session?.ready || session.stopped) return;
       const mic = session.audioInputTrack;
-      const restore = Boolean(mic?.enabled && !session.muted);
-      if (restore) mic.enabled = false; // Local backup prompt must not be heard by Qwen.
       const utterance = new window.SpeechSynthesisUtterance(message);
       utterance.lang = language() === 'zh' ? 'zh-CN' : 'en-US';
       utterance.rate = 0.9;
       utterance.pitch = 1.05;
-      const item = {mic,session,restore,guard:null};
+      const item = {mic,session,restore:false,guard:null};
       activeNarration = item;
+      // Do NOT disable the child's microphone before Safari actually speaks.
+      // If Safari blocks speech synthesis, their answer must still reach Qwen.
+      utterance.onstart = () => {
+        if (activeNarration === item && mic?.enabled && !session.stopped && !session.muted) {
+          item.restore = true;
+          mic.enabled = false;
+        }
+      };
       const done = () => { if (activeNarration === item) releaseSpeech(); };
-      item.guard = setTimeout(done, 20000);
+      item.guard = setTimeout(done, 12000);
       utterance.onend = done;
       utterance.onerror = done;
       try { window.speechSynthesis.speak(utterance); }
