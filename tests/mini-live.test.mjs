@@ -169,3 +169,46 @@ test('Joining a live session auto-requests the first Chat greeting',async()=>{
   assert.match(env.sent[0].session.instructions,/mode=chat/);
   assert.ok(env.calls.some(x=>x[0]==='ready'));
 });
+
+
+test('Blocked Safari fallback speech does not mute the child microphone',()=>{
+  const childScript=readFileSync(fileURLToPath(new URL('../public/mini-child-ui.js',import.meta.url)),'utf8');
+  const elements=new Map();
+  const element=()=>({
+    textContent:'',classList:{add(){},remove(){},toggle(){}},
+    style:{width:'',setProperty(){},removeProperty(){}},
+    setAttribute(){},removeAttribute(){},addEventListener(){},
+    querySelector(){return {textContent:''};},
+    appendChild(){},scrollIntoView(){},offsetWidth:5,
+  });
+  const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id)};
+  const mic={enabled:true};
+  const session={ready:true,stopped:false,muted:false,mode:'realtime',audioInputTrack:mic};
+  let utterance;
+  const window={
+    MiniKidsContent:{
+      mode:x=>x,
+      getLabels:()=>({chat:'Talk',guess:'Guess',story:'Story',look:'Show',blocked:'Ask a grown-up'}),
+      getFallback:()=>'Which animal has a long neck?',
+    },
+    speechSynthesis:{speak(value){utterance=value;},cancel(){}},
+    SpeechSynthesisUtterance:class{constructor(message){this.text=message;}},
+    scrollTo(){},
+  };
+  const document={getElementById:get,createElement:()=>element()};
+  vm.runInNewContext(childScript,{window,document,setTimeout,clearTimeout,Date});
+  const child=window.MiniChildUI.init({
+    getLanguage:()=> 'en',
+    getSession:()=>session,
+    stopSession(){},
+    requestActivity(){},
+  });
+  child.sayFallback('guess');
+  assert.equal(mic.enabled,true,'a blocked Safari TTS start must not mute the microphone');
+  assert.ok(utterance);
+  utterance.onstart();
+  assert.equal(mic.enabled,false,'temporarily mute only while local TTS actually plays');
+  utterance.onend();
+  assert.equal(mic.enabled,true,'restore the microphone when local TTS ends');
+  child.stopSpeech();
+});
