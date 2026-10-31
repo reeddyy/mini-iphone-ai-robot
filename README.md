@@ -135,9 +135,40 @@ ngrok http 3001 --traffic-policy-file .\ngrok-policy.yml
 
 5. Open the **HTTPS Forwarding URL printed by ngrok** in Safari on your iPhone 12 Pro. The free plan may show an initial browser warning—continue only if this is the URL you just created. Sign in with the approved Google account, then enter Mini's separate `ROBOT_ACCESS_CODE`. Tap **Test tunnel POST (free)** twice, then try **Start live Mini** if both tests succeed.
 
-Your free ngrok account gets an assigned development domain, with request and bandwidth limits. Ngrok provides HTTPS but the URL is otherwise internet-reachable: **keep Google OAuth with the exact email restriction enabled**, use a private robot access code, and stop ngrok when not testing. Do not use an unprotected public endpoint for live camera/audio access.
+Your free ngrok account gets an assigned development domain, with request and bandwidth limits. Ngrok provides HTTPS but the URL is otherwise internet-reachable: **keep gateway authentication enabled (Google OAuth with an exact-email restriction, or Basic Auth)**, use a separate private robot access code, and stop ngrok when not testing. Do not use an unprotected public endpoint for live camera/audio access.
 
 References: [ngrok Windows install](https://ngrok.com/download/windows) · [ngrok OAuth & traffic policy](https://ngrok.com/docs/share-localhost/auth) · [ngrok free plan limits](https://ngrok.com/docs/pricing-limits/free-plan-limits)
+
+### Alternative ngrok login: password instead of Google
+
+If you reach the ngrok Google login but cannot complete it, you can use **HTTP Basic Authentication** instead—still over HTTPS and still using only Safari on the iPhone. This is a separate, local password; the public repository contains only a placeholder. Ngrok supports this as a Traffic Policy action.
+
+```powershell
+cd D:\Ai-projects\mini-iphone-ai-robot
+git pull
+Copy-Item ngrok-password-policy.example.yml ngrok-password-policy.yml
+notepad ngrok-password-policy.yml
+```
+
+In Notepad, replace `CHANGE-TO-A-STRONG-UNIQUE-PASSWORD-AT-LEAST-20-CHARACTERS` with a **new unique password of at least 20 characters**. The username is `mini`. The sample policy blocks anonymous connections. Keep this local file private; it is Git-ignored.
+
+To generate a random password on Windows (save it in your own password manager):
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(20).toString('hex'))"
+```
+
+After saving, stop the previous ngrok tunnel with Ctrl+C, leave `npm start` running on port 3001, and run:
+
+```powershell
+ngrok http 3001 --traffic-policy-file .\ngrok-password-policy.yml
+```
+
+In Safari, open the ngrok HTTPS URL and sign in when the **browser's username/password prompt** appears, using `mini` and your new tunnel password. This is **not** your ngrok account password and **not** Mini's `ROBOT_ACCESS_CODE`. Enter the robot access code later, inside Mini, and tap **Test tunnel POST (free)** before starting any chargeable AI session.
+
+If Google sign-in fails with a `403` page after choosing an account, compare the email written in local `ngrok-policy.yml` against the identity used in Safari. If Google itself reports `400`, `redirect_uri_mismatch`, or `access_denied`, report the exact displayed error rather than changing any Mini or Alibaba credentials.
+
+Never run ngrok without either your configured Google restriction or Basic Auth; do not paste your passwords into chat or commit local policy files. This is suitable for prototype testing, not a production security design.
 
 ### Alternative: Tailscale Serve (requires an iPhone VPN app)
 
