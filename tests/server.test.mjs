@@ -27,6 +27,14 @@ test('Serves only frontend; config has no API secrets',async()=>{
   });
 });
 
+test('Diagnostic POST bypasses the AI provider and confirms arrival at Mini',async()=>{
+  await withApp({apiKey:'sk-payg-test',workspaceId:'ws123abc',fetchFn:()=>{throw Error('Diagnostic must not call Alibaba');}},async base=>{
+    const response=await fetch(base+'/api/diagnostics/post',{method:'POST',headers:{'content-type':'application/sdp'},body:'v=0\r\n'});
+    assert.equal(response.status,200);
+    assert.deepEqual(await response.json(),{ok:true,origin:'mini',method:'POST'});
+  });
+});
+
 test('Preview mode cannot open a billed session',async()=>{
   await withApp({apiKey:'',fetchFn:()=>{throw Error('Must never call upstream');}},async base=>{
     assert.equal((await sdp(base)).status,412);
