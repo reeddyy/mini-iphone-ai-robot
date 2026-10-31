@@ -1,5 +1,15 @@
 # Changelog
 
+## 6.3.0 — Just talk to Mini
+
+- Removed all four Talk/Guess/Story/Show buttons from the child screen. One expressive face and live conversation are now the primary interface.
+- Tucked live microphone level and AI hearing diagnostics into the collapsed Parent setup section; structured error codes remain visible on the main screen if a model error occurs.
+- Tuned Qwen's Chat instructions to understand natural requests in English and Mandarin for storytelling, animal guessing games, show-and-tell, and casual conversation without button selection.
+- Added small browser-local intent classification from a provided speech transcript ONLY for choosing an appropriate single Safari follow-up. It does not send new provider events, create additional responses or persist any transcripts.
+- Preserved Qwen VAD, model-error safeguards, follow-up questions, camera opt-in, parent authorization and paid-session time limits.
+- Added tests proving the child menu is gone and natural language requests do not create competing Qwen control events.
+- New child-facing behaviour and speech naturalness still require live iPhone/Safari tests; CI does not make billable AI calls.
+
 ## 6.2.0 — Mini asks the next question (experimental)
 
 - Stronger child-friendly Qwen instructions: every ordinary answer should acknowledge the child's specific reply and end with exactly one relevant question in the SAME audio response. Respect goodbyes, breaks and safety concerns.
