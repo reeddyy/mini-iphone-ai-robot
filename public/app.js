@@ -57,6 +57,7 @@ function maybeUnmuteAudio() {
   els.remoteAudio.muted = false;
   els.remoteAudio.volume = 1;
   current?.audioMeter?.resume();
+  current?.micMeter?.resume();
   els.remoteAudio.play().catch(() => {
     els.playAudio.textContent = '▶ Tap to hear Mini';
   });
@@ -204,6 +205,7 @@ function requestActivity(value) {
   if (!s || s.stopped || s.mode !== 'realtime' || !s.mediaReady ||
       s.eventChannel?.readyState !== 'open') return false;
   const activity = kids.mode(value);
+  s.micMeter?.resume(); // Safari sometimes defers WebAudio until a fresh tap.
   if (s.responseActive || s.childSpeaking || s.activityUpdatePending || s.awaitingProactiveResponse) {
     s.queuedActivity = activity;
     childUI?.onActivityStart(activity,true);
@@ -331,6 +333,8 @@ function receiveEvent(s, ev, channel) {
       childUI?.onTranscription(ev.transcript);
       break;
     case 'response.created':
+      s.proactiveResponseActive = Boolean(s.awaitingProactiveResponse);
+      s.proactiveTextSeen = false;
       s.responseActive = true;
       s.awaitingProactiveResponse = false;
       clearTimeout(s.proactiveTimer);
@@ -339,21 +343,30 @@ function receiveEvent(s, ev, channel) {
       setStatus('Mini is responding…', 'speaking');
       break;
     case 'response.audio_transcript.delta':
+      if (ev.delta) s.proactiveTextSeen = true;
       recordFirstReply(s);
       els.miniText.textContent += ev.delta || '';
       if (ev.delta) setStatus('Mini is speaking…', 'speaking');
       break;
     case 'response.audio_transcript.done':
+      if (ev.transcript) s.proactiveTextSeen = true;
       recordFirstReply(s);
       els.miniText.textContent = ev.transcript || els.miniText.textContent || '—';
       break;
     case 'response.text.delta':
+      if (ev.delta) s.proactiveTextSeen = true;
       recordFirstReply(s);
       break;
-    case 'response.done':
+    case 'response.done': {
+      const hasOutput = Array.isArray(ev.response?.output) && ev.response.output.length > 0;
+      const needFallback = s.proactiveResponseActive && !s.proactiveTextSeen &&
+                           !hasOutput && !s.queuedActivity;
+      s.proactiveResponseActive = false;
       setStatus('Live · ask Mini another question', 'listening');
       afterResponse(s);
+      if (needFallback) childUI?.sayFallback(s.activity);
       break;
+    }
     case 'error': {
       console.error('Realtime model error code:', ev.error?.code || 'unknown');
       const failedId = ev.error?.event_id || ev.error?.eventId || null;
