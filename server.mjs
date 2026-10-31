@@ -86,7 +86,8 @@ export function createApp({
       if (authFails.length >= 8) return json(res, 429, {error:'Too many incorrect access codes. Stop and restart your server to try again.'});
       if (!codeMatches(req.headers['x-robot-access-code'], accessCode)) {
         authFails.push(Date.now());
-        return json(res, 401, {error:'Incorrect private robot access code.'});
+        console.warn('Mini SDP rejected: private ROBOT_ACCESS_CODE did not match (no secret logged).');
+        return json(res, 401, {error:'Incorrect private robot access code. Check ROBOT_ACCESS_CODE in the Windows .env file, restart Mini, and enter the same value in Safari.'});
       }
       if (!upstream) return json(res, 412, {error:'Local preview only. Add a Model Studio pay-as-you-go API key and Workspace ID.'});
       if (attempts.length >= 8) return json(res, 429, {error:'Too many live sessions started in 10 minutes. Please try again later.'});
