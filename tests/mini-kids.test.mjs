@@ -96,3 +96,45 @@ test('Quiet child sensitivity is lower and clamped to known choices',()=>{
   assert.equal(extras.speechThreshold('unknown'),0.25);
   assert.equal(extras.createMicInputMeter(null,()=>{}),null);
 });
+
+
+test('The companion explicitly asks a NEW question after every ordinary answer',()=>{
+  const kid=kidsContent();
+  for (const mode of kid.modes) {
+    const prompt=kid.instructions('Parent safety instructions',mode,false);
+    assert.match(prompt,/SAME (?:spoken|SPOKEN|AUDIO|AI) (?:answer|response|reply)|SAME SPOKEN REPLY/i,mode);
+    assert.match(prompt,/ONE short, concrete, new question/);
+    assert.match(prompt,/Place the question LAST/);
+    assert.match(prompt,/stop speaking and LISTEN/);
+    assert.match(prompt,/DO NOT keep asking questions/);
+    assert.match(prompt,/Parent safety instructions/);
+  }
+});
+
+test('Follow-up detection skips model questions and respects bedtime and stopping',()=>{
+  const kid=kidsContent();
+  assert.equal(kid.needsFollowUp('Yes, giraffe! Well done.','Giraffe','completed'),true);
+  assert.equal(kid.needsFollowUp('Yes! Which animal has stripes?','Giraffe','completed'),false);
+  assert.equal(kid.needsFollowUp('Great! Do you want another animal','dog','completed'),false);
+  assert.equal(kid.needsFollowUp('真聪明！我们再玩一次吗？','长颈鹿','completed'),false);
+  assert.equal(kid.needsFollowUp('真棒！接下来想去哪里','森林','completed'),false);
+  assert.equal(kid.needsFollowUp('Well done!','I do not want to play','completed'),false);
+  assert.equal(kid.needsFollowUp('Bye, have a nice day!','bye','completed'),false);
+  assert.equal(kid.needsFollowUp('Nice try!','no','completed'),true,'ordinary no answer is not a stop request');
+  assert.equal(kid.needsFollowUp('Yes!','rabbit','failed'),false);
+  assert.equal(kid.needsFollowUp('','rabbit','completed'),false);
+});
+
+test('One brief follow-up has activity and English/Mandarin versions, without personal data',()=>{
+  const kid=kidsContent();
+  for(const mode of kid.modes){
+    const en=kid.getFollowUp(mode,'en',0);
+    const zh=kid.getFollowUp(mode,'zh',0);
+    assert.match(en,/\?/);
+    assert.match(zh,/？/);
+    assert.ok(en.length>12 && en.length<120);
+    assert.ok(zh.length>5 && zh.length<60);
+    assert.notEqual(en,zh);
+    assert.notEqual(kid.getFollowUp(mode,'en',1),en,'follows up with some variety');
+  }
+});
