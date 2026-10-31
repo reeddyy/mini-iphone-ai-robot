@@ -6,7 +6,7 @@ const $ = id => document.getElementById(id);
 const els = {
   face: $('robotFace'), status: $('status'), mode: $('modeTag'), info: $('modeInfo'),
   code: $('accessCode'), start: $('startBtn'), stop: $('stopBtn'), extend: $('extendBtn'),
-  pace: $('responsePace'), remaining: $('remainingTime'), delay: $('replyDelay'),
+  pace: $('responsePace'), remaining: $('remainingTime'), delay: $('replyDelay'), keepTalk: $('keepConversationGoing'),
   personality: $('personality'), language: $('language'), sensitivity: $('listenSensitivity'),
   note: $('familyNote'), remember: $('rememberPrefs'), clearMemory: $('clearMemoryBtn'), memoryInfo: $('memoryInfo'),
   postTest: $('postTestBtn'), postResult: $('postTestResult'),
@@ -41,7 +41,7 @@ function render() {
   els.stop.classList.toggle('hidden', !running);
   els.start.disabled = loading || mode === 'checking';
   els.start.textContent = mode === 'preview' ? '● Parent: Test camera & mic' : '● Parent: Start live voice';
-  for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps, els.limit, els.pace, els.sensitivity, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
+  for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps, els.limit, els.pace, els.sensitivity, els.keepTalk, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
   els.clearMemory.disabled = running || loading;
   els.mute.disabled = !running;
   els.mute.textContent = s?.muted ? 'Unmute microphone' : 'Mute microphone';
@@ -187,8 +187,47 @@ function qwenErrorLabel(error) {
   return 'code=' + safe.code + ', type=' + safe.type +
     (safe.param ? ', param=' + safe.param : '');
 }
+
+// Qwen normally supplies the next question in the SAME spoken answer. If a
+// successful, transcribed answer ended without a question, Safari can ask ONE
+// small question. This is NOT another Qwen response.create or paid model turn.
+// Never loop on silence, restart paid sessions, or persist child transcripts.
+function cancelCompanionFollowUp(s) {
+  clearTimeout(s.followupTimer);
+  s.followupTimer = null;
+}
+function scheduleCompanionFollowUp(s, reply, child, status) {
+  cancelCompanionFollowUp(s);
+  if (!s.keepConversationGoing || !kids.needsFollowUp(reply, child, status)) return;
+  if (!s.mediaReady || s.mode !== 'realtime' || s.muted) return;
+  const selectedMode = s.activity;
+  const language = s.language === 'zh' ||
+    (s.language === 'auto' && /[\u3400-\u9fff]/.test(reply || child || '')) ? 'zh' : 'en';
+  const question = kids.getFollowUp(selectedMode, language, s.followUpCount || 0);
+  const initiatedAt = Date.now();
+  const attempt = () => {
+    if (s.stopped || current !== s || s.activity !== selectedMode ||
+        !s.mediaReady || s.muted || !s.audioInputTrack?.enabled ||
+        s.childSpeaking || s.turnPending || s.responseActive || s.activityUpdatePending ||
+        s.queuedActivity || s.eventChannel?.readyState !== 'open') return;
+    // WebRTC may still be playing Qwen audio when response.done arrives.
+    // Wait for silence, but never play the question on top of active audio.
+    if (s.audioMeter?.isAudible?.()) {
+      if (Date.now() - initiatedAt < 7000) {
+        s.followupTimer = setTimeout(attempt, 450);
+      }
+      return;
+    }
+    s.followUpCount = (s.followUpCount || 0) + 1;
+    s.followupTimer = null;
+    childUI?.sayFollowUp(selectedMode, question, language);
+  };
+  s.followupTimer = setTimeout(attempt, 2400);
+}
+
 function startActivity(s, value) {
   if (!s || s.stopped || !s.mediaReady || s.mode !== 'realtime') return;
+  cancelCompanionFollowUp(s);
   childUI?.stopSpeech();
   s.previousActivity = s.activeActivity || 'chat';
   s.activity = kids.mode(value);
@@ -213,6 +252,7 @@ function requestActivity(value) {
   if (!s || s.stopped || s.mode !== 'realtime' || !s.mediaReady ||
       s.eventChannel?.readyState !== 'open') return false;
   const activity = kids.mode(value);
+  cancelCompanionFollowUp(s);
   s.micMeter?.resume();
   if (s.responseActive || s.childSpeaking || s.turnPending || s.activityUpdatePending) {
     s.queuedActivity = activity;
@@ -292,6 +332,9 @@ function receiveEvent(s, ev, channel) {
       }
       break;
     case 'input_audio_buffer.speech_started':
+      cancelCompanionFollowUp(s);
+      childUI?.stopSpeech();
+      s.lastChildTranscript = '';
       s.childSpeaking = true;
       s.userSpokeDuringMode = true;
       childUI?.onVoiceDetected(true);
@@ -319,10 +362,14 @@ function receiveEvent(s, ev, channel) {
       break;
     case 'conversation.item.input_audio_transcription.completed':
       els.userText.textContent = ev.transcript || '—';
+      if (typeof ev.transcript === 'string') s.lastChildTranscript = ev.transcript.slice(0,240);
       childUI?.onTranscription(ev.transcript);
       break;
     case 'response.created':
+      cancelCompanionFollowUp(s);
       clearTimeout(s.thinkingWatchdog);
+      s.replyTranscript = '';
+      s.replyTextBackup = '';
       s.responseActive = true;
       childUI?.onResponseStarted();
       els.miniText.textContent = '';
@@ -330,15 +377,21 @@ function receiveEvent(s, ev, channel) {
       break;
     case 'response.audio_transcript.delta':
       recordFirstReply(s);
+      if (typeof ev.delta === 'string') s.replyTranscript = ((s.replyTranscript || '') + ev.delta).slice(-1800);
       els.miniText.textContent += ev.delta || '';
       if (ev.delta) setStatus('Mini is speaking…', 'speaking');
       break;
     case 'response.audio_transcript.done':
       recordFirstReply(s);
+      if (typeof ev.transcript === 'string' && ev.transcript.trim()) s.replyTranscript = ev.transcript.slice(-1800);
       els.miniText.textContent = ev.transcript || els.miniText.textContent || '—';
       break;
     case 'response.text.delta':
       recordFirstReply(s);
+      if (typeof ev.delta === 'string') s.replyTextBackup = ((s.replyTextBackup || '') + ev.delta).slice(-1800);
+      break;
+    case 'response.text.done':
+      if (typeof ev.text === 'string' && ev.text.trim()) s.replyTextBackup = ev.text.slice(-1800);
       break;
     case 'response.done': {
       const status = ev.response?.status;
@@ -347,8 +400,14 @@ function receiveEvent(s, ev, channel) {
         showModelIssue('Qwen reply ' + status + ' (' + detail +
           '). The session is still connected; try speaking again.');
       }
+      const wasChildAnswer = Boolean(s.turnPending);
+      const changedGame = Boolean(s.queuedActivity);
+      const spokenAnswer = s.replyTranscript || s.replyTextBackup || '';
       setStatus('Live · ask Mini another question', 'listening');
       afterResponse(s);
+      if (wasChildAnswer && !changedGame) {
+        scheduleCompanionFollowUp(s, spokenAnswer, s.lastChildTranscript || '', status);
+      }
       break;
     }
     case 'error': {
@@ -476,6 +535,7 @@ async function startMini() {
     fps:Number(els.fps.value) === 2 ? 2 : 1, videoMode:els.videoMode.value,
     limit:extras.durationMinutes(els.limit.value),
     silenceMs:extras.silenceDuration(els.pace.value),
+    keepConversationGoing:els.keepTalk.checked,
     vadThreshold:extras.speechThreshold(els.sensitivity.value),
     personality:els.personality.value, language:els.language.value,
     note:extras.boundedNote(els.note.value),
@@ -483,7 +543,7 @@ async function startMini() {
     ready:false, updateSent:false, sessionCreated:false, mediaStarted:false, mediaReady:false,
     activity:'chat', activeActivity:'chat', activityUpdatePending:false,
     userSpokeDuringMode:false, responseActive:false, childSpeaking:false,
-    turnPending:false,
+    turnPending:false, followUpCount:0, lastChildTranscript:'', replyTranscript:'', replyTextBackup:'',
     startedAt:Date.now(),
   };
   if (s.mode === 'realtime' && !window.confirm('Grown-up check: Start a paid Qwen voice session for up to ' + s.limit + ' minutes? The microphone and any camera you enable will stream while connected.')) return;
@@ -599,6 +659,7 @@ function stopMini(reason = 'Mini stopped · camera and microphone off') {
   clearTimeout(s.deadline);
   clearTimeout(s.disconnectedTimer);
   clearTimeout(s.thinkingWatchdog);
+  cancelCompanionFollowUp(s);
   s.audioMeter?.stop();
   s.micMeter?.stop();
   if (s.drawRaf) cancelAnimationFrame(s.drawRaf);
