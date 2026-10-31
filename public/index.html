@@ -4,36 +4,62 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101426">
-  <meta name="description" content="Mini: a live speech and vision robot using iPhone 12 Pro and Qwen Omni Realtime">
-  <title>Mini V4 · Live iPhone Robot</title>
+  <meta name="description" content="Mini: a playful family robot with offline stories and parent-controlled live Qwen voice and camera">
+  <title>Mini V5 · Little Companion</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/mini-extras.js" defer></script>
+  <script src="/mini-kids.js" defer></script>
+  <script src="/mini-child-ui.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
       <div class="brand-mark" aria-hidden="true">✦</div>
-      <div><div class="eyebrow">iPhone-powered robot · prototype 04</div><h1>Meet Mini<span class="dot">.</span></h1></div>
-      <div class="badge">QWEN LIVE</div>
+      <div><div class="eyebrow">A little robot friend · V5</div><h1>Hi, I’m Mini<span class="dot">!</span></h1></div>
+      <div id="kidLiveTag" class="kid-live-tag">♡ QUIET PLAY</div>
     </header>
     <section class="robot-stage" aria-label="Animated robot face">
       <div class="halo"></div>
-      <div id="robotFace" class="face idle" aria-hidden="true">
+      <div id="kidSparkles" class="kid-sparkles" aria-hidden="true"></div>
+      <div id="robotFace" class="face idle">
         <div class="eyes"><div class="eye"><div class="pupil"></div><div class="glint"></div></div><div class="eye"><div class="pupil"></div><div class="glint"></div></div></div>
         <div class="mouth"><span></span><span></span><span></span><span></span><span></span></div>
       </div>
-      <div id="status" class="status" role="status" aria-live="polite"><span class="status-light"></span>Mini is sleeping</div>
-      <div class="tip">Speak naturally once connected. Mini listens until you press Stop.</div>
+      <div id="status" class="status" role="status" aria-live="polite"><span class="status-light"></span>Mini is resting</div>
+      <div class="tip">Tap my face! I love gentle boops. 💜</div>
     </section>
 
+    <section class="kid-home" aria-label="Play with Mini">
+      <p id="kidHint" class="kid-hint" role="status" aria-live="polite">Hi! I’m Mini! Want to play?</p>
+      <div class="kid-actions">
+        <button class="kid-action story" id="kidStory" type="button"><span class="kid-emoji" aria-hidden="true">📖</span><strong>Stories</strong><small>FREE · OFFLINE</small></button>
+        <button class="kid-action guess" id="kidGuess" type="button"><span class="kid-emoji" aria-hidden="true">🐾</span><strong>Guess!</strong><small>FREE · OFFLINE</small></button>
+        <button class="kid-action look" id="kidLook" type="button"><span class="kid-emoji" aria-hidden="true">👀</span><strong>Look!</strong><small>ASK ME OUT LOUD</small></button>
+      </div>
+      <section id="kidActivity" class="kid-activity hidden" aria-hidden="true" aria-label="Mini's play activity">
+        <div class="kid-activity-header"><h2 id="kidActivityTitle">Let's play!</h2><button id="kidClose" type="button" aria-label="Close this activity">✕</button></div>
+        <p id="kidActivityBody"></p>
+        <div id="kidChoices" class="kid-choices"></div>
+        <button id="kidNext" class="kid-next" type="button">Next</button>
+      </section>
+      <div class="kid-lower">
+        <button id="kidParentLink" class="kid-parent-link" type="button">👨‍👩‍👧 Grown-up setup</button>
+        <button id="kidStopBtn" class="kid-stop hidden" type="button">■ Stop live chat</button>
+      </div>
+      <p class="kid-parent-note">A grown-up starts AI voice chats. Stories and guessing games work free, even when Mini is offline.</p>
+    </section>
+
+    <details id="parentSetup" class="parent-setup">
+      <summary>⚙️ Parent setup &amp; safety controls</summary>
+      <p class="help parent-intro">For grown-ups: start or stop paid Qwen voice chat here. These controls are hidden from the main play screen, not locked with a separate PIN.</p>
     <section class="panel" aria-label="Live session">
-      <div class="section-head"><h2>1 · Live session</h2><span id="modeTag" class="tag">CHECKING</span></div>
+      <div class="section-head"><h2>1 · Start a voice chat (grown-ups)</h2><span id="modeTag" class="tag">CHECKING</span></div>
       <p id="modeInfo" class="help">Checking server configuration…</p>
-      <label class="top-label" for="accessCode">Private access code</label>
+      <label class="top-label" for="accessCode">Parent access code</label>
       <input id="accessCode" class="wide-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Code in your .env file">
       <div class="settings-grid">
-        <label class="toggle-label"><input id="sendVideo" type="checkbox" checked><span>Share live camera with AI</span></label>
+        <label class="toggle-label"><input id="sendVideo" type="checkbox"><span>Allow AI to see the camera (off by default)</span></label>
         <label for="facing">Camera</label>
         <select id="facing"><option value="user">Front · sees you</option><option value="environment">Rear · sees objects</option></select>
         <label for="videoMode">Video method</label>
@@ -47,7 +73,7 @@
       </div>
       <p class="help cost-note">Longer sessions cost more. Session duration is a safety timer, not a fixed spending limit. Mini never automatically reconnects or renews a session.</p>
       <div class="actions session-actions">
-        <button id="startBtn" class="primary" type="button">● Start live Mini</button>
+        <button id="startBtn" class="primary" type="button">● Parent: Start voice chat</button>
         <button id="stopBtn" class="outline hidden" type="button">■ Stop session</button>
         <button id="extendBtn" class="outline hidden" type="button">+5 min · paid</button>
       </div>
@@ -98,7 +124,8 @@
       <button id="playAudioBtn" class="outline" type="button">▶ Enable speaker audio</button>
       <p class="help">If Safari blocks automatic audio playback, tap Enable speaker audio. Use phone speaker volume or headphones to reduce echo.</p>
     </section>
-    <footer>Mini V4 · Qwen Omni pay-as-you-go · Up to 60 min per session · Stops when Safari is hidden</footer>
+        </details>
+    <footer>Mini V5 · Child-friendly play, with grown-up controlled AI · Camera sharing is opt-in</footer>
   </main>
 </body>
 </html>
