@@ -23,7 +23,7 @@ test('Serves only frontend; config has no API secrets',async()=>{
     for(const path of ['/','/app.js','/mini-extras.js','/mini-kids.js','/mini-activities.js','/mini-board.js','/mini-child-ui.js','/style.css','/mini-face.css']) assert.equal((await fetch(base+path)).status,200);
     for(const path of ['/.env','/server.mjs','/README.md']) assert.equal((await fetch(base+path)).status,404);
     const config=await (await fetch(base+'/api/config')).json();
-    assert.deepEqual(config,{mode:'preview',model:null,maxSessionMinutes:60});
+    assert.deepEqual(config,{mode:'preview',model:null,maxSessionMinutes:60,visuals:{available:false,imagesAvailable:false,model:'qwen-plus',maxPlans:60,maxImages:4}});
   });
 });
 

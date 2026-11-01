@@ -11,6 +11,8 @@
   <script src="/mini-extras.js" defer></script>
   <script src="/mini-kids.js" defer></script>
   <script src="/mini-board.js" defer></script>
+  <script src="/mini-visual-schema.js" defer></script>
+  <script src="/mini-visuals.js" defer></script>
   <script src="/mini-activities.js" defer></script>
   <script src="/mini-child-ui.js" defer></script>
   <script src="/app.js" defer></script>
@@ -61,6 +63,14 @@
       <p id="kidSessionNotice" class="kid-session-notice hidden" role="status"></p>
       <p id="sharingNotice" class="sharing-notice hidden" role="status"></p>
       <p id="activityProgress" class="activity-progress hidden" role="status"></p>
+      <p id="visualRequestStatus" class="visual-request-status hidden" role="status" aria-live="polite"></p>
+      <section id="visualScene" class="visual-scene hidden" aria-labelledby="visualTitle">
+        <div class="board-heading"><h2 id="visualTitle">Look with Mini</h2><button id="visualExit" class="board-exit" type="button">Back to Mini</button></div>
+        <p id="visualMessage" class="board-help"></p>
+        <div id="visualCanvas" class="visual-canvas" data-aspect="square"></div>
+        <p id="visualResult" class="visual-result" role="status" aria-live="polite"></p>
+        <div id="visualChoices" class="visual-choices"></div>
+      </section>
       <section id="boardActivity" class="board-activity hidden" aria-labelledby="boardTitle">
         <div class="board-heading"><h2 id="boardTitle">Tic-tac-toe together</h2><button id="boardExit" class="board-exit" type="button">Back to Mini</button></div>
         <p id="boardHelp" class="board-help">You are ×. Mini is ○. Choose an empty square.</p>
@@ -105,7 +115,10 @@
         <label for="sessionLimit">Automatic stop</label>
         <select id="sessionLimit"><option value="5">5 minutes · short test</option><option value="15" selected>15 minutes · recommended</option><option value="30">30 minutes · extended</option><option value="45">45 minutes · extended</option><option value="60">60 minutes · maximum</option></select>
         <label class="toggle-label"><input id="sendVideo" type="checkbox"><span>Allow AI to see the camera (off by default)</span></label>
+        <label class="toggle-label"><input id="visualResponses" type="checkbox" checked><span>Let Qwen create visual scenes · extra paid planning request per spoken turn</span></label>
+        <label class="toggle-label"><input id="generatedPictures" type="checkbox"><span>Allow newly generated pictures · separate image charges (off by default)</span></label>
       </div>
+      <p id="visualCapabilityInfo" class="help">Visual planning starts only in a parent-authorized paid session. Maximum 60 plans and 4 pictures per session.</p>
       <label class="toggle-label memory-check"><input id="rememberSettings" type="checkbox"><span>Remember these settings on this device. Access codes and camera-sharing choices are never saved.</span></label>
       <button id="forgetSettingsBtn" class="outline" type="button">Forget saved settings</button>
       <p id="settingsInfo" class="help" role="status">Settings stay in this session unless you choose to remember them.</p>

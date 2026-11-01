@@ -39,6 +39,14 @@ function mockEnvironment() {
     addEventListener(){},
   };
   let eventId=0;
+  let visualOptions;
+  const visualRenderer={plan:null,clear(){this.plan=null;},cancelPending(){},setBusy(){},isActive(){return Boolean(this.plan);},current(){return this.plan;},describe(){return this.plan?{action:this.plan.action,title:this.plan.title}:null;},
+    async apply(plan){
+      if(plan.action==='keep')return;
+      if(plan.action==='clear'){this.clear();visualOptions.onExit();return;}
+      if(plan.activity?.type==='tictactoe'){visualOptions.openBoard();return;}
+      this.plan=plan;calls.push(['visual',plan.action]);visualOptions.onStart();visualOptions.onStateChange(this.describe());
+    }};
   const companionUI={
     onStatus(x){calls.push(['status',x.state]);},
     onActivityStart(mode,queued){calls.push(['activity',mode,Boolean(queued)]);},
@@ -71,6 +79,7 @@ function mockEnvironment() {
         modelErrorDetails(e){return {code:e?.code||'unknown',type:e?.type||'unknown',param:e?.param||''};},
       },
       MiniChildUI:{init:()=>companionUI},
+      MiniVisuals:{init:options=>{visualOptions=options;return visualRenderer;}},
       addEventListener(){},
       scrollTo(){},
       isSecureContext:true,
@@ -84,6 +93,7 @@ function mockEnvironment() {
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-kids.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-activities.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-board.js',import.meta.url)),'utf8'),ctx);
+  vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-visual-schema.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(app,ctx);
   const s={
     mode:'realtime',stopped:false,ready:true,mediaReady:true,language:'en',
@@ -99,7 +109,7 @@ function mockEnvironment() {
   };
   ctx.testSession=s;
   vm.runInContext('current = testSession',ctx);
-  return {ctx,s,sent,calls,flushTimeouts,timeouts};
+  return {ctx,s,sent,calls,flushTimeouts,timeouts,visualRenderer};
 }
 const emit=(env,type,extra={})=>{
   env.ctx.ev={type,...extra};
@@ -759,4 +769,62 @@ test('Automatic board language follows a Mandarin game request',()=>{
   emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'我们玩井字棋吧',item_id:'zh-board'});
   assert.match(env.ctx.document.getElementById('boardTitle').textContent,/井字棋/);
   assert.match(env.ctx.document.getElementById('boardStatus').textContent,/轮到你/);
+});
+
+test('Arbitrary spoken requests reach Qwen planning without a visual keyword classifier',async()=>{
+  const env=mockEnvironment();env.s.visualsEnabled=true;env.s.visualGrant='test-grant';
+  let sent;
+  env.ctx.fetch=async(url,options)=>{sent={url,options};return {ok:true,json:async()=>({plan:{version:1,action:'character',title:'Jellyfish astronaut',nodes:[{kind:'emoji',text:'🪼',size:40}]}})};};
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Become a jellyfish astronaut',item_id:'novel'});
+  await vm.runInContext('Promise.resolve()',env.ctx);await vm.runInContext('Promise.resolve()',env.ctx);
+  assert.equal(sent.url,'/api/visual/plan');
+  assert.equal(JSON.parse(sent.options.body).request,'Become a jellyfish astronaut');
+  assert.equal(sent.options.headers.Authorization,'Bearer test-grant');
+  assert.equal(env.visualRenderer.current().title,'Jellyfish astronaut');
+});
+
+test('Dynamic storytelling does not force the fixed cat/dragon and forest/castle checkpoint',async()=>{
+  const env=mockEnvironment();env.s.visualsEnabled=true;env.s.visualGrant='test-grant';
+  env.s.activityState=env.ctx.window.MiniActivities.fresh();
+  env.ctx.fetch=async()=>({ok:true,json:async()=>({plan:{version:1,action:'keep'}})});
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Tell me a story about a jellyfish astronaut',item_id:'dynamic-story'});
+  await vm.runInContext('Promise.resolve()',env.ctx);await vm.runInContext('Promise.resolve()',env.ctx);
+  assert.equal(env.s.activityState.kind,'chat');
+  assert.equal(env.s.activity,'story');
+});
+
+test('A later Qwen visual response wins even if an earlier network response arrives last',async()=>{
+  const env=mockEnvironment();env.s.visualsEnabled=true;env.s.visualGrant='test-grant';
+  const replies=[];
+  env.ctx.fetch=(_url,options)=>new Promise(resolve=>replies.push({resolve,options}));
+  const old=vm.runInContext('requestGeneratedVisual(testSession,"show a cat")',env.ctx);
+  const latest=vm.runInContext('requestGeneratedVisual(testSession,"show a spaceship")',env.ctx);
+  assert.equal(replies[0].options.signal.aborted,true);
+  const reply=title=>({ok:true,json:async()=>({plan:{version:1,action:'scene',title,nodes:[{kind:'emoji',text:'🚀'}]}})});
+  replies[1].resolve(reply('Spaceship'));await latest;
+  replies[0].resolve(reply('Old cat'));await old;
+  assert.equal(env.visualRenderer.current().title,'Spaceship');
+});
+
+test('New speech and stopping cancel pending visual work, revoke the grant, and preserve cleared UI',async()=>{
+  const env=mockEnvironment();env.s.visualsEnabled=true;env.s.visualGrant='test-grant';
+  let resolve,signal,revoked=false;
+  env.ctx.fetch=(url,options)=>{
+    if(options.method==='DELETE'){revoked=true;return Promise.resolve({ok:true});}
+    signal=options.signal;return new Promise(r=>{resolve=r;});
+  };
+  const pending=vm.runInContext('requestGeneratedVisual(testSession,"show a cat")',env.ctx);
+  emit(env,'input_audio_buffer.speech_started');assert.equal(signal.aborted,true);
+  vm.runInContext('stopMini()',env.ctx);
+  resolve({ok:true,json:async()=>({plan:{version:1,action:'scene',nodes:[{kind:'emoji',text:'🐱'}]}})});await pending;
+  assert.equal(env.visualRenderer.current(),null);assert.equal(revoked,true);assert.equal(env.s.visualGrant,null);
+});
+
+test('Visual planning failure leaves voice capture alive and artwork requires parent consent',async()=>{
+  const env=mockEnvironment();env.s.visualsEnabled=true;env.s.visualGrant='test-grant';
+  env.ctx.fetch=async()=>({ok:false,json:async()=>({error:'Visual provider unavailable.'})});
+  await vm.runInContext('requestGeneratedVisual(testSession,"show a cat")',env.ctx);
+  assert.equal(env.s.stopped,false);assert.equal(env.s.audioInputTrack.enabled,true);
+  assert.match(env.ctx.document.getElementById('visualRequestStatus').textContent,/unavailable/);
+  await assert.rejects(vm.runInContext('requestGeneratedArtwork("ticket",new AbortController().signal)',env.ctx),/grown-up/);
 });

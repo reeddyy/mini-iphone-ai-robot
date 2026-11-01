@@ -207,17 +207,42 @@ select:disabled{opacity:.5}.actions button{min-width:0;white-space:normal}
 .board-footer{display:flex;align-items:center;gap:14px;margin-top:16px}
 .board-footer button{min-height:44px;flex:none}
 .board-footer p{margin:0;color:#aebcd9;font-size:11px;line-height:1.5}
-.shell[data-visual-activity="tictactoe"] .robot-stage{height:150px;min-height:0;margin:7px 0 10px}
-.shell[data-visual-activity="tictactoe"] .robot-stage #robotFace{position:absolute;top:-65px;left:50%;margin:0;animation:none;transform:translateX(-50%) scale(.42);transform-origin:50% 50%}
-.shell[data-visual-activity="tictactoe"] .robot-stage .halo{display:none}
-.shell[data-visual-activity="tictactoe"] .robot-stage .status{position:absolute;bottom:0;margin:0;max-width:100%;font-size:11px;text-align:center}
-.shell[data-visual-activity="tictactoe"] :is(#faceTip,#kidHint,#kidGameMode,#activityProgress,#kidSparkles,#localPlayBtn,#boardPlayBtn,.kid-parent-note){display:none!important}
-.shell[data-visual-activity="tictactoe"] .kid-home{padding-top:0}
-.shell[data-visual-activity="tictactoe"] #kidParentLink{display:none}
-.shell[data-visual-activity="tictactoe"][data-voice-running="true"] #kidLiveTag{visibility:hidden}
-.shell[data-visual-activity="tictactoe"] #kidStopBtn{position:fixed;top:calc(14px + env(safe-area-inset-top));right:max(14px,calc((100vw - 660px)/2 + 20px));z-index:30;box-shadow:0 4px 18px #0004}
+.shell[data-visual-activity] .robot-stage{height:150px;min-height:0;margin:7px 0 10px}
+.shell[data-visual-activity] .robot-stage #robotFace{position:absolute;top:-65px;left:50%;margin:0;animation:none;transform:translateX(-50%) scale(.42);transform-origin:50% 50%}
+.shell[data-visual-activity] .robot-stage .halo{display:none}
+.shell[data-visual-activity] .robot-stage .status{position:absolute;bottom:0;margin:0;max-width:100%;font-size:11px;text-align:center}
+.shell[data-visual-activity] :is(#faceTip,#kidHint,#kidGameMode,#activityProgress,#kidSparkles,#localPlayBtn,#boardPlayBtn,.kid-parent-note){display:none!important}
+.shell[data-visual-activity] .kid-home{padding-top:0}
+.shell[data-visual-activity] #kidParentLink{display:none}
+.shell[data-visual-activity][data-voice-running="true"] #kidLiveTag{visibility:hidden}
+.shell[data-visual-activity] #kidStopBtn{position:fixed;top:calc(14px + env(safe-area-inset-top));right:max(14px,calc((100vw - 660px)/2 + 20px));z-index:30;box-shadow:0 4px 18px #0004}
 @media(max-width:365px){.board-activity{padding:13px}.board-heading h2{font-size:19px}.tic-board{gap:7px}.board-help{font-size:13px}}
 @media(prefers-reduced-motion:reduce){.tic-board button{transition:none}}
+.visual-scene{margin:8px auto 16px;padding:18px;background:linear-gradient(145deg,#252d49,#17223a);border:1px solid #8f8bb85c;border-radius:24px}
+.visual-canvas{width:100%;aspect-ratio:1;border-radius:18px;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:12px}
+.visual-canvas[data-aspect="wide"]{aspect-ratio:4/3}
+.visual-canvas>svg,.visual-canvas>img{display:block;width:100%;height:100%;object-fit:contain}
+.visual-choices{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.visual-choice{flex:1;min-width:90px;min-height:52px;padding:13px;border:1px solid #c4b6fa66;background:#b7a5f329;color:#f2eaff;border-radius:15px;font-size:17px;white-space:normal}
+.visual-choice:focus-visible,.visual-count-item:focus-visible{outline:3px solid #ffdfa4;outline-offset:3px}
+.visual-result{font-size:16px;line-height:1.5;color:#f2dcab;min-height:24px;margin:12px 0 0;text-align:center}
+.visual-request-status{color:#d1c2f5;font-size:13px;text-align:center;line-height:1.5}
+.visual-count-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;width:100%;padding:10px}
+.visual-count-item{min-height:50px;padding:5px;background:#ffffff0d;font-size:35px;border-radius:12px}
+.visual-count-item.counted{outline:2px solid #a9dfc1;background:#a9dfc126;opacity:1}
+.visual-hand-card{flex:1;text-align:center;padding:12px;background:#ffffff0d;border-radius:15px}
+.visual-hand-card>span{font-size:64px}.visual-hand-card>p{font-size:15px;color:#e5ddff}
+.visual-hand-prompt{font-size:21px;color:#e3d7fa;text-align:center;padding:20px}
+.visual-scene[data-type="hand_game"] .visual-canvas{aspect-ratio:auto;min-height:160px}
+.visual-hand-choice{display:flex;flex-direction:column;align-items:center;gap:8px}
+.visual-hand-choice>span:first-child{font-size:42px;line-height:1.2}
+.visual-motion-float{animation:visual-float 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.visual-motion-bounce{animation:visual-bounce 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.visual-motion-wiggle{animation:visual-wiggle 1.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.visual-motion-pulse{animation:visual-pulse 2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes visual-float{50%{transform:translateY(-2px)}}@keyframes visual-bounce{50%{transform:translateY(-5px)}}
+@keyframes visual-wiggle{25%{transform:rotate(-5deg)}75%{transform:rotate(5deg)}}@keyframes visual-pulse{50%{transform:scale(1.06)}}
+@media(prefers-reduced-motion:reduce){[class^="visual-motion-"]{animation:none!important}}
 .parent-dialog{width:min(92vw,440px);max-height:85dvh;overflow:auto;border:1px solid #8c88b5;border-radius:20px;padding:24px;background:#152039;color:#eef1fa}
 .parent-dialog::backdrop{background:#050913bb}
 .parent-dialog h2{font-size:21px;margin:0 0 12px}

@@ -20,6 +20,7 @@ const els = {
   kidAudio: $('kidAudioBtn'),
   sharing: $('sharingNotice'), progress: $('activityProgress'),
   favoriteTopic: $('favoriteTopic'), reactionSounds: $('reactionSounds'), rememberSettings: $('rememberSettings'),
+  visualToggle:$('visualResponses'),pictures:$('generatedPictures'),visualStatus:$('visualRequestStatus'),visualInfo:$('visualCapabilityInfo'),
   forgetSettings: $('forgetSettingsBtn'), settingsInfo: $('settingsInfo'),
   extendDialog: $('extendDialog'), extendForm: $('extendForm'), extensionCode: $('extensionCode'),
   extensionMessage: $('extensionMessage'), extensionApprove: $('extensionApprove'), extensionCancel: $('extensionCancel'),
@@ -29,6 +30,8 @@ let current = null;
 let loading = false;
 let childUI = null;
 let visualActivity = null;
+let generatedVisuals = null;
+let visualCapabilities={available:false,imagesAvailable:false};
 let extensionRequest = null;
 let openingRound = Math.floor(Math.random() * 1000);
 
@@ -55,6 +58,8 @@ function render() {
   for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps, els.limit, els.pace, els.sensitivity, els.keepTalk, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
   els.clearMemory.disabled = running || loading;
   for(const control of [els.favoriteTopic,els.reactionSounds,els.rememberSettings,els.forgetSettings])control.disabled=running || loading;
+  els.visualToggle.disabled=running || loading || !visualCapabilities.available;
+  els.pictures.disabled=running || loading || !visualCapabilities.imagesAvailable || !els.visualToggle.checked;
   els.mute.disabled = !running;
   els.mute.textContent = s?.muted ? 'Unmute microphone' : 'Mute microphone';
   els.pauseVideo.disabled = !running || !s?.wantVideo || s?.mode === 'preview' || !s?.ready;
@@ -98,6 +103,10 @@ async function loadConfig() {
     const response = await fetch('/api/config', {cache:'no-store'});
     if (!response.ok) throw new Error('Cannot connect to your computer server');
     const data = await response.json();
+    visualCapabilities=data.visuals || {available:data.mode==='realtime',imagesAvailable:false};
+    els.visualInfo.textContent=visualCapabilities.imagesAvailable
+      ? 'Visual scenes use extra paid Qwen requests. Pictures are separate paid calls. Limits: 60 plans and 4 pictures per session.'
+      : 'Visual scenes use extra paid Qwen requests. Newly generated artwork is not configured; Mini can still compose drawings with shapes, text and emoji.';
     mode = data.mode;
     els.mode.textContent = mode === 'realtime' ? 'QWEN REALTIME' : 'LOCAL PREVIEW ONLY';
     els.mode.classList.toggle('is-demo', mode !== 'realtime');
@@ -223,7 +232,54 @@ function finishPlayback(s) {
 function renderActivity(s) {
   const text=activities.summary(s.activityState,s.language);
   els.progress.textContent=text;
-  els.progress.classList.toggle('hidden',!text || Boolean(visualActivity?.isActive()));
+  els.progress.classList.toggle('hidden',!text || Boolean(visualActivity?.isActive()) || Boolean(generatedVisuals?.isActive()));
+}
+function cancelGeneratedRequest(s) {
+  if(s){s.visualRequestVersion=(s.visualRequestVersion || 0)+1;s.visualAbort?.abort();}
+  generatedVisuals?.cancelPending();generatedVisuals?.setBusy(false);
+  els.visualStatus.classList.add('hidden');
+}
+async function requestGeneratedVisual(s,request,fromChoice=false) {
+  if(s.stopped || current!==s || s.mode!=='realtime' || !s.visualsEnabled || !s.visualGrant)return;
+  cancelGeneratedRequest(s);
+  const version=s.visualRequestVersion;
+  const controller=new AbortController();s.visualAbort=controller;
+  generatedVisuals?.setBusy(true);
+  els.visualStatus.textContent=s.language==='zh'?'Mini 正在想怎么画……':'Mini is imagining what to show…';els.visualStatus.classList.remove('hidden');
+  try {
+    const response=await fetch('/api/visual/plan',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.visualGrant},
+      body:JSON.stringify({request:request.slice(0,500),scene:generatedVisuals?.current() || (visualActivity?.isActive()?{version:1,action:'activity',title:'Tic-tac-toe',activity:{type:'tictactoe'}}:null),language:s.language}),signal:controller.signal});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.error || 'Visual response unavailable. Voice chat can continue.');
+    const plan=window.MiniVisualSchema.validate(data.plan);
+    if(s.stopped || current!==s || version!==s.visualRequestVersion || controller.signal.aborted)return;
+    await generatedVisuals.apply(plan,{imageTicket:data.imageTicket,allowChoiceContinuation:!fromChoice});
+  } catch(error) {
+    if(!s.stopped && current===s && version===s.visualRequestVersion && !controller.signal.aborted) {
+      els.visualStatus.textContent=error.message || 'Mini could not show that yet. Voice chat can continue.';
+      return;
+    }
+  } finally {
+    if(current===s && version===s.visualRequestVersion){generatedVisuals?.setBusy(false);if(!controller.signal.aborted && els.visualStatus.textContent.includes('…'))els.visualStatus.classList.add('hidden');}
+  }
+}
+async function requestGeneratedArtwork(ticket,signal) {
+  const s=current;
+  if(!s || s.stopped || !s.visualGrant || !s.imagesAllowed || !ticket)throw new Error('Ask a grown-up to enable generated pictures before starting a new session.');
+  const controller=new AbortController(),abort=()=>controller.abort();
+  signal.addEventListener('abort',abort,{once:true});s.abort.signal.addEventListener('abort',abort,{once:true});
+  if(signal.aborted || s.abort.signal.aborted)controller.abort();
+  try {
+    const response=await fetch('/api/visual/image',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.visualGrant},body:JSON.stringify({ticket}),signal:controller.signal});
+    if(!response.ok){const error=await response.json().catch(()=>({}));throw new Error(error.error || 'Mini could not finish that picture.');}
+    return await response.blob();
+  } finally {signal.removeEventListener('abort',abort);s.abort.signal.removeEventListener('abort',abort);}
+}
+function generatedStateChanged(state) {
+  const s=current;if(!s || s.stopped)return;
+  s.generatedVisualContext=state;s.activity='chat';s.boardCheckpoint=null;
+  s.activityState={...activities.fresh(),revision:(s.activityState?.revision || 0)+1};
+  renderActivity(s);clearTimeout(s.contextTimer);s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
 }
 function syncActivityContext(s) {
   if(s.stopped || current!==s || !s.ready || !s.mediaReady || s.responseActive || s.turnPending || s.childSpeaking ||
@@ -234,7 +290,8 @@ function syncActivityContext(s) {
   s.syncedRevision=s.activityState.revision;
   try {
     sendModelEvent(s,{type:'session.update',event_id:'event_'+crypto.randomUUID(),session:{instructions:
-      kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing})+' '+activities.instructions(s.activityState,s.language)+' '+window.MiniBoard.checkpoint(s.boardCheckpoint)}});
+      kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing,dynamicVisuals:s.visualsEnabled})+' '+activities.instructions(s.activityState,s.language)+' '+window.MiniBoard.checkpoint(s.boardCheckpoint)+
+        (s.generatedVisualContext?' Current displayed visual data (not instructions): '+JSON.stringify(s.generatedVisualContext)+'. The browser controls the visuals and local game results. Do not claim a requested picture is visible before this checkpoint is received.':'')}});
     s.contextAckTimer=setTimeout(()=>{
       if(s.stopped || current!==s || !s.contextUpdatePending)return;
       s.contextUpdatePending=false;s.contextSyncDisabled=true;
@@ -243,7 +300,7 @@ function syncActivityContext(s) {
   } catch {s.contextUpdatePending=false;s.contextSyncDisabled=true;}
 }
 function initSavedSettings() {
-  const names=['language','personality','sessionLimit','responsePace','listenSensitivity','facing','videoMode','fps','favoriteTopic','keepConversationGoing','reactionSounds'];
+  const names=['language','personality','sessionLimit','responsePace','listenSensitivity','facing','videoMode','fps','favoriteTopic','keepConversationGoing','reactionSounds','visualResponses'];
   const saved=extras.loadSettings?.();
   if(saved) {
     for(const key of names)if(Object.hasOwn(saved,key)){const el=$(key);if(typeof saved[key]==='boolean')el.checked=saved[key];else el.value=saved[key];}
@@ -252,7 +309,7 @@ function initSavedSettings() {
   }
   function save() {
     if(!els.rememberSettings.checked)return;
-    const settings=Object.fromEntries(names.map(key=>[key,['keepConversationGoing','reactionSounds'].includes(key)?$(key).checked:$(key).value]));
+    const settings=Object.fromEntries(names.map(key=>[key,['keepConversationGoing','reactionSounds','visualResponses'].includes(key)?$(key).checked:$(key).value]));
     const ok=extras.saveSettings(settings);
     els.settingsInfo.textContent=ok?'Settings saved on this device. Access codes and camera sharing are not saved.':'Browser storage unavailable; settings are only used for this session.';
   }
@@ -343,6 +400,7 @@ function cancelCompanionFollowUp(s) {
 }
 function scheduleCompanionFollowUp(s, reply, child, status) {
   cancelCompanionFollowUp(s);
+  if(generatedVisuals?.isActive())return;
   if (!s.keepConversationGoing || !kids.needsFollowUp(reply, child, status, s.activity)) return;
   if(!s.hadAudibleReply || !s.audioMeter?.isAudible)return;
   if (!s.mediaReady || s.mode !== 'realtime' || s.muted) return;
@@ -385,7 +443,7 @@ function startActivity(s, value) {
     sendModelEvent(s, {
       type:'session.update',
       event_id:'event_' + crypto.randomUUID(),
-      session:{instructions:kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing})},
+      session:{instructions:kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing,dynamicVisuals:s.visualsEnabled})},
     });
   } catch (error) {
     s.activityUpdatePending = false;
@@ -431,7 +489,7 @@ function tryInitialize(s) {
   s.baseInstructions = extras.buildInstructions({personality:s.personality, language:s.language, note:s.note,favoriteTopic:s.favoriteTopic});
   const session = {
     modalities: ['text','audio'],
-    instructions: kids.instructions(s.baseInstructions,'chat',s.wantVideo,{keepConversationGoing:s.keepConversationGoing,opening:s.opening})+' '+activities.instructions(s.activityState,s.language),
+    instructions: kids.instructions(s.baseInstructions,'chat',s.wantVideo,{keepConversationGoing:s.keepConversationGoing,opening:s.opening,dynamicVisuals:s.visualsEnabled})+' '+activities.instructions(s.activityState,s.language),
     input_audio_format: 'pcm',
     output_audio_format: 'pcm',
     input_audio_transcription: {model:'qwen3-asr-flash-realtime'},
@@ -493,6 +551,7 @@ function receiveEvent(s, ev, channel) {
       }
       break;
     case 'input_audio_buffer.speech_started':
+      cancelGeneratedRequest(s);
       s.boardVoiceRound=visualActivity?.isActive()?visualActivity.roundId():null;
       cancelCompanionFollowUp(s);
       childUI?.stopSpeech();
@@ -537,16 +596,18 @@ function receiveEvent(s, ev, channel) {
       els.userText.textContent = ev.transcript || '—';
       if (typeof ev.transcript === 'string') {
         s.lastChildTranscript = ev.transcript.slice(0,240);
-        const handled=visualActivity?.handleTranscript(ev.transcript,s.boardVoiceRound ?? null);
+        const dynamic=Boolean(s.visualsEnabled && s.visualGrant);
+        const handled=(visualActivity?.isActive() || !dynamic)?visualActivity?.handleTranscript(ev.transcript,s.boardVoiceRound ?? null):false;
         if(!handled) {
           const next=kids.detectRequestedActivity?.(ev.transcript, s.activity) || s.activity;
           if(visualActivity?.isActive() && next!=='tictactoe'){visualActivity.close(false);s.boardCheckpoint=null;}
           s.activity=next;
-          s.activityState=activities.advance(s.activityState,ev.transcript);
+          if(!dynamic)s.activityState=activities.advance(s.activityState,ev.transcript);
         }
         renderActivity(s);
         clearTimeout(s.contextTimer);
         s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
+        if(!handled)requestGeneratedVisual(s,ev.transcript);
       }
       childUI?.onTranscription(ev.transcript);
       break;
@@ -743,6 +804,8 @@ async function startMini() {
     vadThreshold:extras.speechThreshold(els.sensitivity.value),
     personality:els.personality.value, language:els.language.value,
     favoriteTopic:els.favoriteTopic.value,
+    visualsEnabled:els.visualToggle.checked && visualCapabilities.available,
+    imagesAllowed:els.pictures.checked && visualCapabilities.imagesAvailable && els.visualToggle.checked,
     opening:kids.getOpening(els.language.value,openingRound++),
     note:extras.boundedNote(els.note.value),
     muted:false, videoPaused:false, channels:new Set(),
@@ -752,9 +815,11 @@ async function startMini() {
     turnPending:false, followUpCount:0, lastChildTranscript:'', replyTranscript:'', replyTextBackup:'',
     startedAt:Date.now(),
   };
-  s.activityState=activities.fromOpening(s.opening);
+  s.activityState=s.visualsEnabled?activities.fresh():activities.fromOpening(s.opening);
   s.syncedRevision=s.activityState.revision;
-  if (s.mode === 'realtime' && !window.confirm('Grown-up check: Start a paid Qwen voice session for up to ' + s.limit + ' minutes? The microphone and any camera you enable will stream while connected.')) return;
+  if (s.mode === 'realtime' && !window.confirm('Grown-up check: Start a paid Qwen voice session for up to ' + s.limit + ' minutes? The microphone and any camera you enable will stream while connected.'+
+    (s.visualsEnabled?' Visual scenes add paid planning requests per turn.':'')+(s.imagesAllowed?' Newly generated pictures add separate image charges.':''))) return;
+  cancelGeneratedRequest(current);generatedVisuals?.clear();
   visualActivity?.close(false);
   els.diagnostic.textContent = '';
   els.diagnostic.classList.add('hidden');
@@ -830,7 +895,7 @@ async function startMini() {
     if (s.stopped) return;
     const response = await fetch('/api/realtime/sdp', {
       method:'POST',
-      headers:{'Content-Type':'application/sdp','X-Robot-Access-Code':els.code.value.trim()},
+      headers:{'Content-Type':'application/sdp','X-Robot-Access-Code':els.code.value.trim(),'X-Mini-Visuals':String(s.visualsEnabled),'X-Mini-Images':String(s.imagesAllowed)},
       body:s.pc.localDescription.sdp,
       signal:s.abort.signal,
       cache:'no-store',
@@ -847,6 +912,7 @@ async function startMini() {
       throw new Error(serverMessage || fallback);
     }
     const raw = await response.text();
+    s.visualGrant=response.headers?.get('X-Mini-Visual-Session') || null;
     // Do not leave the private robot code in the page once authorization succeeds.
     els.code.value = '';
     const answer = raw.trim().replace(/\r?\n/g,'\r\n') + '\r\n';
@@ -864,6 +930,8 @@ async function startMini() {
 function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=false} = {}) {
   const s = current;
   if (!s) return;
+  cancelGeneratedRequest(s);generatedVisuals?.clear();
+  if(s.visualGrant){const token=s.visualGrant;s.visualGrant=null;fetch('/api/visual/session',{method:'DELETE',headers:{Authorization:'Bearer '+token},keepalive:true}).catch(()=>{});}
   visualActivity?.close(false);
   cancelExtension();
   childUI?.stopSpeech();
@@ -896,8 +964,10 @@ function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=
   els.progress.textContent='';
   s.activityState=null;
   s.boardCheckpoint=null;
+  s.generatedVisualContext=null;
   s.lastChildTranscript='';s.replyTranscript='';s.replyTextBackup='';s.pendingReaction='';
   els.videoToggle.checked=false;
+  els.pictures.checked=false;
   current = null;
   els.remaining.textContent = 'Remaining: --:--';
   els.remaining.classList.remove('warning');
@@ -1004,6 +1074,8 @@ visualActivity=window.MiniBoard.init({
   getLanguage:()=>current?.language || els.language.value,
   getSession:()=>current,
   onStart:()=>{
+    cancelGeneratedRequest(current);generatedVisuals?.clear();
+    if(current)current.generatedVisualContext=null;
     childUI?.stopLocalPlay?.();childUI?.stopSpeech();
     $('parentSetup').open=false;
     if(!current)setStatus('Local board game · mic and camera off','idle');
@@ -1026,6 +1098,24 @@ visualActivity=window.MiniBoard.init({
   },
   onResult:winner=>childUI?.reactToMiniSpeech?.(winner==='X'?'Great job!':winner==='draw'?'Wow, we filled the board!':'Let’s try another round.'),
 });
+generatedVisuals=window.MiniVisuals.init({
+  getLanguage:()=>current?.language || els.language.value,
+  openBoard:()=>visualActivity.open(),
+  requestArtwork:requestGeneratedArtwork,
+  onStart:()=>{
+    visualActivity?.close(false);childUI?.stopLocalPlay?.();childUI?.stopSpeech();$('parentSetup').open=false;
+    if(current){current.boardCheckpoint=null;current.generatedVisualContext=generatedVisuals.describe();}
+  },
+  onInteraction:choice=>{const s=current;if(s)requestGeneratedVisual(s,'Button interaction: '+JSON.stringify({id:choice.id,label:choice.label}),true);},
+  onStateChange:generatedStateChanged,
+  onExit:()=>{
+    cancelGeneratedRequest(current);
+    if(current)generatedStateChanged(null);
+    const live=current?.ready && current.mode==='realtime';
+    setStatus(current?.muted?'Microphone muted · Mini cannot hear you':live?'Mini is listening':current?'Local preview · no AI connection':'Mini is resting',live && !current.muted?'listening':'idle');render();
+  },
+});
+els.visualToggle.addEventListener('change',render);
 els.language.addEventListener('change', () => childUI?.syncLanguage());
 loadConfig();
 render();

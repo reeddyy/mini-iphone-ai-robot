@@ -13,7 +13,7 @@
     const result={};
     if(!value || typeof value!=='object' || Array.isArray(value))return result;
     for(const [key,choices] of Object.entries(settingOptions))if(choices.includes(value[key]))result[key]=value[key];
-    for(const key of ['keepConversationGoing','reactionSounds'])if(typeof value[key]==='boolean')result[key]=value[key];
+    for(const key of ['keepConversationGoing','reactionSounds','visualResponses'])if(typeof value[key]==='boolean')result[key]=value[key];
     return result;
   }
   function loadSettings() {

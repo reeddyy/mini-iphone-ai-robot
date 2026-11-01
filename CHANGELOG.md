@@ -2,6 +2,10 @@
 
 ## Unreleased — Child controls and gentler conversation
 
+- Add Qwen-directed scene planning for arbitrary visual subjects using validated drawing primitives, emoji, text, motion and choices. Keep a compact Mini beside scenes, with a persistent Stop control and Back to Mini.
+- Add generic locally scored choice duels (including scissors-paper-stone), exact count activities and visual story choices. Mini commits its random duel move before the child chooses; spoken selections can use Qwen interpretation.
+- Add optional, separately consented artwork generation through a configured synchronous image model. Use parent-session grants, single-use image tickets, request limits, cancellation, bounded image downloads and non-executable rendering. Image consent is never saved.
+- Validate the visual protocol, authorization, provider requests, consent and interruption races with mock tests and local Chromium checks. No live or paid provider calls were made; image model availability and iPhone Safari remain device checks.
 - Add a shared tic-tac-toe scene with a compact Mini face, tappable numbered squares, X/O marks, turn indicators, winning-line highlights, New round and Back to Mini. English/Mandarin spoken requests and positions use the same local rules. Free touch play never opens media or AI; voice remains inside the existing paid session. Stopping, hiding the page, changing activity or resetting cancels pending moves.
 - Coordinate facial reactions into interruptible sequences; only show speaking/listening cues after audible playback transitions. Child speech mutes interrupted playback, and late events from old replies cannot consume the new turn.
 - Add a session-only story checkpoint (hero, setting, goal and ending) and three animal-riddle rounds with easier clues. Synchronize instructions between turns without requesting extra model responses; disable optional synchronization if the provider rejects it.
