@@ -107,7 +107,8 @@ export function createApp({
       if (req.method === 'GET' && path === '/favicon.ico') return respond(res, 204, '');
       if(path.startsWith('/api/visual/')) {
         pruneVisuals();
-        const token=String(req.headers.authorization || '').replace(/^Bearer /,'');
+        // Authorization belongs to the HTTPS gateway (for example ngrok Basic Auth).
+        const token=String(req.headers['x-mini-visual-session'] || '');
         const grant=visualSessions.get(token);
         if(!grant)return json(res,401,{error:'Start a parent-authorized session with visual responses enabled.'});
         if(path==='/api/visual/session' && req.method==='DELETE'){revoke(token);return json(res,200,{ok:true});}

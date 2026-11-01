@@ -293,6 +293,16 @@ On the iPhone, complete the Cloudflare email PIN sign-in, then open Mini. Tap **
 - **POST blocked: HTTP 401:** Mini's test endpoint does not require the robot code; the 401 is coming from the tunnel or another gateway. A [reported protected Quick Tunnel bug](https://github.com/cloudflare/cloudflared/issues/1752) matches this pattern. Use ngrok with a restrictive Google-login or password policy as a Safari-only workaround.
 - **POST succeeds repeatedly but the real SDP still fails:** Verify the robot's private access code and check Windows logs. A Model Studio 401 appears as a backend 502; a wrong Mini code appears as a JSON 401.
 
+### ngrok username/password prompt keeps appearing during chat
+
+Earlier visual-scene, picture and awareness requests sent Mini's session token in the HTTP `Authorization` header. Ngrok Basic Auth uses the same header for the tunnel username/password. Replacing that browser-managed value made the gateway challenge requests again, so Safari could repeatedly show its password box while the child spoke or Mini checked the camera.
+
+The updated app sends Mini's grant in `X-Mini-Visual-Session` and preserves the browser's same-origin tunnel credentials. The Windows server still uses its private API key for server-to-Alibaba requests. Ngrok protection and Mini's parent authorization remain required.
+
+To update, stop the session and stop the Windows Mini server with Ctrl+C. Run `git pull`, then `npm start`, and refresh the ngrok page in Safari. If an old tab continues using the previous script, close it and open the same protected ngrok URL again. Leave your existing password-protected ngrok tunnel running; this fix does not require a new password or policy file. Mini's private `.env` stays on Windows.
+
+Tests reproduce the old header conflict behind a password-protected local gateway. Chromium checks also confirm one initial login covers scene planning, images, awareness and Stop without another password challenge. Actual ngrok/iPhone behavior still needs confirmation on your device. A Google sign-in page is a different authentication flow from the username/password issue described here.
+
 Do not disable Cloudflare protection on a public URL as a workaround.
 
 ### Windows: port already in use (`EADDRINUSE`)

@@ -780,7 +780,8 @@ test('Arbitrary spoken requests reach Qwen planning without a visual keyword cla
   await vm.runInContext('Promise.resolve()',env.ctx);await vm.runInContext('Promise.resolve()',env.ctx);
   assert.equal(sent.url,'/api/visual/plan');
   assert.equal(JSON.parse(sent.options.body).request,'Become a jellyfish astronaut');
-  assert.equal(sent.options.headers.Authorization,'Bearer test-grant');
+  assert.equal(sent.options.headers['X-Mini-Visual-Session'],'test-grant');
+  assert.equal(Object.keys(sent.options.headers).some(key=>key.toLowerCase()==='authorization'),false,'leave gateway authorization to the browser');
   assert.equal(env.visualRenderer.current().title,'Jellyfish astronaut');
 });
 
@@ -828,6 +829,24 @@ test('Visual planning failure leaves voice capture alive and artwork requires pa
   assert.equal(env.s.stopped,false);assert.equal(env.s.audioInputTrack.enabled,true);
   assert.match(env.ctx.document.getElementById('visualRequestStatus').textContent,/unavailable/);
   await assert.rejects(vm.runInContext('requestGeneratedArtwork("ticket",new AbortController().signal)',env.ctx),/grown-up/);
+});
+
+test('All browser visual requests preserve gateway credentials and avoid setting Authorization',async()=>{
+  const env=mockEnvironment(),requests=[];let awareness;
+  Object.assign(env.s,{visualsEnabled:true,visualGrant:'test-grant',imagesAllowed:true,awarenessEnabled:true});
+  env.ctx.fetch=async(url,init)=>{requests.push({url,init});return {ok:true,json:async()=>({plan:{version:1,action:'keep'},observation:{}}),blob:async()=>({})};};
+  await vm.runInContext('requestGeneratedVisual(testSession,"hello")',env.ctx);
+  await vm.runInContext('requestGeneratedArtwork("ticket",new AbortController().signal)',env.ctx);
+  env.ctx.window.MiniAwareness={start:options=>{awareness=options;return {interrupt(){},stop(){},isPaused:()=>false};}};
+  vm.runInContext('startAwareness(testSession)',env.ctx);
+  await awareness.observe(['fixture','fixture'],new AbortController().signal);
+  vm.runInContext('stopMini()',env.ctx);
+  assert.deepEqual(requests.map(value=>value.url),['/api/visual/plan','/api/visual/image','/api/visual/observe','/api/visual/session']);
+  for(const {init} of requests){
+    assert.equal(init.headers['X-Mini-Visual-Session'],'test-grant');
+    assert.equal(Object.keys(init.headers).some(key=>key.toLowerCase()==='authorization'),false);
+    assert.equal(init.credentials,'same-origin');
+  }
 });
 
 test('Picture permission explains each unavailable state and enables only for a configured new visual session',()=>{

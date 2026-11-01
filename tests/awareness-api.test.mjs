@@ -20,7 +20,7 @@ async function withApp(provider,task) {
     const response=await fetch(base+'/api/realtime/sdp',{method:'POST',headers:{'Content-Type':'application/sdp','X-Robot-Access-Code':CODE,'X-Mini-Awareness':String(awareness),'X-Mini-Camera':String(camera),'X-Mini-Visuals':String(visuals)},body:OFFER});
     assert.equal(response.status,200);return response.headers.get('X-Mini-Visual-Session');
   };
-  const post=(token,body={frames:[FRAME,FRAME]},path='/api/visual/observe')=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)});
+  const post=(token,body={frames:[FRAME,FRAME]},path='/api/visual/observe')=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json','X-Mini-Visual-Session':token},body:JSON.stringify(body)});
   try{await task({base,start,post,calls});}finally{await new Promise(resolve=>app.close(resolve));}
 }
 test('Camera awareness needs parent-issued camera and awareness consent; grants keep scopes separate',async()=>{
@@ -73,7 +73,7 @@ test('Stop revocation aborts an observation already running',async()=>{
     options.signal.addEventListener('abort',()=>{aborted=true;reject(new Error('cancelled'));},{once:true});started();
   }),async({base,start,post})=>{
     const token=await start(),pending=post(token);await ready;
-    await fetch(base+'/api/visual/session',{method:'DELETE',headers:{Authorization:'Bearer '+token}});
+    await fetch(base+'/api/visual/session',{method:'DELETE',headers:{'X-Mini-Visual-Session':token}});
     assert.equal((await pending).status,502);assert.equal(aborted,true);assert.equal((await post(token)).status,401);
   });
 });

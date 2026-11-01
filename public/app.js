@@ -273,8 +273,9 @@ function startAwareness(s) {
     s.awarenessLastActivity=Date.now();
     s.awareness=window.MiniAwareness.start({video:els.preview,spoken:s.spokenGreetings,
       allowed:()=>awarenessCanRun(s) && Date.now()-Math.max(s.awarenessLastActivity || s.startedAt,s.awarenessLastNoise || 0)>=6000 && s.endsAt-Date.now()>60000,
+      // Leave Authorization to the browser's tunnel login; Mini has its own grant header.
       observe:async(frames,signal)=>{
-        const response=await fetch('/api/visual/observe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.visualGrant},body:JSON.stringify({frames}),signal});
+        const response=await fetch('/api/visual/observe',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Mini-Visual-Session':s.visualGrant},body:JSON.stringify({frames}),signal});
         if(!response.ok)throw new Error('Visual check unavailable');
         return (await response.json()).observation;
       },
@@ -298,7 +299,7 @@ async function requestGeneratedVisual(s,request,fromChoice=false) {
   generatedVisuals?.setBusy(true);
   els.visualStatus.textContent=s.language==='zh'?'Mini 正在想怎么画……':'Mini is imagining what to show…';els.visualStatus.classList.remove('hidden');
   try {
-    const response=await fetch('/api/visual/plan',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.visualGrant},
+    const response=await fetch('/api/visual/plan',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Mini-Visual-Session':s.visualGrant},
       body:JSON.stringify({request:request.slice(0,500),scene:generatedVisuals?.current() || (visualActivity?.isActive()?{version:1,action:'activity',title:'Tic-tac-toe',activity:{type:'tictactoe'}}:null),language:s.language}),signal:controller.signal});
     const data=await response.json();
     if(!response.ok)throw new Error(data.error || 'Visual response unavailable. Voice chat can continue.');
@@ -321,7 +322,7 @@ async function requestGeneratedArtwork(ticket,signal) {
   signal.addEventListener('abort',abort,{once:true});s.abort.signal.addEventListener('abort',abort,{once:true});
   if(signal.aborted || s.abort.signal.aborted)controller.abort();
   try {
-    const response=await fetch('/api/visual/image',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.visualGrant},body:JSON.stringify({ticket}),signal:controller.signal});
+    const response=await fetch('/api/visual/image',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Mini-Visual-Session':s.visualGrant},body:JSON.stringify({ticket}),signal:controller.signal});
     if(!response.ok){const error=await response.json().catch(()=>({}));throw new Error(error.error || 'Mini could not finish that picture.');}
     return await response.blob();
   } finally {signal.removeEventListener('abort',abort);s.abort.signal.removeEventListener('abort',abort);}
@@ -989,7 +990,7 @@ function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=
   if (!s) return;
   s.awareness?.stop();s.awareness=null;els.awarenessStatus.textContent='Visual awareness off.';
   cancelGeneratedRequest(s);generatedVisuals?.clear();
-  if(s.visualGrant){const token=s.visualGrant;s.visualGrant=null;fetch('/api/visual/session',{method:'DELETE',headers:{Authorization:'Bearer '+token},keepalive:true}).catch(()=>{});}
+  if(s.visualGrant){const token=s.visualGrant;s.visualGrant=null;fetch('/api/visual/session',{method:'DELETE',credentials:'same-origin',headers:{'X-Mini-Visual-Session':token},keepalive:true}).catch(()=>{});}
   visualActivity?.close(false);
   cancelExtension();
   childUI?.stopSpeech();

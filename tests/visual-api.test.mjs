@@ -23,7 +23,7 @@ async function withApp(options,task) {
     const response=await fetch(base+'/api/realtime/sdp',{method:'POST',headers:{'Content-Type':'application/sdp','X-Robot-Access-Code':CODE,'X-Mini-Visuals':String(visuals),'X-Mini-Images':String(images)},body:OFFER});
     assert.equal(response.status,200);return response.headers.get('X-Mini-Visual-Session');
   };
-  const post=(path,token,body)=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)});
+  const post=(path,token,body)=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json','X-Mini-Visual-Session':token},body:JSON.stringify(body)});
   try{await task({base,start,post,calls});}finally{await new Promise(resolve=>app.close(resolve));}
 }
 test('Visual calls need a grant issued after parent-authorized SDP, never the private parent code',async()=>{
@@ -33,7 +33,7 @@ test('Visual calls need a grant issued after parent-authorized SDP, never the pr
     const token=await start();assert.equal(token.length,43);
     assert.equal(calls.filter(call=>!call.url.includes('/webrtc/')).length,0);
     const config=await (await fetch(base+'/api/config')).text();assert.ok(!config.includes(token) && !config.includes(CODE));
-    assert.equal((await fetch(base+'/api/visual/session',{method:'DELETE',headers:{Authorization:'Bearer '+token}})).status,200);
+    assert.equal((await fetch(base+'/api/visual/session',{method:'DELETE',headers:{'X-Mini-Visual-Session':token}})).status,200);
     assert.equal((await post('/api/visual/plan',token,{request:'show apples'})).status,401);
   });
 });
@@ -110,7 +110,7 @@ test('Revoking a grant aborts a pending provider request',async()=>{
   })},async({base,start,post})=>{
     const token=await start();const pending=post('/api/visual/plan',token,{request:'show a scene'});
     await ready;
-    await fetch(base+'/api/visual/session',{method:'DELETE',headers:{Authorization:'Bearer '+token}});
+    await fetch(base+'/api/visual/session',{method:'DELETE',headers:{'X-Mini-Visual-Session':token}});
     assert.equal((await pending).status,502);assert.equal(aborted,true);
   });
 });
