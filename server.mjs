@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { timingSafeEqual, randomBytes } from 'node:crypto';
-import {planVisual,generateArtwork,validateVisualPlan,visualModelIssue} from './visual-provider.mjs';
+import {planVisual,generateArtwork,validateVisualPlan,visualModelIssue,describeVisualFailure} from './visual-provider.mjs';
 import {observeCamera,validateFrames} from './awareness-provider.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -103,6 +103,7 @@ export function createApp({
       if (req.method === 'GET' && path === '/api/config') {
         return json(res, 200, { mode: upstream ? 'realtime' : 'preview', model: upstream ? MODEL : null, maxSessionMinutes: 60,
           visuals:{available:Boolean(upstream && !visualIssue),model:visualModel,imagesAvailable:Boolean(upstream && imageModel && !visualIssue),maxPlans:60,maxImages:4,
+            imageModel:imageModel || null,
             ...(visualIssue?{configurationError:visualIssue.message}:{})},
           awareness:{available:Boolean(upstream),model:awarenessModel,maxChecks:40,minIntervalSeconds:15} });
       }
@@ -166,7 +167,7 @@ export function createApp({
         if(kind==='image')grant.ticket=null;
         grant.controllers.get(kind)?.abort();
         const controller=new AbortController();grant.controllers.set(kind,controller);
-        const timeout=setTimeout(()=>controller.abort(),kind==='plan'?20000:90000);
+        const timeout=setTimeout(()=>controller.abort('visual-timeout'),kind==='plan'?40000:90000);
         const disconnected=()=>{if(!res.writableEnded)controller.abort();};res.on('close',disconnected);
         try {
           if(kind==='plan') {
@@ -183,8 +184,10 @@ export function createApp({
           const image=await generateArtwork({fetchFn,base,apiKey,model:imageModel,prompt,signal:controller.signal});
           if(controller.signal.aborted || !visualSessions.has(token))throw Error('Cancelled');
           return respond(res,200,image.bytes,image.contentType);
-        } catch {
-          if(!res.destroyed && !res.writableEnded)return json(res,502,{error:kind==='plan'?'Mini could not prepare that visual. Try again; voice chat can continue.':'Mini could not finish that picture. Try a simpler drawing.'});
+        } catch(error) {
+          const failure=describeVisualFailure(error,{stage:kind==='plan'?'planner':'artwork',model:kind==='plan'?visualModel:imageModel,signal:controller.signal});
+          if(!controller.signal.aborted)console.warn('Mini visual issue:',JSON.stringify(failure.diagnostic));
+          if(!res.destroyed && !res.writableEnded)return json(res,502,failure);
           return;
         } finally {
           clearTimeout(timeout);res.off('close',disconnected);

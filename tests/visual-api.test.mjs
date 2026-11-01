@@ -71,6 +71,14 @@ test('Malformed provider data is rejected without leaking its body or interrupti
     assert.equal((await post('/api/visual/plan',token,{request:'show a face',scene:{version:1,action:'scene',script:'bad'}})).status,400);
   });
 });
+test('Planner rejection returns safe actionable diagnostics while the voice server stays available',async()=>{
+  await withApp({provider:()=>new Response(JSON.stringify({error:{code:'AccessDenied',message:'private API key and child transcript'}}),{status:403})},async({base,start,post,calls})=>{
+    const response=await post('/api/visual/plan',await start(),{request:'Hello Mini'});assert.equal(response.status,502);
+    const result=await response.json();assert.equal(result.diagnostic.code,'VISUAL_ACCESS');assert.equal(result.diagnostic.httpStatus,403);assert.equal(result.diagnostic.model,'qwen-plus');assert.equal(result.diagnostic.stage,'planner');
+    assert.doesNotMatch(JSON.stringify(result),/private API key|child transcript/);assert.equal(calls.filter(call=>call.url.includes('/chat/completions')).length,1);
+    assert.equal((await (await fetch(base+'/api/config')).json()).mode,'realtime');
+  });
+});
 test('Generated artwork requires per-session consent and a single-use planner ticket',async()=>{
   await withApp({imageModel:'qwen-image-plus',provider:(url,init)=>{
     if(String(url).includes('/chat/completions'))return json({choices:[{message:{content:JSON.stringify(picturePlan)}}]});

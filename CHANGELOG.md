@@ -2,6 +2,8 @@
 
 ## Unreleased — Child controls and gentler conversation
 
+- Replace generic visual failures with safe planner/artwork diagnostics including loaded model, HTTP status and allowlisted provider code. Pause repeated planner requests after failure and add parent Pause/Resume controls while voice continues. Retain the safe diagnostic in tab memory after Stop for troubleshooting.
+- Accept complete JSON fences and empty/null optional placeholders from Qwen before strict drawing validation, add compact ordinary-chat examples and increase the bounded planner output/time allowance. Preserve rejection of executable content, invalid game rules and unsafe image destinations; do not retry provider calls automatically.
 - Detect Qwen image-generation models mistakenly assigned to `ALIBABA_VISUAL_MODEL`. Explain the separate chat-planner and artwork settings before a session, block invalid planning calls without provider charges, and preserve voice/camera-awareness availability. Add regression coverage for the reported per-turn visual failure.
 - Fix repeated ngrok Basic Auth password prompts during visual chat and camera awareness. Send Mini grants in a dedicated header while preserving browser-managed tunnel credentials for planning, pictures, observations and revocation. Add HTTP gateway regression coverage and a browser check with one initial password challenge across all visual routes.
 - Explain why generated-picture consent is disabled (server setup, visual-scenes preference or an active session), and add inline Windows image-model configuration steps. Keep picture consent off by default and do not make paid calls to check configuration.

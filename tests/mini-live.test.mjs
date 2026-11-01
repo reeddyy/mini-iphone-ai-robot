@@ -827,8 +827,34 @@ test('Visual planning failure leaves voice capture alive and artwork requires pa
   env.ctx.fetch=async()=>({ok:false,json:async()=>({error:'Visual provider unavailable.'})});
   await vm.runInContext('requestGeneratedVisual(testSession,"show a cat")',env.ctx);
   assert.equal(env.s.stopped,false);assert.equal(env.s.audioInputTrack.enabled,true);
-  assert.match(env.ctx.document.getElementById('visualRequestStatus').textContent,/unavailable/);
+  assert.match(env.ctx.document.getElementById('visualServiceStatus').textContent,/unavailable/);
+  assert.equal(env.s.visualsPaused,true);
   await assert.rejects(vm.runInContext('requestGeneratedArtwork("ticket",new AbortController().signal)',env.ctx),/grown-up/);
+});
+test('A failed planner pauses repeated chat requests, retains safe diagnostics after Stop, and only resumes on parent action',async()=>{
+  const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'test-grant'});let requests=0;
+  env.ctx.fetch=async(_url,options)=>{if(options.method==='DELETE')return {ok:true};requests++;return {ok:false,status:502,json:async()=>({error:'Check model permissions.',diagnostic:{code:'VISUAL_ACCESS',stage:'planner',model:'qwen-plus',httpStatus:403,providerCode:'AccessDenied'}})};};
+  await vm.runInContext('requestGeneratedVisual(testSession,"Hello")',env.ctx);
+  await vm.runInContext('requestGeneratedVisual(testSession,"How are you?")',env.ctx);
+  assert.equal(requests,1);assert.equal(env.s.visualsPaused,true);assert.equal(env.s.audioInputTrack.enabled,true);assert.equal(env.s.stopped,false);
+  assert.match(env.ctx.document.getElementById('visualServiceStatus').textContent,/VISUAL_ACCESS.*qwen-plus.*HTTP 403/);
+  assert.doesNotMatch(env.ctx.document.getElementById('visualRequestStatus').textContent,/HTTP|qwen-plus|AccessDenied/);
+  env.flushTimeouts(0);assert.match(env.sent.at(-1).session.instructions,/Visual responses are currently paused/);assert.ok(env.sent.every(event=>event.type!=='response.create'));
+  vm.runInContext('toggleVisualResponses()',env.ctx);assert.equal(requests,1,'Resume must not itself make a paid request');assert.equal(env.s.visualsPaused,false);
+  await vm.runInContext('requestGeneratedVisual(testSession,"Show a cat")',env.ctx);assert.equal(requests,2);
+  vm.runInContext('stopMini()',env.ctx);assert.match(env.ctx.document.getElementById('visualServiceStatus').textContent,/VISUAL_ACCESS.*HTTP 403/);
+});
+test('A tunnel HTML response produces a gateway diagnostic without showing its body',async()=>{
+  const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'test-grant'});
+  env.ctx.fetch=async()=>({status:401,headers:{get:()=> 'text/html'},json:async()=>{throw Error('must not parse gateway HTML');}});
+  await vm.runInContext('requestGeneratedVisual(testSession,"Hello")',env.ctx);
+  assert.match(env.ctx.document.getElementById('visualServiceStatus').textContent,/VISUAL_GATEWAY.*HTTP 401/);assert.equal(env.s.visualsPaused,true);
+});
+test('Artwork failures show the exact model/status to the parent and a simple message to the child',async()=>{
+  const env=mockEnvironment();Object.assign(env.s,{visualGrant:'test-grant',imagesAllowed:true});
+  env.ctx.fetch=async()=>({ok:false,json:async()=>({error:'The image model is unavailable.',diagnostic:{code:'VISUAL_MODEL_UNAVAILABLE',stage:'artwork',model:'qwen-image-plus',httpStatus:404}})});
+  await assert.rejects(vm.runInContext('requestGeneratedArtwork("ticket",new AbortController().signal)',env.ctx),error=>/We can still talk/.test(error.message) && !/404|qwen|model/.test(error.message));
+  assert.match(env.ctx.document.getElementById('visualServiceStatus').textContent,/VISUAL_MODEL_UNAVAILABLE.*artwork.*qwen-image-plus.*HTTP 404/);assert.notEqual(env.s.visualsPaused,true);
 });
 
 test('All browser visual requests preserve gateway credentials and avoid setting Authorization',async()=>{

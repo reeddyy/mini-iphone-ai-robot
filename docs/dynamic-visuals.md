@@ -41,6 +41,25 @@ ALIBABA_IMAGE_MODEL=qwen-image-plus
 
 After editing the existing private Windows `.env`, restart the Mini server and refresh Safari. The updated app detects Qwen image-generation models in the planner setting, displays the correction in Parent setup and disables those visual calls until corrected. Voice and separately configured camera awareness remain available. This setup check does not call a provider, automatically change your model selection or verify model access in your account.
 
+### If visuals still fail with the correct models
+
+Parent setup now shows the **loaded planner and artwork model names** and the **Last visual issue**. A line such as `VISUAL_ACCESS · planner · qwen-plus · HTTP 403 · AccessDenied` identifies the failed stage without exposing an API key or transcript. `planner` fails before artwork generation begins; `artwork` identifies the separate image request. Copy this line for troubleshooting. It remains in the current tab after Stop and clears on a new session, Pause/Resume or refresh; it is never saved to browser storage.
+
+| Diagnostic | Meaning / next check |
+| --- | --- |
+| `VISUAL_AUTH` | Provider credentials rejected; check Singapore key/workspace configuration |
+| `VISUAL_ACCESS`, `VISUAL_QUOTA` | Model permissions, billing or quota; voice access does not establish access to other models |
+| `VISUAL_MODEL_UNAVAILABLE` | Configured model or API route unavailable in this workspace; the line includes the model and HTTP status |
+| `VISUAL_REQUEST` | Provider rejected request parameters; an allowlisted parameter or `JSON_REQUIRES_NON_THINKING` hint may be shown |
+| `VISUAL_RESPONSE_JSON`, `VISUAL_PLAN_INVALID`, `VISUAL_OUTPUT_LIMIT` | Invalid/incomplete drawing instructions; try a simpler request after manually resuming |
+| `VISUAL_NETWORK`, `VISUAL_TIMEOUT` | Windows server connectivity or a timed-out operation |
+| `VISUAL_GATEWAY` | Tunnel returned a sign-in/error page instead of the Mini JSON API |
+| `IMAGE_DOWNLOAD`, `IMAGE_FORMAT`, `IMAGE_DESTINATION` | Image generation returned an unusable or unreachable picture result |
+
+A planner failure pauses further planning calls for that session, so ordinary conversation does not repeatedly send failing paid requests. Voice chat and local rules continue; the child sees one simple resting message rather than technical details. **Resume visual responses** in Parent setup only re-enables planning for the next spoken request; the button does not itself call a model. Fix account/configuration issues before resuming. Artwork failures are reported separately and do not disable vector scenes. Failed or cancelled provider requests can still incur charges.
+
+The planner accepts a complete JSON code fence and empty/null known optional placeholders before strict validation, since some models include these even for ordinary-chat `keep` responses. Unknown properties, non-empty forbidden scene fields, unsafe nodes and invalid game rules remain rejected. There is no generated-code execution or automatic provider retry. The planner has a 40-second request timeout and a 4096-token output ceiling; these do not guarantee provider availability or response quality.
+
 Each completed child turn can add a paid planning call even if the result is “keep this screen”. Existing board positions are handled locally. Story buttons request another plan; a spoken story-choice interpretation can require one bounded continuation call. Counting and hand-game buttons calculate results locally. Artwork adds an image-model call and download. There are no automatic provider retries. Per grant, the server allows 60 planning attempts, at most eight per minute, and four image attempts. Cancellation can still incur charges. Configure provider quotas and billing alerts independently.
 
 Without live AI credentials, the existing free preview, tap game and tic-tac-toe remain available; they do not simulate a successful Qwen connection.
