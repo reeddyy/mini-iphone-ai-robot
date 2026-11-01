@@ -20,6 +20,16 @@ The renderer supports ellipses, rounded rectangles, lines, polygons, literal tex
 3. Leave `ALIBABA_IMAGE_MODEL` blank for scenes and games without generated artwork. To enable artwork, configure a model available in your Singapore workspace that supports the synchronous multimodal image-generation request/response described below. Models requiring asynchronous task polling are not supported by this adapter. The example model names in tests are fixtures, not evidence of account access.
 4. Run `npm start`, refresh the HTTPS Safari page, and start a short parent-authorized session. **Let Qwen create visual scenes** enables the planner. **Allow newly generated pictures** is separate, off by default, and resets on Stop. This picture consent is never included in saved settings.
 
+### If the generated-pictures checkbox is disabled
+
+Read the explanation next to the checkbox. Stop any running session before changing picture permission, and enable **Let Qwen create visual scenes** first. If the server reports that pictures are not configured, add an image model to your existing private Windows `.env`; `git pull` does not modify that file. For example, if `qwen-image-plus` is available and enabled for your Singapore workspace, use:
+
+```dotenv
+ALIBABA_IMAGE_MODEL=qwen-image-plus
+```
+
+Replace an existing blank `ALIBABA_IMAGE_MODEL=` line rather than adding a duplicate. Keep your current API key and workspace settings. Stop the Windows server with Ctrl+C, save `.env`, run `npm start`, and refresh Safari. You can then tick picture permission before starting a new session. A configured name enables the checkbox; actual account access is checked only when a picture is requested. This adapter requires the synchronous multimodal generation API, so a model using asynchronous task polling will need a different adapter.
+
 Each completed child turn can add a paid planning call even if the result is “keep this screen”. Existing board positions are handled locally. Story buttons request another plan; a spoken story-choice interpretation can require one bounded continuation call. Counting and hand-game buttons calculate results locally. Artwork adds an image-model call and download. There are no automatic provider retries. Per grant, the server allows 60 planning attempts, at most eight per minute, and four image attempts. Cancellation can still incur charges. Configure provider quotas and billing alerts independently.
 
 Without live AI credentials, the existing free preview, tap game and tic-tac-toe remain available; they do not simulate a successful Qwen connection.

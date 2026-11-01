@@ -830,6 +830,21 @@ test('Visual planning failure leaves voice capture alive and artwork requires pa
   await assert.rejects(vm.runInContext('requestGeneratedArtwork("ticket",new AbortController().signal)',env.ctx),/grown-up/);
 });
 
+test('Picture permission explains each unavailable state and enables only for a configured new visual session',()=>{
+  const env=mockEnvironment(),get=id=>env.ctx.document.getElementById(id);
+  vm.runInContext("current=null;mode='realtime';loading=false;visualCapabilities={available:true,imagesAvailable:false};els.visualToggle.checked=true;render()",env.ctx);
+  assert.equal(get('generatedPictures').disabled,true);
+  assert.match(get('generatedPicturesInfo').textContent,/ALIBABA_IMAGE_MODEL.*private \.env.*restart/);
+  vm.runInContext('visualCapabilities.imagesAvailable=true;render()',env.ctx);
+  assert.equal(get('generatedPictures').disabled,false);assert.equal(get('generatedPictures').checked,false);
+  vm.runInContext('els.visualToggle.checked=false;render()',env.ctx);
+  assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/Turn on.*visual scenes/);
+  vm.runInContext('els.visualToggle.checked=true;current=testSession;render()',env.ctx);
+  assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/Stop Mini/);
+  vm.runInContext("current=null;mode='preview';render()",env.ctx);
+  assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/need live AI/);
+});
+
 test('Awareness eligibility respects camera, mute, conversation, playback, page visibility and activities',()=>{
   const env=mockEnvironment();Object.assign(env.s,{awarenessEnabled:true,visualGrant:'grant',wantVideo:true,videoOutTrack:{readyState:'live'}});
   const eligible=()=>vm.runInContext('Boolean(awarenessCanRun(testSession))',env.ctx);

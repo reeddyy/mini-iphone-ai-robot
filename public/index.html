@@ -117,11 +117,22 @@
         <select id="sessionLimit"><option value="5">5 minutes · short test</option><option value="15" selected>15 minutes · recommended</option><option value="30">30 minutes · extended</option><option value="45">45 minutes · extended</option><option value="60">60 minutes · maximum</option></select>
         <label class="toggle-label"><input id="sendVideo" type="checkbox"><span>Allow AI to see the camera (off by default)</span></label>
         <label class="toggle-label"><input id="visualResponses" type="checkbox" checked><span>Let Qwen create visual scenes · extra paid planning request per spoken turn</span></label>
-        <label class="toggle-label"><input id="generatedPictures" type="checkbox"><span>Allow newly generated pictures · separate image charges (off by default)</span></label>
+        <label class="toggle-label"><input id="generatedPictures" type="checkbox" aria-describedby="generatedPicturesInfo"><span>Allow newly generated pictures · separate image charges (off by default)</span></label>
         <label class="toggle-label"><input id="visualAwareness" type="checkbox"><span>Notice visible smiles, waves and arrivals · camera required, extra paid visual checks (off by default)</span></label>
         <label class="toggle-label"><input id="spokenGreetings" type="checkbox"><span>Allow an occasional spoken hello from visual awareness (off by default)</span></label>
       </div>
       <p id="visualCapabilityInfo" class="help">Visual planning starts only in a parent-authorized paid session. Maximum 60 plans and 4 pictures per session.</p>
+      <p id="generatedPicturesInfo" class="help" role="status" aria-live="polite">Checking picture-generation setup…</p>
+      <details class="advanced-setup">
+        <summary>Set up generated pictures on Windows</summary>
+        <ol class="help">
+          <li>Stop Mini and its Windows server. Open the existing private <code>.env</code> in your project folder.</li>
+          <li>Set <code>ALIBABA_IMAGE_MODEL</code> to a compatible image model enabled in your Singapore Model Studio workspace. For example: <code>ALIBABA_IMAGE_MODEL=qwen-image-plus</code> if that model is available to your account. The voice model alone does not generate artwork.</li>
+          <li>Save the file, run <code>npm start</code> again and refresh this Safari page. Pulling code does not update your private <code>.env</code>.</li>
+          <li>Before starting a new session, turn on <strong>Let Qwen create visual scenes</strong>, then tick <strong>Allow newly generated pictures</strong>.</li>
+        </ol>
+        <p class="help">The checkbox checks configuration only; it does not test model access or make an image request. Keep your existing API key private.</p>
+      </details>
       <p class="help">Visual awareness checks temporary camera snapshots at most every 15 seconds, up to 40 times per session. It notices visible cues; it does not identify family members or determine feelings. Camera frames also continue to stream to Qwen while sharing is enabled.</p>
       <p id="awarenessStatus" class="help" role="status">Visual awareness off.</p>
       <button id="pauseAwarenessBtn" class="outline hidden" type="button">Pause visual awareness</button>

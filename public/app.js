@@ -21,6 +21,7 @@ const els = {
   sharing: $('sharingNotice'), progress: $('activityProgress'),
   favoriteTopic: $('favoriteTopic'), reactionSounds: $('reactionSounds'), rememberSettings: $('rememberSettings'),
   visualToggle:$('visualResponses'),pictures:$('generatedPictures'),visualStatus:$('visualRequestStatus'),visualInfo:$('visualCapabilityInfo'),
+  picturesInfo:$('generatedPicturesInfo'),
   awarenessToggle:$('visualAwareness'),spokenGreetings:$('spokenGreetings'),awarenessStatus:$('awarenessStatus'),awarenessPause:$('pauseAwarenessBtn'),
   forgetSettings: $('forgetSettingsBtn'), settingsInfo: $('settingsInfo'),
   extendDialog: $('extendDialog'), extendForm: $('extendForm'), extensionCode: $('extensionCode'),
@@ -61,7 +62,19 @@ function render() {
   els.clearMemory.disabled = running || loading;
   for(const control of [els.favoriteTopic,els.reactionSounds,els.rememberSettings,els.forgetSettings])control.disabled=running || loading;
   els.visualToggle.disabled=running || loading || !visualCapabilities.available;
-  els.pictures.disabled=running || loading || !visualCapabilities.imagesAvailable || !els.visualToggle.checked;
+  els.pictures.disabled=running || loading || mode!=='realtime' || !visualCapabilities.imagesAvailable || !els.visualToggle.checked;
+  const pictureReason=running || loading
+    ? 'Stop Mini before changing picture permission, then choose it before starting a new session.'
+    : mode==='checking'
+    ? 'Waiting for server configuration. Check that the Windows Mini server is running, then refresh this page.'
+    : mode!=='realtime'
+    ? 'Generated pictures need live AI. Configure the Alibaba key and Singapore workspace on your Windows server first.'
+    : !visualCapabilities.imagesAvailable
+    ? 'Picture generation is not configured on the Windows server. Set ALIBABA_IMAGE_MODEL in its private .env, restart Mini and refresh this page. See picture setup below.'
+    : !els.visualToggle.checked
+    ? 'Turn on “Let Qwen create visual scenes” above to enable generated pictures.'
+    : 'Picture generation is configured. You can tick this before starting a session; pictures add separate charges. Model access still depends on your Alibaba account.';
+  els.picturesInfo.textContent=pictureReason;els.pictures.title=pictureReason;
   els.awarenessToggle.disabled=running || loading || !awarenessAvailable || !els.videoToggle.checked;
   els.spokenGreetings.disabled=running || loading || !els.awarenessToggle.checked || !els.videoToggle.checked || !awarenessAvailable;
   els.awarenessPause.classList.toggle('hidden',!s?.awareness);

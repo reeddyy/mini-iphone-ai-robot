@@ -2,6 +2,7 @@
 
 ## Unreleased — Child controls and gentler conversation
 
+- Explain why generated-picture consent is disabled (server setup, visual-scenes preference or an active session), and add inline Windows image-model configuration steps. Keep picture consent off by default and do not make paid calls to check configuration.
 - Add separately consented camera awareness: local motion/native face-presence gates, bounded two-frame Qwen vision observations, and quiet-time face reactions to presence, visible smiles and waves. No face enrollment, identity matching, emotion labels or recordings.
 - Add optional Safari-spoken hellos, off by default, with microphone restoration and interruption. Respect conversation/audio, activities, touch, mute, camera pause, page visibility and the final minute of a session. Limit reactions to eight per session and observation attempts to 40, at least 15 seconds apart. Provider errors pause awareness until manual resume; Stop aborts checks, revokes the shared grant and resets consent.
 - Add Qwen-directed scene planning for arbitrary visual subjects using validated drawing primitives, emoji, text, motion and choices. Keep a compact Mini beside scenes, with a persistent Stop control and Back to Mini.
