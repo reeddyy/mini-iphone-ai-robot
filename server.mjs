@@ -70,6 +70,7 @@ export function createApp({
   fetchFn = fetch,
   visualModel = process.env.ALIBABA_VISUAL_MODEL || 'qwen-plus',
   imageModel = process.env.ALIBABA_IMAGE_MODEL || '',
+  imageEndpoint = process.env.ALIBABA_IMAGE_ENDPOINT || 'singapore',
   awarenessModel = process.env.ALIBABA_AWARENESS_MODEL || 'qwen-vl-plus',
 } = {}) {
   if (apiKey && apiKey.startsWith('sk-sp-')) {
@@ -78,7 +79,9 @@ export function createApp({
   const workspace = apiKey ? validateWorkspaceId(workspaceId) : null;
   for(const model of [visualModel,imageModel,awarenessModel].filter(Boolean))if(!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,99}$/.test(model))throw new Error('Invalid visual model name');
   const visualIssue=visualModelIssue(visualModel);
+  if(!['singapore','workspace'].includes(imageEndpoint))throw new Error('ALIBABA_IMAGE_ENDPOINT must be singapore or workspace.');
   const base=workspace?`https://${workspace}.ap-southeast-1.maas.aliyuncs.com`:null;
+  const imageBase=imageEndpoint==='singapore'?'https://dashscope-intl.aliyuncs.com':base;
   const upstream = workspace
     ? `https://${workspace}.ap-southeast-1.maas.aliyuncs.com/api/v1/webrtc/realtime?model=${MODEL}`
     : null;
@@ -103,7 +106,7 @@ export function createApp({
       if (req.method === 'GET' && path === '/api/config') {
         return json(res, 200, { mode: upstream ? 'realtime' : 'preview', model: upstream ? MODEL : null, maxSessionMinutes: 60,
           visuals:{available:Boolean(upstream && !visualIssue),model:visualModel,imagesAvailable:Boolean(upstream && imageModel && !visualIssue),maxPlans:60,maxImages:4,
-            imageModel:imageModel || null,
+            imageModel:imageModel || null,imageEndpoint,
             ...(visualIssue?{configurationError:visualIssue.message}:{})},
           awareness:{available:Boolean(upstream),model:awarenessModel,maxChecks:40,minIntervalSeconds:15} });
       }
@@ -151,7 +154,8 @@ export function createApp({
         const kind=path.endsWith('/plan')?'plan':'image';
         let scene=null;
         if(kind==='plan') {
-          if(Object.keys(body).some(key=>!['request','scene','language'].includes(key)) || typeof body.request!=='string' || !body.request.trim() || body.request.length>500)return json(res,400,{error:'A short visual request is required.'});
+          if(Object.keys(body).some(key=>!['request','scene','language','spokenReply'].includes(key)) || typeof body.request!=='string' || !body.request.trim() || body.request.length>500 ||
+            (body.spokenReply!==undefined && (typeof body.spokenReply!=='string' || body.spokenReply.length>2000)))return json(res,400,{error:'A short visual request and bounded spoken reply are required.'});
           if(body.scene!==undefined && body.scene!==null){try{scene=validateVisualPlan(body.scene);}catch{return json(res,400,{error:'Invalid scene context.'});}}
           grant.recent=grant.recent.filter(time=>time>Date.now()-60000);
           if(grant.plans>=60 || grant.recent.length>=8)return json(res,429,{error:'Visual request limit reached. Voice chat can continue.'});
@@ -171,7 +175,7 @@ export function createApp({
         const disconnected=()=>{if(!res.writableEnded)controller.abort();};res.on('close',disconnected);
         try {
           if(kind==='plan') {
-            const plan=await planVisual({fetchFn,base,apiKey,model:visualModel,request:body.request,scene,
+            const plan=await planVisual({fetchFn,base,apiKey,model:visualModel,request:body.request,spokenReply:body.spokenReply || '',scene,
               language:['en','zh','auto'].includes(body.language)?body.language:'auto',imagesAllowed:grant.imagesAllowed,signal:controller.signal});
             if(controller.signal.aborted || !visualSessions.has(token))throw Error('Cancelled');
             let imageTicket;
@@ -181,11 +185,12 @@ export function createApp({
             }
             return json(res,200,{plan,...(imageTicket?{imageTicket}:{})});
           }
-          const image=await generateArtwork({fetchFn,base,apiKey,model:imageModel,prompt,signal:controller.signal});
+          const image=await generateArtwork({fetchFn,base:imageBase,workspaceId:workspace,apiKey,model:imageModel,prompt,signal:controller.signal});
           if(controller.signal.aborted || !visualSessions.has(token))throw Error('Cancelled');
           return respond(res,200,image.bytes,image.contentType);
         } catch(error) {
-          const failure=describeVisualFailure(error,{stage:kind==='plan'?'planner':'artwork',model:kind==='plan'?visualModel:imageModel,signal:controller.signal});
+          const failure=describeVisualFailure(error,{stage:kind==='plan'?'planner':'artwork',model:kind==='plan'?visualModel:imageModel,endpoint:kind==='image'?imageEndpoint:'workspace',signal:controller.signal});
+          if(kind==='image' && ['VISUAL_MODEL_UNAVAILABLE','VISUAL_ACCESS','VISUAL_AUTH','VISUAL_QUOTA'].includes(failure.diagnostic.code))grant.imagesAllowed=false;
           if(!controller.signal.aborted)console.warn('Mini visual issue:',JSON.stringify(failure.diagnostic));
           if(!res.destroyed && !res.writableEnded)return json(res,502,failure);
           return;

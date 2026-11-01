@@ -121,6 +121,7 @@
         render(game.winner?(zh?'这一局结束啦，可以再来一局。':'This round is finished. Try a new round.'):
           game.turn==='O'?(zh?'等 Mini 落子，再轮到你。':'Let Mini place a mark, then it is your turn.'):
           zh?'这个格子有棋子啦，选一个空格吧。':'That square is taken. Choose an empty square.');
+        options.onNarrate?.(status.textContent);
         return false;
       }
       game=next;changed();
@@ -148,14 +149,18 @@
       const index=parsePosition(text);
       if(index!==null){move(index);return true;}
       if(/\b(?:top|bottom|middle|center|square|row|column)\b|左上|右上|左下|右下|中间|格子/.test(text.toLowerCase())) {
-        render(lang()==='zh'?'请只选一个空格，或者直接点它。':'Choose one square, or tap it on the board.');return true;
+        render(lang()==='zh'?'请只选一个空格，或者直接点它。':'Choose one square, or tap it on the board.');options.onNarrate?.(status.textContent);return true;
       }
       return false;
     }
     for(const [index,cell] of cells.entries())cell.addEventListener('click',()=>move(index));
     $('boardReplay').addEventListener('click',open);$('boardExit').addEventListener('click',()=>close());
     $('boardPlayBtn').addEventListener('click',()=>{if(!options.getSession())open();});
-    return Object.freeze({open,close,move,handleTranscript,isActive:()=>Boolean(game),state:()=>game,roundId:()=>round,context:()=>checkpoint(game)});
+    return Object.freeze({open,close,move,handleTranscript,isActive:()=>Boolean(game),state:()=>game,roundId:()=>round,context:()=>checkpoint(game),speech:()=>{
+      if(!game)return '';
+      const last=game.lastMove,zh=lang()==='zh';
+      return (last?(zh?(last.mark==='O'?'Mini 把圆放在':'你把叉放在')+positions.zh[last.index]+'。':(last.mark==='O'?'Mini placed O at ':'You placed X at ')+positions.en[last.index]+'. '):(zh?'你是叉，Mini 是圆。':'You are X. Mini is O. '))+statusText();
+    }});
   }
   window.MiniBoard=Object.freeze({create,result,place,chooseMove,miniMove,wantsGame,wantsExit,parsePosition,checkpoint,init});
 })();

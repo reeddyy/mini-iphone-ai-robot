@@ -81,7 +81,8 @@ function render() {
   els.picturesInfo.textContent=pictureReason;els.pictures.title=pictureReason;
   els.visualPause.classList.toggle('hidden',!s?.visualsEnabled || !s?.visualGrant);
   els.visualPause.textContent=s?.visualsPaused?'Resume visual responses':'Pause visual responses';
-  const visualModels='Planner: '+(visualCapabilities.model || 'not configured')+' · Artwork: '+(visualCapabilities.imageModel || 'not configured')+'.';
+  const visualModels='Planner: '+(visualCapabilities.model || 'not configured')+' · Artwork: '+(visualCapabilities.imageModel || 'not configured')+
+    (visualCapabilities.imageEndpoint?' · Image API: '+(visualCapabilities.imageEndpoint==='singapore'?'Singapore native':'Workspace'):'')+'.';
   const visualIssue=s?.visualIssue || lastVisualIssue;
   els.visualServiceStatus.textContent=visualIssue?'Last visual issue: '+visualIssue:(s?.visualsPaused?'Visual responses paused. Voice chat can continue. '+visualModels:visualModels);
   els.awarenessToggle.disabled=running || loading || !awarenessAvailable || !els.videoToggle.checked;
@@ -111,7 +112,7 @@ function render() {
 async function maybeUnmuteAudio() {
   const s = current;
   if (!s || s.stopped) return;
-  els.remoteAudio.muted = Boolean(s.playbackSuppressed);
+  els.remoteAudio.muted = Boolean(s.playbackSuppressed || s.localVisualTurn);
   els.remoteAudio.volume = 1;
   current?.audioMeter?.resume();
   current?.micMeter?.resume();
@@ -246,6 +247,11 @@ function onRemoteAudio(s,audible) {
 function finishPlayback(s) {
   clearTimeout(s.playbackTimer);
   if(s.stopped || current!==s || s.childSpeaking || !s.responseGenerationDone)return;
+  if(s.localVisualTurn) {
+    if(childUI?.isSpeakingLocally?.()){s.playbackTimer=setTimeout(()=>finishPlayback(s),200);return;}
+    if(!s.visualPlanning){setStatus(s.muted?'Microphone muted · Mini cannot hear you':'Your turn · Mini is listening',s.muted?'idle':'listening');childUI?.onResponseFinished();}
+    return;
+  }
   if(s.playbackActive || s.audioMeter?.isAudible?.()) {
     s.playbackTimer=setTimeout(()=>finishPlayback(s),120);
     return;
@@ -298,6 +304,21 @@ function cancelGeneratedRequest(s) {
   generatedVisuals?.cancelPending();generatedVisuals?.setBusy(false);
   els.visualStatus.classList.add('hidden');
 }
+function hasLocalVisualGame(){return Boolean(visualActivity?.isActive() || ['hand_game','count'].includes(generatedVisuals?.current()?.activity?.type));}
+function narrateVisual(text) {
+  const s=current;if(!s || s.stopped || s.mode!=='realtime' || !s.ready || s.muted || !text)return;
+  if(s.childSpeaking){s.pendingLocalNarration=text;return;}
+  s.localVisualTurn=true;s.localNarrationForTurn=true;s.playbackSuppressed=true;s.playbackActive=false;els.remoteAudio.muted=true;
+  const language=s.language==='auto'?(/[\u3400-\u9fff]/.test(text)?'zh':'en'):s.language;
+  els.miniText.textContent=text;childUI?.sayFallback('chat',text,language);
+  clearTimeout(s.playbackTimer);s.playbackTimer=setTimeout(()=>finishPlayback(s),900);
+}
+function flushSpokenVisual(s) {
+  const pending=s.pendingVisualTurn;
+  if(!pending || s.stopped || current!==s || pending.turn!==(s.turnNumber || 0) || !s.visualReplyFinished || !s.visualSpokenReply)return;
+  s.pendingVisualTurn=null;clearTimeout(s.visualSyncTimer);
+  requestGeneratedVisual(s,pending.request,false,{spokenReply:s.visualSpokenReply});
+}
 function refreshVisualAvailability(s) {
   if(!s || s.stopped)return;
   s.activityState={...(s.activityState || activities.fresh()),revision:(s.activityState?.revision || 0)+1};
@@ -305,7 +326,7 @@ function refreshVisualAvailability(s) {
 }
 function reportVisualFailure(s,error,stage='planner') {
   const diagnostic=error.visualDiagnostic || {},parts=[diagnostic.code || 'VISUAL_CLIENT_ERROR',diagnostic.stage || stage,
-    diagnostic.model || (stage==='planner'?visualCapabilities.model:visualCapabilities.imageModel),diagnostic.httpStatus?'HTTP '+diagnostic.httpStatus:null,diagnostic.providerCode,diagnostic.parameter,diagnostic.reason].filter(Boolean);
+    diagnostic.model || (stage==='planner'?visualCapabilities.model:visualCapabilities.imageModel),diagnostic.httpStatus?'HTTP '+diagnostic.httpStatus:null,diagnostic.providerCode,diagnostic.parameter,diagnostic.reason,diagnostic.endpoint?'endpoint='+diagnostic.endpoint:null].filter(Boolean);
   s.visualIssue=parts.join(' · ')+': '+(error.message || 'Visual response unavailable.');
   lastVisualIssue=s.visualIssue;
   if(stage==='planner') {
@@ -320,10 +341,11 @@ function toggleVisualResponses() {
   cancelGeneratedRequest(s);s.visualsPaused=!s.visualsPaused;s.visualIssue='';lastVisualIssue='';
   refreshVisualAvailability(s);
 }
-async function requestGeneratedVisual(s,request,fromChoice=false) {
+async function requestGeneratedVisual(s,request,fromChoice=false,{spokenReply='',narrate=false}={}) {
   if(s.stopped || current!==s || s.mode!=='realtime' || !s.visualsEnabled || !s.visualGrant || s.visualsPaused)return;
   cancelGeneratedRequest(s);
   interruptAwareness(s);
+  if(narrate){s.localVisualTurn=true;s.playbackSuppressed=true;s.playbackActive=false;els.remoteAudio.muted=true;}
   const version=s.visualRequestVersion;
   const controller=new AbortController();s.visualAbort=controller;
   s.visualPlanning=true;
@@ -331,7 +353,7 @@ async function requestGeneratedVisual(s,request,fromChoice=false) {
   els.visualStatus.textContent=s.language==='zh'?'Mini 正在想怎么画……':'Mini is imagining what to show…';els.visualStatus.classList.remove('hidden');
   try {
     const response=await fetch('/api/visual/plan',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Mini-Visual-Session':s.visualGrant},
-      body:JSON.stringify({request:request.slice(0,500),scene:generatedVisuals?.current() || (visualActivity?.isActive()?{version:1,action:'activity',title:'Tic-tac-toe',activity:{type:'tictactoe'}}:null),language:s.language}),signal:controller.signal});
+      body:JSON.stringify({request:request.slice(0,500),spokenReply:spokenReply.slice(0,2000),scene:generatedVisuals?.current() || (visualActivity?.isActive()?{version:1,action:'activity',title:'Tic-tac-toe',activity:{type:'tictactoe'}}:null),language:s.language}),signal:controller.signal});
     const type=response.headers?.get('content-type');
     if(type && !type.toLowerCase().includes('application/json'))throw Object.assign(new Error('The tunnel returned a sign-in or error page. Check the tunnel login, then refresh Safari.'),{visualDiagnostic:{code:'VISUAL_GATEWAY',httpStatus:response.status}});
     const data=await response.json();
@@ -339,13 +361,14 @@ async function requestGeneratedVisual(s,request,fromChoice=false) {
     const plan=window.MiniVisualSchema.validate(data.plan);
     if(s.stopped || current!==s || version!==s.visualRequestVersion || controller.signal.aborted)return;
     await generatedVisuals.apply(plan,{imageTicket:data.imageTicket,allowChoiceContinuation:!fromChoice});
+    if(narrate && current===s && !s.stopped && !controller.signal.aborted && plan.action!=='clear' && (plan.action!=='interact' || !s.localNarrationForTurn))narrateVisual(visualActivity?.isActive()?visualActivity.speech():generatedVisuals.speech?.() || plan.message);
   } catch(error) {
     if(!s.stopped && current===s && version===s.visualRequestVersion && !controller.signal.aborted) {
       reportVisualFailure(s,error);
       return;
     }
   } finally {
-    if(current===s && version===s.visualRequestVersion){s.visualPlanning=false;generatedVisuals?.setBusy(false);if(!controller.signal.aborted && els.visualStatus.textContent.includes('…'))els.visualStatus.classList.add('hidden');}
+    if(current===s && version===s.visualRequestVersion){s.visualPlanning=false;generatedVisuals?.setBusy(false);if(!controller.signal.aborted && els.visualStatus.textContent.includes('…'))els.visualStatus.classList.add('hidden');if(s.localVisualTurn)finishPlayback(s);}
   }
 }
 async function requestGeneratedArtwork(ticket,signal) {
@@ -366,7 +389,7 @@ async function requestGeneratedArtwork(ticket,signal) {
 }
 function generatedStateChanged(state) {
   const s=current;if(!s || s.stopped)return;
-  s.generatedVisualContext=state;s.activity='chat';s.boardCheckpoint=null;
+  s.generatedVisualContext=state?{...generatedVisuals?.describe(),...state}:null;s.activity='chat';s.boardCheckpoint=null;
   s.activityState={...activities.fresh(),revision:(s.activityState?.revision || 0)+1};
   renderActivity(s);clearTimeout(s.contextTimer);s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
 }
@@ -489,6 +512,7 @@ function cancelCompanionFollowUp(s) {
 }
 function scheduleCompanionFollowUp(s, reply, child, status) {
   cancelCompanionFollowUp(s);
+  if(s.localVisualTurn)return;
   if(generatedVisuals?.isActive())return;
   if (!s.keepConversationGoing || !kids.needsFollowUp(reply, child, status, s.activity)) return;
   if(!s.hadAudibleReply || !s.audioMeter?.isAudible)return;
@@ -646,6 +670,9 @@ function receiveEvent(s, ev, channel) {
       cancelCompanionFollowUp(s);
       childUI?.stopSpeech();
       s.lastChildTranscript = '';
+      s.pendingVisualTurn=null;s.visualSpokenReply='';s.visualReplyFinished=false;s.localMoveHandled=false;s.localNarrationForTurn=false;
+      s.pendingLocalNarration=null;
+      clearTimeout(s.visualSyncTimer);s.localVisualTurn=Boolean(visualActivity?.isActive() || (!s.visualsPaused && hasLocalVisualGame()));
       s.turnNumber=(s.turnNumber || 0)+1;
       s.playbackSuppressed=true;
       s.playbackActive=false;
@@ -672,6 +699,7 @@ function receiveEvent(s, ev, channel) {
       s.speechEndedAt = performance.now();
       s.replyMeasured = false;
       setStatus('Mini is thinking…', 'thinking');
+      if(s.pendingLocalNarration){const narration=s.pendingLocalNarration;s.pendingLocalNarration=null;narrateVisual(narration);}
       break;
     case 'conversation.item.input_audio_transcription.delta':
       els.userText.textContent = `${ev.text || ''}${ev.stash || ''}` || 'Listening…';
@@ -697,7 +725,11 @@ function receiveEvent(s, ev, channel) {
         renderActivity(s);
         clearTimeout(s.contextTimer);
         s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
-        if(!handled)requestGeneratedVisual(s,ev.transcript);
+        if(handled){s.localMoveHandled=true;if(s.localVisualTurn && !hasLocalVisualGame())narrateVisual(s.language==='zh'?'我们继续聊天吧。':'Let’s keep chatting.');}
+        else if(dynamic) {
+          if(s.localVisualTurn)requestGeneratedVisual(s,ev.transcript,false,{narrate:true});
+          else{s.pendingVisualTurn={request:ev.transcript.slice(0,500),turn:s.turnNumber || 0};flushSpokenVisual(s);}
+        }
       }
       childUI?.onTranscription(ev.transcript);
       break;
@@ -713,31 +745,33 @@ function receiveEvent(s, ev, channel) {
       s.responseGenerationDone=false;
       s.hadAudibleReply=false;
       s.pendingReaction='';s.reactionPlayed=false;
-      if(!s.childSpeaking){s.playbackSuppressed=false;els.remoteAudio.muted=false;}
-      childUI?.onResponseStarted();
-      els.miniText.textContent = '';
-      setStatus('Mini is preparing a reply…', 'thinking');
+      if(!s.childSpeaking){s.playbackSuppressed=Boolean(s.localVisualTurn);els.remoteAudio.muted=Boolean(s.localVisualTurn);}
+      if(!s.localVisualTurn)childUI?.onResponseStarted();
+      if(!s.localVisualTurn)els.miniText.textContent = '';
+      if(!s.localVisualTurn)setStatus('Mini is preparing a reply…', 'thinking');
       break;
     case 'response.audio_transcript.delta':
       if (typeof ev.delta === 'string') s.replyTranscript = ((s.replyTranscript || '') + ev.delta).slice(-1800);
-      els.miniText.textContent += ev.delta || '';
-      if(!s.reactionPlayed && /[.!?。！？]/.test(s.replyTranscript || '')) {
+      if(!s.localVisualTurn)els.miniText.textContent += ev.delta || '';
+      if(!s.localVisualTurn && !s.reactionPlayed && /[.!?。！？]/.test(s.replyTranscript || '')) {
         s.pendingReaction=s.replyTranscript;
         if(s.playbackActive){childUI?.reactToMiniSpeech?.(s.pendingReaction);s.reactionPlayed=true;}
       }
       break;
     case 'response.audio_transcript.done':
       if (typeof ev.transcript === 'string' && ev.transcript.trim()) s.replyTranscript = ev.transcript.slice(-1800);
-      els.miniText.textContent = ev.transcript || els.miniText.textContent || '—';
+      if(!s.localVisualTurn)els.miniText.textContent = ev.transcript || els.miniText.textContent || '—';
+      s.visualSpokenReply=s.replyTranscript || s.replyTextBackup || '';flushSpokenVisual(s);
       // Only paint a playful expression; this never changes model requests.
       s.pendingReaction=ev.transcript;
-      if(s.playbackActive && !s.reactionPlayed){childUI?.reactToMiniSpeech?.(ev.transcript);s.reactionPlayed=true;}
+      if(!s.localVisualTurn && s.playbackActive && !s.reactionPlayed){childUI?.reactToMiniSpeech?.(ev.transcript);s.reactionPlayed=true;}
       break;
     case 'response.text.delta':
       if (typeof ev.delta === 'string') s.replyTextBackup = ((s.replyTextBackup || '') + ev.delta).slice(-1800);
       break;
     case 'response.text.done':
       if (typeof ev.text === 'string' && ev.text.trim()) s.replyTextBackup = ev.text.slice(-1800);
+      s.visualSpokenReply=s.replyTranscript || s.replyTextBackup || '';flushSpokenVisual(s);
       break;
     case 'response.done': {
       const status = ev.response?.status;
@@ -750,6 +784,16 @@ function receiveEvent(s, ev, channel) {
       const changedGame = Boolean(s.queuedActivity);
       const spokenAnswer = s.replyTranscript || s.replyTextBackup || '';
       s.responseGenerationDone=true;
+      s.visualSpokenReply=spokenAnswer;s.visualReplyFinished=status==='completed';
+      if(s.localVisualTurn) {
+        if(!s.localMoveHandled && !s.visualsEnabled && spokenAnswer)narrateVisual(spokenAnswer);
+      }else {
+        flushSpokenVisual(s);
+        if(s.pendingVisualTurn && status==='completed' && !spokenAnswer){
+          const turn=s.turnNumber || 0;clearTimeout(s.visualSyncTimer);
+          s.visualSyncTimer=setTimeout(()=>{if(current===s && !s.stopped && s.pendingVisualTurn?.turn===turn && !s.visualSpokenReply){s.pendingVisualTurn=null;reportVisualFailure(s,Object.assign(new Error('The voice model did not provide a completed reply transcript to illustrate.'),{visualDiagnostic:{code:'VISUAL_SPEECH_CONTEXT'}}));}},1500);
+        }
+      }
       if(status==='completed')s.activityState=activities.finishReply(s.activityState);
       renderActivity(s);
       afterResponse(s);
@@ -1041,6 +1085,7 @@ function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=
   clearTimeout(s.playbackTimer);
   clearTimeout(s.contextTimer);
   clearTimeout(s.contextAckTimer);
+  clearTimeout(s.visualSyncTimer);s.pendingVisualTurn=null;s.visualSpokenReply='';s.pendingLocalNarration=null;
   cancelCompanionFollowUp(s);
   s.audioMeter?.stop();
   s.micMeter?.stop();
@@ -1188,6 +1233,7 @@ visualActivity=window.MiniBoard.init({
       s.activityState={...activities.fresh(),kind:'tictactoe',revision:(s.activityState?.revision || 0)+1};
       clearTimeout(s.contextTimer);s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
       renderActivity(s);
+      if(game.winner || game.lastMove?.mark==='O' || (s.localVisualTurn && !game.lastMove))narrateVisual(visualActivity.speech());
     }
     render();
   },
@@ -1198,6 +1244,7 @@ visualActivity=window.MiniBoard.init({
     setStatus(s?.muted?'Microphone muted · Mini cannot hear you':live?'Mini is listening':s?'Local preview · no AI connection':'Mini is resting',live && !s.muted?'listening':'idle');render();
   },
   onResult:winner=>childUI?.reactToMiniSpeech?.(winner==='X'?'Great job!':winner==='draw'?'Wow, we filled the board!':'Let’s try another round.'),
+  onNarrate:narrateVisual,
 });
 generatedVisuals=window.MiniVisuals.init({
   getLanguage:()=>current?.language || els.language.value,
@@ -1207,11 +1254,13 @@ generatedVisuals=window.MiniVisuals.init({
     visualActivity?.close(false);childUI?.stopLocalPlay?.();childUI?.stopSpeech();$('parentSetup').open=false;
     if(current){current.boardCheckpoint=null;current.generatedVisualContext=generatedVisuals.describe();}
   },
-  onInteraction:choice=>{const s=current;if(s)requestGeneratedVisual(s,'Button interaction: '+JSON.stringify({id:choice.id,label:choice.label}),true);},
+  onInteraction:choice=>{const s=current;if(s)requestGeneratedVisual(s,'Button interaction: '+JSON.stringify({id:choice.id,label:choice.label}),true,{narrate:true});},
   onStateChange:generatedStateChanged,
+  onNarrate:narrateVisual,
   onExit:()=>{
     cancelGeneratedRequest(current);
     if(current)generatedStateChanged(null);
+    if(current?.localVisualTurn && !current.localNarrationForTurn)narrateVisual(current.language==='zh'?'我们继续聊天吧。':'Let’s keep chatting.');
     const live=current?.ready && current.mode==='realtime';
     setStatus(current?.muted?'Microphone muted · Mini cannot hear you':live?'Mini is listening':current?'Local preview · no AI connection':'Mini is resting',live && !current.muted?'listening':'idle');render();
   },

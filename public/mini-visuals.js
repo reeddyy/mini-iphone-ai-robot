@@ -10,12 +10,12 @@
   }
   function init(options) {
     const $=id=>document.getElementById(id),panel=$('visualScene'),canvas=$('visualCanvas'),choices=$('visualChoices'),result=$('visualResult');
-    let plan=null,epoch=0,objectURL=null,imageAbort=null,game=null;
+    let plan=null,epoch=0,objectURL=null,imageAbort=null,game=null,artworkStatus=null;
     const lang=()=>options.getLanguage()==='zh' || (options.getLanguage()==='auto' && /[\u3400-\u9fff]/.test((plan?.title || '')+(plan?.message || '')))?'zh':'en';
     function clear(notify=false) {
       epoch++;imageAbort?.abort();imageAbort=null;
       if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null;}
-      plan=null;game=null;canvas.replaceChildren();choices.replaceChildren();result.textContent='';
+      plan=null;game=null;artworkStatus=null;canvas.replaceChildren();choices.replaceChildren();result.textContent='';
       panel.classList.add('hidden');
       const shell=document.querySelector('.shell');if(shell.dataset.visualActivity==='scene')delete shell.dataset.visualActivity;
       if(notify)options.onExit?.();
@@ -59,16 +59,17 @@
       let selected=0;const count=plan.activity.count;
       grid.style.gridTemplateColumns='repeat('+Math.min(4,Math.max(1,count))+',minmax(0,1fr))';
       for(let i=0;i<count;i++) {
-        const item=button(plan.activity.symbol,()=>{if(item.disabled)return;item.disabled=true;item.classList.add('counted');selected++;result.textContent=selected+' / '+count;},'visual-count-item');
+        const item=button(plan.activity.symbol,()=>{if(item.disabled)return;item.disabled=true;item.classList.add('counted');selected++;result.textContent=selected+' / '+count;
+          options.onStateChange?.({...describe(),type:'count',counted:selected,total:count});options.onNarrate?.(lang()==='zh'?'数到 '+selected+' 个，一共 '+count+' 个。':selected+' of '+count+'.');},'visual-count-item');
         item.setAttribute('aria-label',plan.activity.label+' '+(i+1));grid.append(item);
       }
       canvas.append(grid);result.textContent=count===0?(lang()==='zh'?'这里是零个。':'There are zero here.'):(lang()==='zh'?'点一点，一起数。':'Tap each one to count.');
     }
-    function nextHandRound() {
+    function nextHandRound(announce=true) {
       if(!game || game.round>=plan.activity.rounds)return;
       const values=new Uint32Array(1);window.crypto.getRandomValues(values);
       // This choice is committed before the child's click, and stays fixed.
-      game.committed=plan.activity.moves[values[0]%plan.activity.moves.length].id;game.picked=false;
+      game.committed=plan.activity.moves[values[0]%plan.activity.moves.length].id;game.picked=false;game.lastNarration=null;
       choices.replaceChildren();result.textContent=(lang()==='zh'?'第 ':'Round ')+(game.round+1)+' / '+plan.activity.rounds;
       for(const move of plan.activity.moves) {
         const choice=button('',()=>pickHand(move.id),'visual-choice visual-hand-choice');
@@ -76,6 +77,7 @@
         const label=document.createElement('span');label.textContent=move.label;choice.append(symbol,label);choices.append(choice);
       }
       const prompt=document.createElement('p');prompt.className='visual-hand-prompt';prompt.textContent=lang()==='zh'?'Mini 已经选好啦。轮到你！':'Mini has chosen. Your turn!';canvas.replaceChildren(prompt);
+      if(announce){options.onStateChange?.({...describe(),type:'hand_game',round:game.round+1,status:'choosing'});options.onNarrate?.(result.textContent+'. '+prompt.textContent);}
     }
     function pickHand(id) {
       if(!game || game.picked)return;game.picked=true;
@@ -89,7 +91,9 @@
       }
       result.textContent=(winner==='draw'?(lang()==='zh'?'平局！':'A tie!'):winner==='child'?(lang()==='zh'?'你赢了这一轮！':'You won this round!'):(lang()==='zh'?'Mini 赢了这一轮。':'Mini won this round.'))+
         ' '+(lang()==='zh'?'你 ':'You ')+game.child+' · Mini '+game.mini;
-      options.onStateChange?.({type:'hand_game',child:id,mini:mini.id,winner,round:game.round});
+      options.onStateChange?.({...describe(),type:'hand_game',child:id,mini:mini.id,winner,round:game.round,score:{child:game.child,mini:game.mini}});
+      game.lastNarration=lang()==='zh'?'你选了'+child.label+'，Mini 选了'+mini.label+'。'+result.textContent:'You chose '+child.label+'. Mini chose '+mini.label+'. '+result.textContent;
+      options.onNarrate?.(game.lastNarration);
       if(game.round<plan.activity.rounds)choices.append(button(lang()==='zh'?'下一轮':'Next round',nextHandRound));
       else choices.append(button(lang()==='zh'?'再玩一次':'Play again',()=>{game={round:0,child:0,mini:0,draw:0};nextHandRound();}));
     }
@@ -106,6 +110,7 @@
       if(plan.action==='activity' && plan.activity.type==='tictactoe'){options.openBoard?.();return;}
       show();
       if(plan.action==='artwork') {
+        if(plan.fallback){canvas.style.backgroundColor=plan.fallback.background;canvas.dataset.aspect=plan.fallback.aspect;draw(plan.fallback.nodes);artworkStatus='drawing';options.onStateChange?.(describe());}
         result.textContent=lang()==='zh'?'Mini 正在画画……':'Mini is drawing…';
         imageAbort=new AbortController();
         try {
@@ -114,27 +119,33 @@
           if(!['image/png','image/jpeg','image/webp'].includes(blob.type) || blob.size>10*1024*1024)throw new Error('Unsupported picture');
           objectURL=URL.createObjectURL(blob);const image=document.createElement('img');image.src=objectURL;image.alt=plan.title || (lang()==='zh'?'Mini 画的图':'Mini’s picture');
           await image.decode();if(epoch!==token)return;
-          canvas.append(image);result.textContent='';options.onStateChange?.({action:'artwork',title:plan.title,status:'visible'});
+          canvas.replaceChildren(image);result.textContent='';artworkStatus='visible';options.onStateChange?.(describe());
         } catch(error) {
           if(epoch===token){
             if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null;}
-            result.textContent=error.message || 'Mini could not finish the picture.';
+            artworkStatus=plan.fallback?'fallback':'failed';
+            result.textContent=plan.fallback?(lang()==='zh'?'先给你看这幅画。':'Here’s a drawing instead.'):(error.message || 'Mini could not finish the picture.');
+            options.onStateChange?.(describe());
           }
         }
         finally {if(epoch===token)imageAbort=null;}
         return;
       }
       if(plan.nodes.length)draw(plan.nodes);
-      if(plan.action==='activity' && plan.activity.type==='hand_game'){game={round:0,child:0,mini:0,draw:0};nextHandRound();}
+      if(plan.action==='activity' && plan.activity.type==='hand_game'){game={round:0,child:0,mini:0,draw:0};nextHandRound(false);}
       else if(plan.action==='activity' && plan.activity.type==='count')renderCount();
       else addChoices();
       if(!canvas.childNodes.length)canvas.classList.add('hidden');
-      options.onStateChange?.({action:plan.action,title:plan.title,activity:plan.activity});
+      options.onStateChange?.(describe());
     }
+    function describe(){return plan?{action:plan.action,title:plan.title,message:plan.message,activity:plan.activity,choices:plan.choices,
+      objects:(plan.nodes || plan.fallback?.nodes || []).filter(node=>node.text).map(node=>node.text),...(artworkStatus?{status:artworkStatus}:{})}:null;}
     $('visualExit').addEventListener('click',()=>clear(true));
     return Object.freeze({apply,clear,isActive:()=>Boolean(plan),current:()=>plan,
-      cancelPending:()=>{if(imageAbort){epoch++;imageAbort.abort();imageAbort=null;result.textContent=lang()==='zh'?'图片已暂停。':'Picture paused.';}},
-      setBusy:busy=>{for(const el of choices.querySelectorAll('button'))el.disabled=busy;},describe:()=>plan?{action:plan.action,title:plan.title,activity:plan.activity}:null});
+      cancelPending:()=>{if(imageAbort){epoch++;imageAbort.abort();imageAbort=null;if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null;}
+        artworkStatus=plan?.fallback?'fallback':'paused';result.textContent=lang()==='zh'?'图片已暂停。':'Picture paused.';options.onStateChange?.(describe());}},
+      setBusy:busy=>{for(const el of choices.querySelectorAll('button'))el.disabled=busy;},describe,
+      speech:()=>game?.lastNarration || (plan?[plan.message,result.textContent].filter(Boolean).join(' '):'')});
   }
   window.MiniVisuals=Object.freeze({init,handResult});
 })();

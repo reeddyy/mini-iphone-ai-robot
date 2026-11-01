@@ -76,11 +76,11 @@
     return {type:value.type,moves,rounds};
   }
   function validate(value) {
-    object(value,['version','action','title','message','background','aspect','nodes','choices','activity','prompt','choiceId']);
+    object(value,['version','action','title','message','background','aspect','nodes','choices','activity','prompt','choiceId','fallback']);
     if(value.version!==1 || !actions.includes(value.action))fail();
     const result={version:1,action:value.action,title:text(value.title,80),message:text(value.message,240)};
     if(['keep','clear','interact'].includes(value.action)) {
-      if(['nodes','activity','prompt','choices','background','aspect'].some(key=>value[key]!==undefined))fail();
+      if(['nodes','activity','prompt','choices','background','aspect','fallback'].some(key=>value[key]!==undefined))fail();
       if(value.action==='interact')result.choiceId=id(value.choiceId);
       else if(value.choiceId!==undefined)fail();
       return result;
@@ -88,9 +88,15 @@
     if(value.choiceId!==undefined)fail();
     if(value.action==='artwork') {
       if(['nodes','choices','activity','background','aspect'].some(key=>value[key]!==undefined))fail();
-      return {...result,prompt:text(value.prompt,800,true)};
+      const artwork={...result,prompt:text(value.prompt,800,true)};
+      if(value.fallback!==undefined) {
+        const fallback=object(value.fallback,['background','aspect','nodes']);
+        if(!Array.isArray(fallback.nodes) || !fallback.nodes.length || fallback.nodes.length>32 || (fallback.aspect!==undefined && !['square','wide'].includes(fallback.aspect)))fail();
+        artwork.fallback={background:color(fallback.background,'#222b48'),aspect:fallback.aspect || 'square',nodes:fallback.nodes.map(node)};
+      }
+      return artwork;
     }
-    if(value.prompt!==undefined)fail();
+    if(value.prompt!==undefined || value.fallback!==undefined)fail();
     result.background=color(value.background,'#222b48');
     if(value.aspect!==undefined && !['square','wide'].includes(value.aspect))fail();
     result.aspect=value.aspect || 'square';

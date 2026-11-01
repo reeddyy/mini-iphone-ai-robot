@@ -415,6 +415,7 @@
       reactToMiniSpeech,
       reactToVisualCue,
       isNarrating:()=>Boolean(activeNarration || pendingStarter),
+      isSpeakingLocally:()=>Boolean(activeNarration),
       onVoiceDetected,
       onTranscription,
       onMicLevel,

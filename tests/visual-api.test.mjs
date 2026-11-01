@@ -16,7 +16,7 @@ async function withApp(options,task) {
     if(String(url).includes('/webrtc/'))return new Response(OFFER);
     return options.provider(url,init);
   };
-  const app=createApp({apiKey:'sk-test-payg',workspaceId:'ws-test',accessCode:CODE,fetchFn,imageModel:options.imageModel || '',...(options.visualModel?{visualModel:options.visualModel}:{})});
+  const app=createApp({apiKey:'sk-test-payg',workspaceId:'ws-test',accessCode:CODE,fetchFn,imageModel:options.imageModel || '',...(options.visualModel?{visualModel:options.visualModel}:{}),...(options.imageEndpoint?{imageEndpoint:options.imageEndpoint}:{})});
   app.listen(0,'127.0.0.1');await once(app,'listening');
   const base='http://127.0.0.1:'+app.address().port;
   const start=async(images=false,visuals=true)=>{
@@ -41,10 +41,10 @@ test('The planner receives arbitrary requests and validated scene context throug
   await withApp({provider:(url,init)=>{
     assert.equal(String(url),'https://ws-test.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions');
     const body=JSON.parse(init.body);assert.equal(body.model,'qwen-plus');assert.deepEqual(body.response_format,{type:'json_object'});
-    const user=JSON.parse(body.messages[1].content);assert.equal(user.request,'Become a jellyfish astronaut');assert.equal(user.imagesAllowed,false);
+    const user=JSON.parse(body.messages[1].content);assert.equal(user.request,'Become a jellyfish astronaut');assert.equal(user.imagesAllowed,false);assert.equal(user.spokenReply,'Our jellyfish is beside the moon.');
     return json({choices:[{message:{content:JSON.stringify(countPlan)}}]});
   }},async({start,post})=>{
-    const token=await start();const response=await post('/api/visual/plan',token,{request:'Become a jellyfish astronaut',language:'en'});
+    const token=await start();const response=await post('/api/visual/plan',token,{request:'Become a jellyfish astronaut',spokenReply:'Our jellyfish is beside the moon.',language:'en'});
     assert.equal(response.status,200);assert.equal((await response.json()).plan.activity.count,3);
   });
 });
@@ -83,6 +83,8 @@ test('Generated artwork requires per-session consent and a single-use planner ti
   await withApp({imageModel:'qwen-image-plus',provider:(url,init)=>{
     if(String(url).includes('/chat/completions'))return json({choices:[{message:{content:JSON.stringify(picturePlan)}}]});
     if(String(url).includes('/multimodal-generation/')) {
+      assert.equal(String(url),'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation');
+      assert.equal(init.headers['X-DashScope-WorkSpace'],'ws-test');
       const body=JSON.parse(init.body);assert.equal(body.model,'qwen-image-plus');assert.equal(body.parameters.n,1);
       assert.match(body.input.messages[0].content[0].text,/gentle cat/);
       return json({output:{choices:[{message:{content:[{image:'https://dashscope-result-sg.oss-ap-southeast-1.aliyuncs.com/fixture.png'}]}}]}});
@@ -100,6 +102,39 @@ test('Generated artwork requires per-session consent and a single-use planner ti
     assert.equal(Buffer.compare(Buffer.from(await image.arrayBuffer()),PNG),0);
     assert.equal((await post('/api/visual/image',token,{ticket:plan.imageTicket})).status,400);
     assert.equal(calls.filter(call=>call.url.includes('/multimodal-generation/')).length,1);
+  });
+});
+test('An unavailable image model disables further artwork calls for its grant and future plans use drawings',async()=>{
+  const permissions=[];let imageCalls=0;
+  await withApp({imageModel:'qwen-image-plus',provider:(url,init)=>{
+    if(String(url).includes('/chat/completions')){
+      const user=JSON.parse(JSON.parse(init.body).messages[1].content);permissions.push(user.imagesAllowed);
+      const plan=user.imagesAllowed?{...picturePlan,fallback:{nodes:[{kind:'emoji',text:'🐈'}]}}:{version:1,action:'scene',nodes:[{kind:'emoji',text:'🐈'}]};
+      return json({choices:[{message:{content:JSON.stringify(plan)}}]});
+    }
+    imageCalls++;return new Response(JSON.stringify({code:'InvalidParameter',message:'Model is unavailable.'}),{status:404});
+  }},async({start,post})=>{
+    const token=await start(true),planned=await (await post('/api/visual/plan',token,{request:'Paint a cat'})).json();
+    assert.equal(planned.plan.fallback.nodes[0].text,'🐈');
+    const failed=await post('/api/visual/image',token,{ticket:planned.imageTicket}),details=await failed.json();
+    assert.equal(failed.status,502);assert.equal(details.diagnostic.endpoint,'singapore');
+    assert.equal((await post('/api/visual/image',token,{ticket:planned.imageTicket})).status,403);
+    const next=await (await post('/api/visual/plan',token,{request:'Paint another cat'})).json();assert.equal(next.plan.action,'scene');
+    assert.deepEqual(permissions,[true,false]);assert.equal(imageCalls,1,'no silent image retry or regional fallback');
+  });
+});
+test('The workspace image endpoint is an explicit option, with workspace credentials kept server-side',async()=>{
+  await withApp({imageModel:'qwen-image-plus',imageEndpoint:'workspace',provider:(url,init)=>{
+    if(String(url).includes('/chat/completions'))return json({choices:[{message:{content:JSON.stringify(picturePlan)}}]});
+    if(String(url).includes('/multimodal-generation/')){
+      assert.equal(String(url),'https://ws-test.ap-southeast-1.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation');
+      assert.equal(init.headers['X-DashScope-WorkSpace'],'ws-test');return json({output:{choices:[{message:{content:[{image:'https://result.oss-ap-southeast-1.aliyuncs.com/a.png'}]}}]}});
+    }
+    assert.equal(init.headers,undefined);return new Response(PNG);
+  }},async({start,post})=>{
+    const token=await start(true),planned=await (await post('/api/visual/plan',token,{request:'Paint a cat'})).json();
+    assert.equal((await post('/api/visual/image',token,{ticket:planned.imageTicket})).status,200);
+    assert.equal((await post('/api/visual/plan',token,{request:'hello',spokenReply:'x'.repeat(2001)})).status,400);
   });
 });
 test('Image outputs cannot redirect the server to an arbitrary URL or serve executable SVG',async()=>{

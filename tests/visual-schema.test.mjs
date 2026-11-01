@@ -56,3 +56,9 @@ test('Counts, choices and artwork have separate bounded contracts',()=>{
   assert.throws(()=>validateVisualPlan({version:1,action:'artwork',prompt:'cat',nodes:[]}));
   assert.equal(validateVisualPlan({version:1,action:'artwork',prompt:'A gentle moon cat.'}).prompt,'A gentle moon cat.');
 });
+test('Artwork fallback drawings use the same strict primitives and cannot contain executable or remote content',()=>{
+  const value={version:1,action:'artwork',prompt:'A moon cat',fallback:{nodes:[{kind:'emoji',text:'🐈'}]}};
+  assert.equal(validateVisualPlan(validateVisualPlan(value)).fallback.nodes[0].text,'🐈');
+  for(const fallback of [{nodes:[{kind:'image',href:'https://example.com'}]},{nodes:[],html:'<script>bad</script>'},{nodes:[{kind:'rect',onclick:'bad'}]}])assert.throws(()=>validateVisualPlan({...value,fallback}));
+  assert.throws(()=>validateVisualPlan({version:1,action:'keep',fallback:value.fallback}));
+});

@@ -66,3 +66,21 @@ test('Leaving a pending picture aborts it and a late result cannot replace the n
   resolve({type:'image/png',size:10});await pending;
   assert.equal(env.renderer.current().title,'Three apples');assert.equal(env.get('visualCanvas').children[0].children.length,3);
 });
+test('An image-service failure leaves the matching fallback drawing visible without another provider request',async()=>{
+  let requests=0;
+  const env=environment({requestArtwork:async()=>{requests++;throw Error('Image unavailable');}});
+  await env.renderer.apply({version:1,action:'artwork',title:'Moon cat',message:'Our cat is on the moon.',prompt:'A cat on the moon',fallback:{nodes:[{kind:'emoji',text:'🐈'}]}},{imageTicket:'ticket'});
+  assert.equal(requests,1);assert.equal(env.get('visualCanvas').children.length,1);assert.equal(env.states.at(-1).status,'fallback');
+  assert.equal(env.renderer.describe().objects[0],'🐈');assert.match(env.renderer.speech(),/cat is on the moon.*drawing instead/);
+});
+test('Spoken counts and hand-game results are taken from the same state rendered on screen',async()=>{
+  const spoken=[],env=environment({onNarrate:text=>spoken.push(text)});
+  await env.renderer.apply({version:1,action:'activity',activity:{type:'hand_game',moves,rounds:2}});
+  env.get('visualChoices').children[0].click();
+  assert.match(spoken.at(-1),/You chose Stone.*Mini chose Paper.*Mini won/);
+  env.get('visualChoices').children[0].click();env.get('visualChoices').children[2].click();
+  assert.match(spoken.at(-1),/You chose Scissors.*Mini chose Paper.*You won/);
+  await env.renderer.apply({version:1,action:'activity',activity:{type:'count',count:3,symbol:'🍎',label:'apple'}});
+  env.get('visualCanvas').children[0].children[0].click();
+  assert.equal(spoken.at(-1),'1 of 3.');assert.equal(env.get('visualResult').textContent,'1 / 3');
+});

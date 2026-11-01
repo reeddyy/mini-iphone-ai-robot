@@ -55,7 +55,7 @@ function mockEnvironment() {
     onVoiceDetected(v){calls.push(['voice',v]);},
     onTranscription(text){calls.push(['transcript',text]);},
     reactToVisualCue(cue){calls.push(['visual_cue',cue.cue]);return true;},
-    sayFallback(mode){calls.push(['fallback',mode]);},
+    sayFallback(mode,phrase,language){calls.push(['fallback',mode,phrase,language]);},
     sayFollowUp(mode,question,lang){calls.push(['followup',mode,question,lang]);return true;},
     onLiveReady(){calls.push(['ready']);},
     onSessionEnded(){calls.push(['ended']);},
@@ -777,12 +777,68 @@ test('Arbitrary spoken requests reach Qwen planning without a visual keyword cla
   let sent;
   env.ctx.fetch=async(url,options)=>{sent={url,options};return {ok:true,json:async()=>({plan:{version:1,action:'character',title:'Jellyfish astronaut',nodes:[{kind:'emoji',text:'🪼',size:40}]}})};};
   emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Become a jellyfish astronaut',item_id:'novel'});
+  assert.equal(sent,undefined,'wait for the spoken reply instead of composing a competing story');
+  emit(env,'response.created');emit(env,'response.audio_transcript.done',{transcript:'Our jellyfish astronaut is floating beside the moon.'});emit(env,'response.done',{response:{status:'completed'}});
   await vm.runInContext('Promise.resolve()',env.ctx);await vm.runInContext('Promise.resolve()',env.ctx);
   assert.equal(sent.url,'/api/visual/plan');
   assert.equal(JSON.parse(sent.options.body).request,'Become a jellyfish astronaut');
+  assert.equal(JSON.parse(sent.options.body).spokenReply,'Our jellyfish astronaut is floating beside the moon.');
   assert.equal(sent.options.headers['X-Mini-Visual-Session'],'test-grant');
   assert.equal(Object.keys(sent.options.headers).some(key=>key.toLowerCase()==='authorization'),false,'leave gateway authorization to the browser');
   assert.equal(env.visualRenderer.current().title,'Jellyfish astronaut');
+});
+test('Late spoken transcripts still anchor their own visual turn and an old response cannot anchor a newer one',async()=>{
+  const env=mockEnvironment(),requests=[];Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});
+  env.ctx.fetch=async(_url,init)=>{requests.push(JSON.parse(init.body));return {ok:true,json:async()=>({plan:{version:1,action:'keep'}})};};
+  emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Tell me a moon story',item_id:'first'});
+  emit(env,'response.created',{response:{id:'one'}});emit(env,'response.done',{response:{id:'one',status:'completed'}});
+  assert.equal(requests.length,0);
+  emit(env,'response.audio_transcript.done',{response_id:'one',transcript:'A rabbit walks across the moon.'});
+  await vm.runInContext('Promise.resolve()',env.ctx);assert.equal(requests[0].spokenReply,'A rabbit walks across the moon.');
+  emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Now the forest',item_id:'second'});
+  emit(env,'response.created',{response:{id:'two'}});emit(env,'response.audio_transcript.done',{response_id:'two',transcript:'The same rabbit reaches a green forest.'});
+  emit(env,'response.done',{response:{id:'one',status:'completed'}});assert.equal(requests.length,1);
+  emit(env,'response.done',{response:{id:'two',status:'completed'}});await vm.runInContext('Promise.resolve()',env.ctx);
+  assert.equal(requests[1].spokenReply,'The same rabbit reaches a green forest.');assert.equal(requests[1].request,'Now the forest');
+});
+test('Game moves speak the actual board position while a contradictory remote game reply stays muted',()=>{
+  const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});
+  vm.runInContext('visualActivity.open()',env.ctx);
+  emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'top left',item_id:'move'});
+  emit(env,'response.created',{response:{id:'game'}});assert.equal(env.ctx.document.getElementById('remoteAudio').muted,true);
+  env.flushTimeouts(550);
+  const spoken=env.calls.filter(value=>value[0]==='fallback').at(-1)[2];assert.match(spoken,/Mini placed O at center/);
+  assert.equal(env.s.boardCheckpoint.board[4],'O');
+  emit(env,'response.audio_transcript.done',{response_id:'game',transcript:'I placed a circle at bottom right and won!'});
+  emit(env,'response.done',{response:{id:'game',status:'completed'}});
+  assert.equal(env.ctx.document.getElementById('remoteAudio').muted,true);assert.doesNotMatch(env.ctx.document.getElementById('assistantTranscript').textContent,/bottom right/);
+  vm.runInContext('visualActivity.close(false)',env.ctx);emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'response.created',{response:{id:'chat'}});assert.equal(env.ctx.document.getElementById('remoteAudio').muted,false,'ordinary Qwen voice returns after leaving the game');
+});
+test('A visual button continuation narrates the same returned scene message without another model response',async()=>{
+  const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});
+  env.ctx.fetch=async()=>({ok:true,json:async()=>({plan:{version:1,action:'scene',title:'Moon rabbit',message:'The rabbit waves beside its rocket.',nodes:[{kind:'emoji',text:'🐇'}]}})});
+  await vm.runInContext('requestGeneratedVisual(testSession,"Button interaction: moon",true,{narrate:true})',env.ctx);
+  assert.equal(env.calls.filter(value=>value[0]==='fallback').at(-1)[2],'The rabbit waves beside its rocket.');
+  assert.equal(env.visualRenderer.current().message,'The rabbit waves beside its rocket.');assert.equal(env.ctx.document.getElementById('remoteAudio').muted,true);
+  assert.ok(env.sent.every(event=>event.type!=='response.create'));
+});
+test('Missing voice context pauses visuals without generating a second independent story',()=>{
+  const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});let calls=0;
+  env.ctx.fetch=async()=>{calls++;throw Error('No planning call expected without voice context');};
+  emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Tell a story',item_id:'story'});
+  emit(env,'response.created');emit(env,'response.done',{response:{status:'completed'}});env.flushTimeouts(1500);
+  assert.equal(calls,0);assert.equal(env.s.visualsPaused,true);assert.match(env.ctx.document.getElementById('visualServiceStatus').textContent,/VISUAL_SPEECH_CONTEXT/);assert.equal(env.s.audioInputTrack.enabled,true);
+});
+test('Local game narration waits for child speech to stop and auto language uses Mandarin for Chinese result text',()=>{
+  const env=mockEnvironment();env.s.language='auto';
+  emit(env,'input_audio_buffer.speech_started');
+  vm.runInContext('narrateVisual("Mini 把圆放在正中间。")',env.ctx);assert.equal(env.calls.some(value=>value[0]==='fallback'),false);
+  emit(env,'input_audio_buffer.speech_stopped');
+  const narration=env.calls.find(value=>value[0]==='fallback');assert.equal(narration[2],'Mini 把圆放在正中间。');assert.equal(narration[3],'zh');
 });
 
 test('Dynamic storytelling does not force the fixed cat/dragon and forest/castle checkpoint',async()=>{
