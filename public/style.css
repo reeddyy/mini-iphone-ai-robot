@@ -187,6 +187,37 @@ select:disabled{opacity:.5}.actions button{min-width:0;white-space:normal}
 .advanced-setup>summary{cursor:pointer;font-size:13px;color:#c3cce5;padding:8px 0}
 .panel>.memory-check{display:flex;align-items:flex-start;gap:10px;margin:16px 0;line-height:1.5}
 .panel>.memory-check input{flex:none;margin:2px 0 0}
+/* Shared activities take the stage; Mini remains present as a small companion. */
+.board-activity{margin:8px auto 14px;padding:18px;border:1px solid #8f8bb85c;border-radius:24px;background:linear-gradient(145deg,#242c49,#17223a);box-shadow:0 16px 36px #060c2526}
+.board-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.board-heading h2{font-size:22px;line-height:1.2;letter-spacing:-.03em}
+.board-exit{padding:10px 12px;border:1px solid #787c9e7a;border-radius:12px;font-size:12px;background:#ffffff0b;color:#d4d9f3;white-space:normal;flex:none}
+.board-help{font-size:14px;color:#c0cbe5;line-height:1.5;margin:14px 0 8px}
+.board-status{min-height:24px;margin:8px 0 14px;font-size:17px;font-weight:750;color:#f4e2af;line-height:1.4}
+.tic-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;padding:2px}
+.tic-board button{position:relative;aspect-ratio:1;min-width:0;min-height:68px;padding:0;border:1px solid #c5c0f333;border-radius:17px;background:#eff0ff0d;color:#aeb8d488;font-size:22px;font-weight:600;transition:background .2s,transform .15s;touch-action:manipulation}
+.tic-board button:not(:disabled):active{transform:scale(.95)}
+.tic-board button:focus-visible{outline:3px solid #ffe2a5;outline-offset:3px}
+.tic-board button:disabled{opacity:1;cursor:default}
+.tic-board .mark-x::before,.tic-board .mark-x::after{content:"";position:absolute;top:20%;left:calc(50% - 4px);width:8px;height:60%;border-radius:8px;background:#c9b7ff;transform:rotate(45deg)}
+.tic-board .mark-x::after{transform:rotate(-45deg)}
+.tic-board .mark-o::before{content:"";position:absolute;inset:21%;border:7px solid #ffbed4;border-radius:50%}
+.tic-board .last-move{background:#b8a7ff16;border-color:#bdb0ee88}
+.tic-board .winning{background:#a9dbbf25;border-color:#a9dbbf}
+.board-footer{display:flex;align-items:center;gap:14px;margin-top:16px}
+.board-footer button{min-height:44px;flex:none}
+.board-footer p{margin:0;color:#aebcd9;font-size:11px;line-height:1.5}
+.shell[data-visual-activity="tictactoe"] .robot-stage{height:150px;min-height:0;margin:7px 0 10px}
+.shell[data-visual-activity="tictactoe"] .robot-stage #robotFace{position:absolute;top:-65px;left:50%;margin:0;animation:none;transform:translateX(-50%) scale(.42);transform-origin:50% 50%}
+.shell[data-visual-activity="tictactoe"] .robot-stage .halo{display:none}
+.shell[data-visual-activity="tictactoe"] .robot-stage .status{position:absolute;bottom:0;margin:0;max-width:100%;font-size:11px;text-align:center}
+.shell[data-visual-activity="tictactoe"] :is(#faceTip,#kidHint,#kidGameMode,#activityProgress,#kidSparkles,#localPlayBtn,#boardPlayBtn,.kid-parent-note){display:none!important}
+.shell[data-visual-activity="tictactoe"] .kid-home{padding-top:0}
+.shell[data-visual-activity="tictactoe"] #kidParentLink{display:none}
+.shell[data-visual-activity="tictactoe"][data-voice-running="true"] #kidLiveTag{visibility:hidden}
+.shell[data-visual-activity="tictactoe"] #kidStopBtn{position:fixed;top:calc(14px + env(safe-area-inset-top));right:max(14px,calc((100vw - 660px)/2 + 20px));z-index:30;box-shadow:0 4px 18px #0004}
+@media(max-width:365px){.board-activity{padding:13px}.board-heading h2{font-size:19px}.tic-board{gap:7px}.board-help{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.tic-board button{transition:none}}
 .parent-dialog{width:min(92vw,440px);max-height:85dvh;overflow:auto;border:1px solid #8c88b5;border-radius:20px;padding:24px;background:#152039;color:#eef1fa}
 .parent-dialog::backdrop{background:#050913bb}
 .parent-dialog h2{font-size:21px;margin:0 0 12px}

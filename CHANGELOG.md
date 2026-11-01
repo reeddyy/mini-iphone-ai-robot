@@ -2,6 +2,7 @@
 
 ## Unreleased — Child controls and gentler conversation
 
+- Add a shared tic-tac-toe scene with a compact Mini face, tappable numbered squares, X/O marks, turn indicators, winning-line highlights, New round and Back to Mini. English/Mandarin spoken requests and positions use the same local rules. Free touch play never opens media or AI; voice remains inside the existing paid session. Stopping, hiding the page, changing activity or resetting cancels pending moves.
 - Coordinate facial reactions into interruptible sequences; only show speaking/listening cues after audible playback transitions. Child speech mutes interrupted playback, and late events from old replies cannot consume the new turn.
 - Add a session-only story checkpoint (hero, setting, goal and ending) and three animal-riddle rounds with easier clues. Synchronize instructions between turns without requesting extra model responses; disable optional synchronization if the provider rejects it.
 - Add a three-round local copy-the-taps game that never opens media or connects to AI. Optional soft sounds default off; entering a voice or preview session cancels local play.

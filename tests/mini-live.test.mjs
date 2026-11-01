@@ -22,16 +22,18 @@ function mockEnvironment() {
   const fake=()=>{
     const classes=new Set();
     return {
-    textContent:'',value:'',checked:false,disabled:false,srcObject:null,
+    textContent:'',value:'',checked:false,disabled:false,srcObject:null,dataset:{},
     className:'',
     classList:{toggle(name,force){if(force)classes.add(name);else classes.delete(name);},add(name){classes.add(name);},remove(name){classes.delete(name);},contains:name=>classes.has(name)},
     style:{setProperty(){},removeProperty(){}},
     addEventListener(){},append(){},pause(){},play(){return Promise.resolve();},
+    setAttribute(){},querySelectorAll(){return this.cells || (this.cells=Array.from({length:9},fake));},
     showModal(){this.open=true;},close(){this.open=false;},
   }};
   const get=id=>{if(!elements.has(id))elements.set(id,fake());return elements.get(id)};
   const document={
     getElementById:get,
+    querySelector:()=>get('shell'),
     createElement:()=>fake(),
     createTextNode:text=>text,
     addEventListener(){},
@@ -70,6 +72,7 @@ function mockEnvironment() {
       },
       MiniChildUI:{init:()=>companionUI},
       addEventListener(){},
+      scrollTo(){},
       isSecureContext:true,
     },
     fetch:async()=>({ok:true,json:async()=>({mode:'realtime',model:'test',maxSessionMinutes:60})}),
@@ -80,6 +83,7 @@ function mockEnvironment() {
   });
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-kids.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-activities.js',import.meta.url)),'utf8'),ctx);
+  vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-board.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(app,ctx);
   const s={
     mode:'realtime',stopped:false,ready:true,mediaReady:true,language:'en',
@@ -418,7 +422,9 @@ test('Muting while permission is pending disables the eventual preview microphon
   const mic={enabled:true,stop(){this.stopped=true;}};
   env.ctx.navigator={mediaDevices:{getUserMedia:()=>new Promise(resolve=>{release=resolve;})}};
   vm.runInContext("current=null; mode='preview'; document.getElementById('accessCode').value='test-parent-code';",env.ctx);
+  vm.runInContext('visualActivity.open()',env.ctx);
   const starting=vm.runInContext('startMini()',env.ctx);
+  assert.equal(vm.runInContext('visualActivity.isActive()',env.ctx),false,'starting capture restores the full face');
   try {
     vm.runInContext('toggleMute()',env.ctx);
     release({getAudioTracks:()=>[mic],getTracks:()=>[mic]});
@@ -680,4 +686,77 @@ test('An unacknowledged optional checkpoint times out without reconnecting or re
   env.s.activityState=env.ctx.window.MiniActivities.advance(env.s.activityState,'cat');
   vm.runInContext('syncActivityContext(testSession)',env.ctx);
   assert.equal(env.sent.length,1,'do not repeatedly retry an unsupported checkpoint');
+});
+
+test('Spoken tic-tac-toe opens a visual board and a position places X followed by one legal O',()=>{
+  const env=mockEnvironment();
+  emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Can we play tic tik toe?',item_id:'open'});
+  assert.equal(vm.runInContext('visualActivity.isActive()',env.ctx),true);
+  assert.equal(env.s.activity,'tictactoe');
+  assert.equal(env.ctx.document.querySelector('.shell').dataset.visualActivity,'tictactoe');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'左上角',item_id:'move'});
+  assert.equal(env.s.boardCheckpoint.board[0],'X');
+  assert.equal(env.s.boardCheckpoint.turn,'O');
+  env.flushTimeouts(550);
+  assert.equal(env.s.boardCheckpoint.board.filter(Boolean).length,2);
+  assert.equal(env.s.boardCheckpoint.board[4],'O');
+  assert.equal(env.s.boardCheckpoint.turn,'X');
+  emit(env,'response.created');emit(env,'response.done',{response:{status:'completed'}});
+  env.flushTimeouts(0);
+  assert.equal(env.sent.length,1);
+  assert.match(env.sent[0].session.instructions,/Visual tic-tac-toe board is authoritative/);
+  assert.equal(env.sent.some(event=>event.type==='response.create'),false);
+});
+
+test('Closing or stopping a board cancels a pending Mini move and restores the face',()=>{
+  for(const action of ['visualActivity.close()','stopMini()']) {
+    const env=mockEnvironment();
+    vm.runInContext('visualActivity.open(); visualActivity.move(0)',env.ctx);
+    vm.runInContext(action,env.ctx);
+    env.flushTimeouts(550);
+    assert.equal(vm.runInContext('visualActivity.state()',env.ctx),null);
+    assert.equal(env.ctx.document.querySelector('.shell').dataset.visualActivity,undefined);
+    assert.equal(env.s.boardCheckpoint,null);
+  }
+});
+
+test('A request for a story leaves the visual board without ending the paid session',()=>{
+  const env=mockEnvironment();vm.runInContext('visualActivity.open()',env.ctx);
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Tell me a story',item_id:'story'});
+  assert.equal(vm.runInContext('visualActivity.isActive()',env.ctx),false);
+  assert.equal(env.s.boardCheckpoint,null);
+  assert.equal(env.s.activityState.kind,'story');
+  assert.equal(env.s.stopped,false);
+});
+
+test('Natural chat requests and replay phrases transition the board correctly',()=>{
+  for(const text of ['Let us chat',"Let's just talk",'Can we chat','我想聊天','stop playing tic tac toe']) {
+    const env=mockEnvironment();vm.runInContext('visualActivity.open();visualActivity.move(0)',env.ctx);
+    emit(env,'conversation.item.input_audio_transcription.completed',{transcript:text,item_id:'exit'});
+    assert.equal(vm.runInContext('visualActivity.isActive()',env.ctx),false,text);
+    assert.equal(env.s.stopped,false,text);
+    assert.equal(env.s.activity,'chat',text);
+  }
+  const env=mockEnvironment();vm.runInContext('visualActivity.open();visualActivity.move(0)',env.ctx);
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'play tic tac toe again',item_id:'restart'});
+  assert.equal(env.s.boardCheckpoint.board.filter(Boolean).length,0);
+  env.flushTimeouts(550);
+  assert.equal(env.s.boardCheckpoint.board.filter(Boolean).length,0,'the old Mini move cannot leak into a new round');
+});
+
+test('A delayed spoken move from before New round cannot mark the new board',()=>{
+  const env=mockEnvironment();vm.runInContext('visualActivity.open()',env.ctx);
+  emit(env,'input_audio_buffer.speech_started');
+  vm.runInContext('visualActivity.open()',env.ctx);
+  emit(env,'input_audio_buffer.speech_stopped');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'top left',item_id:'old-round'});
+  assert.equal(env.s.boardCheckpoint.board.filter(Boolean).length,0);
+});
+
+test('Automatic board language follows a Mandarin game request',()=>{
+  const env=mockEnvironment();env.s.language='auto';
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'我们玩井字棋吧',item_id:'zh-board'});
+  assert.match(env.ctx.document.getElementById('boardTitle').textContent,/井字棋/);
+  assert.match(env.ctx.document.getElementById('boardStatus').textContent,/轮到你/);
 });

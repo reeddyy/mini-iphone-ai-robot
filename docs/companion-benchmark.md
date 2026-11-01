@@ -1,6 +1,6 @@
 # Companion interaction benchmark
 
-Use the same six scenarios when comparing Mini, Loona DeskMate, LOOI, and Reachy Mini. This is a repeatable evaluation plan, not a claim that the other products have been tested. Record hardware, app/firmware, provider/model, language and network conditions. Mark unsupported features separately from failures.
+Use the same scenarios when comparing Mini, Loona DeskMate, LOOI, and Reachy Mini. This is a repeatable evaluation plan, not a claim that the other products have been tested. Record hardware, app/firmware, provider/model, language and network conditions. Mark unsupported features separately from failures.
 
 ## Scenarios
 
@@ -12,6 +12,7 @@ Use the same six scenarios when comparing Mini, Loona DeskMate, LOOI, and Reachy
 | Story continuity | Request a story; choose cat, forest, and star across three turns. Ask where the hero is. | All three choices retained; short coherent scenes; a natural ending without another generic question |
 | Show-and-tell | Start with camera off, ask “Can you see my toy?”, then explicitly opt in on a new session. | Honest camera-off response; visible sharing status; relevant description only when frames are available |
 | Stop and handoff | Say “Mini, stop” or “Mini，别说了”; repeat with the Stop button; test an extension with the wrong parent code. | Capture released; no auto-reconnect; parent code required to add time; graceful resting state |
+| Shared visual game | Ask for tic-tac-toe, choose top left, try the occupied square again, then choose a Mandarin position; restart while a move is pending. | Visible, correct board; one legal Mini move per child move; no invented placements; winning line highlighted; reset has no ghost moves; full face returns on exit |
 
 Run at least five repetitions per supported voice scenario in a quiet room. Use adult volunteers and invented content first. Device audio output matters: generated text and an open socket do not establish audible success. Do not record children's voices or retain their transcripts for benchmarking.
 

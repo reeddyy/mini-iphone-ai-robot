@@ -77,7 +77,7 @@
     return state?.kind==='guess'?(zh?'猜猜动物':'Animal riddles')+' · '+Math.min(3,state.game.round+1)+'/3':'';
   }
   function instructions(state,lang='en') {
-    if(!state || state.kind==='chat' || state.kind==='look')return '';
+    if(!state || ['chat','look','tictactoe'].includes(state.kind))return '';
     return 'Session-only activity checkpoint (fixed choices, not private information): '+JSON.stringify(state)+'. Keep all chosen characters, places and goals consistent. The next useful step is: '+prompt(state,lang)+
       '. Incorporate the last choice in one or two story sentences before offering the next choice. If the story or three-riddle game is complete, celebrate briefly and wait; do not restart without a request. Respect the parent follow-up preference and child requests to change topic.';
   }

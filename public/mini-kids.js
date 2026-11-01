@@ -27,6 +27,11 @@
       guide: 'Play turn-taking show-and-tell with a child. React briefly to what they say or to an object actually visible in the live camera. Acknowledge their description without turning every observation into a quiz. If the camera is off, explicitly say you cannot see; never pretend to see anything. If frames are blurry, say so rather than guessing. The local starter may have asked them to show a toy. Follow the conversation preference below for optional questions.',
       fallback: {en:'Show me a toy and tell me something about it!',zh:'拿一个小玩具给我看看，跟我说说它吧！'},
     },
+    tictactoe: {
+      en:'Tic-tac-toe',zh:'井字棋',
+      guide:'Tic-tac-toe uses a real visual board in the browser. The child is X and Mini is O. The browser validates every move, chooses Mini\'s move and determines the result. Never invent or announce a square placement or a winner in your spoken reply. Briefly acknowledge the child and refer them to the visible board. They can tap a square or say top left, center, bottom right, 左上角 or 中间. Do not run a parallel imaginary game.',
+      fallback:{en:'Let’s play tic-tac-toe. You are X. Choose an empty square.',zh:'我们来玩井字棋吧！你是叉，选一个空格。'},
+    },
   });
   const labels = Object.freeze({
     en: {chat:'Talk',guess:'Guess',story:'Story',look:'Show',ready:'I’m listening!',starting:'Mini is waking up…',prompting:'Mini has a question for you…',blocked:'Ask a grown-up to turn on live Mini first.',muted:'Mini’s microphone is muted. Ask a grown-up to unmute it.',queued:'Mini will switch games after finishing its turn.',error:'Could not start the game. Try saying “Mini, let’s play!”',hear:'I hear sound!',speech:'I heard you!',quiet:'Speak to Mini, near the phone.',listening:'Your turn! I’m listening.',playing:'Mini is talking…'},
@@ -60,6 +65,7 @@
     if (typeof transcript !== 'string') return current;
     const phrase = transcript.trim().toLowerCase().slice(0,400);
     if (!phrase) return current;
+    if(/\btic[\s-]*(?:tac|tik|tack)[\s-]*toe\b|\bnoughts?\s+and\s+crosses\b|井字棋|圈叉棋/.test(phrase) && !/\b(?:not|don['’]t|do not)\b|不要|不想/.test(phrase))return 'tictactoe';
     if (isChildEndingConversation(phrase) ||
         /(?:stop|finish|end)\s+(?:the\s+)?(?:story|game|riddle)|不玩了|不要故事/.test(phrase)) return 'chat';
     if (/\b(?:let'?s\s+)?(?:just\s+)?(?:chat|talk)\b|聊天|说说话/.test(phrase) &&
@@ -80,6 +86,7 @@
       video,
       selected.guide,
       selected === modes.story ? '' : 'For any spoken story request: ' + modes.story.guide,
+      selected === modes.tictactoe ? '' : 'For any request for tic-tac-toe or 井字棋: ' + modes.tictactoe.guide,
       'For the guided story, ask for a cat or dragon hero, then a forest or castle setting, then a fallen star or glowing flower to find. Incorporate each choice, then finish with a gentle ending after the goal is chosen. Let children change topic freely. For animal riddles, begin with a giraffe (long neck), then an elephant (long trunk), then a penguin (waddling black-and-white bird). Offer easier clues after uncertain or incorrect answers, without shaming. After three riddles, celebrate and wait. Session checkpoints below preserve the chosen details when available.',
       'The child has NO activity buttons. Interpret spoken requests such as “tell me a story”, “let’s guess animals”, “look at this toy”, “can we talk?”, “讲故事”, “猜动物”, and “你看看” immediately. Shift naturally within this SAME conversation, without asking them to tap a screen or saying a mode name. Keep the chosen activity until the child changes topic. Never initiate an extra model response without the child speaking.',
       options.keepConversationGoing === false
@@ -95,6 +102,7 @@
   // statement but forgets to ask a new question, Safari may ask one question.
   // Text exists in memory for this response only; nothing is saved to disk.
   const followUps = Object.freeze({
+    tictactoe:{en:['Which empty square would you like?','Where would you like to put your X?'],zh:['你想选哪个空格？','你想把叉放在哪里？']},
     chat: {
       en:['What else would you like to tell me?','What do you like most about that?','What should we talk about next?'],
       zh:['你还想告诉我什么呢？','你最喜欢它的什么地方？','我们接下来聊什么好呢？'],
@@ -130,6 +138,7 @@
     return /(?:\b(?:what|why|who|where|which|when|how|would\s+you|do\s+you|can\s+you|could\s+you|shall\s+we|are\s+you|will\s+you|should\s+we|want\s+to|ready\s+for|tell\s+me)\b|什么|怎么|哪[个里一种]|谁|吗|呢|好不好|要不要|想不想|可以吗)/i.test(last);
   }
   function needsFollowUp(reply, child, status, activity='chat') {
+    if(activity==='tictactoe')return false;
     if (status !== 'completed' && status !== undefined && status !== null) return false;
     if (typeof reply !== 'string' || reply.trim().length < 2) return false;
     if (isChildEndingConversation(child) || isChildEndingConversation(reply)) return false;

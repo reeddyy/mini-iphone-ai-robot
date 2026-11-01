@@ -45,7 +45,7 @@ test('Child home shows one talking Mini and keeps diagnostics under parent contr
 
 test('Games build live AI instructions; answers in one word count',()=>{
   const kid=kidsContent();
-  assert.deepEqual(Array.from(kid.modes),['chat','guess','story','look']);
+  assert.deepEqual(Array.from(kid.modes),['chat','guess','story','look','tictactoe']);
   for(const mode of kid.modes){
     const en=kid.instructions('Base rules',mode,true);
     const off=kid.instructions('Base rules',mode,false);
