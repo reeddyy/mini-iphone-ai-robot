@@ -1,5 +1,18 @@
 # Changelog
 
+## V6.6 — Generated images and animation, with session-safe closing
+
+- Remove drawing primitives, sketch previews and substitute drawings. Character/story visuals use real image generation and allowlisted local motion; interactive game controls retain local rules.
+- Route explicit parent-approved picture requests directly to the image model. Arbitrary subjects remain open-ended. Without image permission, show parent setup guidance rather than a drawing or another failed planning call.
+- Keep Back to Mini local: cancel visual work, restore the existing camera element and defer voice context refresh until a later interaction. An optional context-update failure cannot stop the whole session.
+- Move the camera source outside the hidden parent dialog into a small live indicator; the parent preview monitors the same stream. No new capture or paid reconnect occurs on close. Add a parent-only last-session-end reason.
+- Preserve a smooth camera source in compatibility mode, pace the sender separately, preserve portrait aspect ratios and offer a sharper-detail option. Use reduced local-inference frames, adaptive pacing, shorter reaction cooldown and actual sent-frame diagnostics.
+- Make conversation more proactive, playful, educational and effort-focused. Successful pictures can supply a bounded observation/imagination invitation without another model call; permissions, quiet time, interruptions and Stop still apply.
+- Add session-level English/Mandarin continuity, explicit language switches, mixed-speech handling and matching installed narration voices. Keep game/image invitations and gentle vocabulary learning in the active language.
+- Integrate age-appropriate maths and science into the current topic, with concrete examples, occasional understanding checks, hints and difficulty guided by session answers. Respect the follow-up preference and avoid grades, pressure or repeated quizzing.
+- Simplify and bound the image-prompt/game protocol; report safe canonical failure fields without logging child text. Generated still images animate in the app; no video-generation service is enabled.
+
+
 ## Image model research follow-up
 
 - Recommend `qwen-image-3.0` for ordinary requested illustrations, with Pro as an explicit quality comparison and 2.0 as a manual fallback. Document the primary project announcement, maintained adapter and published international-call evidence; account access and latency remain unverified here.

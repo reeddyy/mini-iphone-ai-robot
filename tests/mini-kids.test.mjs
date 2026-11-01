@@ -149,6 +149,25 @@ test('Conversation preference controls optional questions in every activity',()=
   }
 });
 
+test('Everyday maths and science guide teaching and gentle understanding checks in both languages',()=>{
+  const kid=kidsContent();
+  for(const mode of kid.modes){
+    const prompt=kid.instructions('Family safety rules',mode,true,{conversationLanguage:'zh'});
+    assert.match(prompt,/simple addition\/subtraction within ten/);
+    assert.match(prompt,/observing, predicting and explaining/);
+    assert.match(prompt,/两颗苹果再加一颗/);
+    assert.match(prompt,/球和方块/);
+    assert.match(prompt,/check understanding within this session/);
+    assert.match(prompt,/concrete counting hint/);
+    assert.match(prompt,/not a test after every remark/);
+    assert.match(prompt,/generated artwork is not reliable evidence of an exact count/);
+    assert.match(prompt,/without grades, timed pressure or comparisons/);
+    const off=kid.instructions('Family safety rules',mode,false,{keepConversationGoing:false});
+    assert.match(off,/Do not introduce unsolicited maths or science tests/);
+    assert.doesNotMatch(off,/Occasionally turn that shared interest/);
+  }
+});
+
 test('Follow-up detection skips model questions and respects bedtime and stopping',()=>{
   const kid=kidsContent();
   assert.equal(kid.needsFollowUp('Yes, giraffe! Well done.','Giraffe','completed','guess'),true);
@@ -213,4 +232,10 @@ test('Story choices have consequences and finished stories and ordinary chat sta
   assert.equal(kid.needsFollowUp('Correct! Well done!','giraffe','completed','guess'),false);
   assert.equal(kid.needsFollowUp('答对了，真棒！','长颈鹿','completed','guess'),false);
   assert.equal(kid.needsFollowUp('The dragon reaches the forest.','forest','completed','story'),true);
+});
+
+test('The source camera remains outside the hidden parent dialog; settings use a separate monitor',()=>{
+  const html=readFileSync(htmlFile,'utf8'),source=html.indexOf('id="preview"'),dialog=html.indexOf('id="parentSetup"'),monitor=html.indexOf('id="cameraMonitor"');
+  assert.ok(source>0 && source<dialog && monitor>dialog);
+  assert.equal((html.match(/id="preview"/g) || []).length,1);
 });

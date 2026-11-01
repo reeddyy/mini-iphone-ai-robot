@@ -65,10 +65,10 @@ test('An image model in the planner setting produces actionable setup guidance w
 });
 test('Malformed provider data is rejected without leaking its body or interrupting the voice server',async()=>{
   await withApp({provider:()=>json({choices:[{message:{content:'secret-provider-details <script>bad</script>'}}]})},async({base,start,post})=>{
-    const token=await start();const response=await post('/api/visual/plan',token,{request:'show a face'});
+    const token=await start();const response=await post('/api/visual/plan',token,{request:'Continue this visual story'});
     assert.equal(response.status,502);assert.doesNotMatch(await response.text(),/secret-provider-details|script/);
     assert.equal((await fetch(base+'/api/config')).status,200);
-    assert.equal((await post('/api/visual/plan',token,{request:'show a face',scene:{version:1,action:'scene',script:'bad'}})).status,400);
+    assert.equal((await post('/api/visual/plan',token,{request:'Continue this visual story',scene:{version:1,action:'scene',script:'bad'}})).status,400);
   });
 });
 test('Planner rejection returns safe actionable diagnostics while the voice server stays available',async()=>{
@@ -86,13 +86,13 @@ test('Generated artwork requires per-session consent and a single-use planner ti
       assert.equal(String(url),'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation');
       assert.equal(init.headers['X-DashScope-WorkSpace'],'ws-test');
       const body=JSON.parse(init.body);assert.equal(body.model,'qwen-image-plus');assert.equal(body.parameters.n,1);
-      assert.match(body.input.messages[0].content[0].text,/gentle cat/);
+      assert.match(body.input.messages[0].content[0].text,/Draw a cat/);
       return json({output:{choices:[{message:{content:[{image:'https://dashscope-result-sg.oss-ap-southeast-1.aliyuncs.com/fixture.png'}]}}]}});
     }
     assert.equal(init.headers,undefined,'API authorization must not go to the storage URL');
     assert.equal(init.redirect,'error');return new Response(PNG,{headers:{'Content-Type':'image/png'}});
   }},async({start,post,calls})=>{
-    const without=await start();assert.equal((await post('/api/visual/plan',without,{request:'Draw a cat'})).status,403);
+    const without=await start();assert.equal((await (await post('/api/visual/plan',without,{request:'Draw a cat'})).json()).plan.action,'keep');
     assert.equal((await post('/api/visual/image',without,{ticket:'made-up'})).status,403);
     const token=await start(true);
     assert.equal((await post('/api/visual/image',token,{prompt:'bypass the planner'})).status,403);
@@ -104,23 +104,23 @@ test('Generated artwork requires per-session consent and a single-use planner ti
     assert.equal(calls.filter(call=>call.url.includes('/multimodal-generation/')).length,1);
   });
 });
-test('An unavailable image model disables further artwork calls across new grants until server restart and future plans use drawings',async()=>{
+test('An unavailable image model disables further artwork calls across new grants until server restart and future pictures stay unavailable without sketches',async()=>{
   const permissions=[];let imageCalls=0;
   await withApp({imageModel:'qwen-image-plus',provider:(url,init)=>{
     if(String(url).includes('/chat/completions')){
       const user=JSON.parse(JSON.parse(init.body).messages[1].content);permissions.push(user.imagesAllowed);
-      const plan=user.imagesAllowed?{...picturePlan,fallback:{nodes:[{kind:'emoji',text:'🐈'}]}}:{version:1,action:'scene',nodes:[{kind:'emoji',text:'🐈'}]};
+      const plan=user.imagesAllowed?picturePlan:{version:1,action:'keep',message:'Pictures are unavailable.'};
       return json({choices:[{message:{content:JSON.stringify(plan)}}]});
     }
     imageCalls++;return new Response(JSON.stringify({code:'InvalidParameter',message:'Model is unavailable.'}),{status:404});
   }},async({start,post})=>{
-    const token=await start(true),planned=await (await post('/api/visual/plan',token,{request:'Paint a cat'})).json();
-    assert.equal(planned.plan.fallback.nodes[0].text,'🐈');
+    const token=await start(true),planned=await (await post('/api/visual/plan',token,{request:'Continue the story with a painting of a cat'})).json();
+    assert.equal(planned.plan.action,'artwork');assert.equal(planned.plan.fallback,undefined);
     const failed=await post('/api/visual/image',token,{ticket:planned.imageTicket}),details=await failed.json();
     assert.equal(failed.status,502);assert.equal(details.diagnostic.endpoint,'singapore');
     assert.equal((await post('/api/visual/image',token,{ticket:planned.imageTicket})).status,503);
-    const next=await (await post('/api/visual/plan',token,{request:'Paint another cat'})).json();assert.equal(next.plan.action,'scene');
-    const freshToken=await start(true);await post('/api/visual/plan',freshToken,{request:'Paint again'});
+    const next=await (await post('/api/visual/plan',token,{request:'Continue the story with another picture of the cat'})).json();assert.equal(next.plan.action,'keep');
+    const freshToken=await start(true);await post('/api/visual/plan',freshToken,{request:'Continue this picture story'});
     assert.deepEqual(permissions,[true,false,false]);assert.equal(imageCalls,1,'no silent image retry or regional fallback');
   });
 });
@@ -133,7 +133,7 @@ test('The workspace image endpoint is an explicit option, with workspace credent
     }
     assert.equal(init.headers,undefined);return new Response(PNG);
   }},async({start,post})=>{
-    const token=await start(true),planned=await (await post('/api/visual/plan',token,{request:'Paint a cat'})).json();
+    const token=await start(true),planned=await (await post('/api/visual/plan',token,{request:'Continue the story with a painting of a cat'})).json();
     assert.equal((await post('/api/visual/image',token,{ticket:planned.imageTicket})).status,200);
     assert.equal((await post('/api/visual/plan',token,{request:'hello',spokenReply:'x'.repeat(2001)})).status,400);
   });
@@ -167,7 +167,7 @@ test('Revoking a grant aborts a pending provider request',async()=>{
   await withApp({provider:(_url,init)=>new Promise((_resolve,reject)=>{
     init.signal.addEventListener('abort',()=>{aborted=true;reject(new Error('cancelled'));},{once:true});started();
   })},async({base,start,post})=>{
-    const token=await start();const pending=post('/api/visual/plan',token,{request:'show a scene'});
+    const token=await start();const pending=post('/api/visual/plan',token,{request:'Continue our visual story'});
     await ready;
     await fetch(base+'/api/visual/session',{method:'DELETE',headers:{'X-Mini-Visual-Session':token}});
     assert.equal((await pending).status,502);assert.equal(aborted,true);
@@ -191,11 +191,34 @@ test('Fresh artwork tickets cannot bypass the four-image budget',async()=>{
     return new Response(PNG);
   }},async({start,post,calls})=>{
     const token=await start(true);
-    for(let i=0;i<5;i++){
+    for(let i=0;i<4;i++){
       const planned=await post('/api/visual/plan',token,{request:'Draw a new picture'});assert.equal(planned.status,200);
       const {imageTicket}=await planned.json();
-      assert.equal((await post('/api/visual/image',token,{ticket:imageTicket})).status,i<4?200:429);
+      assert.equal((await post('/api/visual/image',token,{ticket:imageTicket})).status,200);
     }
+    const exhausted=await (await post('/api/visual/plan',token,{request:'Draw a new picture'})).json();assert.equal(exhausted.plan.action,'keep');assert.equal(exhausted.imageTicket,undefined);
     assert.equal(calls.filter(call=>call.url.includes('/multimodal-generation/')).length,4);
+  });
+});
+
+test('A parent-approved cat or novel picture skips malformed drawing plans and reaches the image model',async()=>{
+  let generations=0,plans=0;
+  await withApp({imageModel:'qwen-image-3.0',provider:(url,init)=>{
+    if(String(url).includes('/chat/completions')){plans++;return json({choices:[{message:{content:'{"version":1,"action":"scene","nodes":[{"kind":"ellipse","size":null,"text":null}]}'}}]});}
+    if(String(url).includes('/multimodal-generation/')){
+      generations++;const body=JSON.parse(init.body);assert.equal(body.model,'qwen-image-3.0');assert.equal(body.parameters.size,'1024*1024');
+      assert.match(body.input.messages[0].content[0].text,/cat|jellyfish astronaut/);
+      return json({output:{choices:[{message:{content:[{image:'https://fixture.oss-accelerate.aliyuncs.com/picture.png'}]}}]}});
+    }
+    return new Response(PNG);
+  }},async({start,post})=>{
+    const token=await start(true);
+    for(const request of ['Show me a cat','Please draw a jellyfish astronaut']){
+      const response=await post('/api/visual/plan',token,{request,spokenReply:'Let’s make that picture.'});assert.equal(response.status,200);
+      const data=await response.json();assert.equal(data.plan.action,'artwork');assert.ok(data.imageTicket);
+      assert.equal(generations,request.includes('jellyfish')?1:0,'planning does not itself generate a paid image');
+      const picture=await post('/api/visual/image',token,{ticket:data.imageTicket});assert.equal(picture.status,200);assert.equal(picture.headers.get('Content-Type'),'image/png');
+    }
+    assert.equal(plans,0);assert.equal(generations,2);
   });
 });

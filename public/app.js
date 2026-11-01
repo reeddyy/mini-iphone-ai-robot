@@ -11,8 +11,8 @@ const els = {
   personality: $('personality'), language: $('language'), sensitivity: $('listenSensitivity'),
   note: $('familyNote'), remember: $('rememberPrefs'), clearMemory: $('clearMemoryBtn'), memoryInfo: $('memoryInfo'),
   postTest: $('postTestBtn'), postResult: $('postTestResult'),
-  videoToggle: $('sendVideo'), facing: $('facing'), videoMode: $('videoMode'), fps: $('fps'), limit: $('sessionLimit'),
-  preview: $('preview'), placeholder: $('cameraPlaceholder'),
+  videoToggle: $('sendVideo'), facing: $('facing'), videoMode: $('videoMode'), fps: $('fps'),visionQuality:$('visionQuality'), limit: $('sessionLimit'),
+  preview: $('preview'),cameraMonitor:$('cameraMonitor'),cameraSurface:$('cameraSurface'),cameraSurfaceLabel:$('cameraSurfaceLabel'), placeholder: $('cameraPlaceholder'),
   mute: $('muteBtn'), pauseVideo: $('pauseVideoBtn'), clock: $('sessionClock'),
   micBadge: $('micBadge'), videoBadge: $('videoBadge'),
   userText: $('userTranscript'), miniText: $('assistantTranscript'),
@@ -39,8 +39,16 @@ let lastVisualIssue='';
 let extensionRequest = null;
 let openingRound = Math.floor(Math.random() * 1000);
 
-function closeParentSetup(){const panel=$('parentSetup');if(panel.open){if(panel.close)panel.close();else panel.open=false;}}
-function openParentSetup(){const panel=$('parentSetup');if(!panel.open){if(panel.showModal)panel.showModal();else panel.open=true;}}
+function sessionLanguage(s=current){return s?.conversationLanguage || window.MiniLanguage.resolve({preferred:s?.language || els.language.value,device:typeof navigator==='undefined'?[]:navigator.languages || [navigator.language]});}
+function resumeCameraPreview(s=current){
+  if(!s || current!==s || s.stopped || !s.wantVideo || !s.localStream?.getVideoTracks().some(track=>track.readyState==='live'))return;
+  // Resume existing media elements only; never reacquire capture or re-enable sharing.
+  if(els.preview.srcObject!==s.localStream)els.preview.srcObject=s.localStream;
+  els.preview.play().catch(()=>{});
+  if($('parentSetup').open){if(els.cameraMonitor.srcObject!==s.localStream)els.cameraMonitor.srcObject=s.localStream;els.cameraMonitor.play().catch(()=>{});}
+}
+function closeParentSetup(){const panel=$('parentSetup');if(panel.open){if(panel.close)panel.close();else panel.open=false;}resumeCameraPreview();}
+function openParentSetup(){const panel=$('parentSetup');if(!panel.open){if(panel.showModal)panel.showModal();else panel.open=true;}resumeCameraPreview();}
 function setStatus(message, state = 'idle') {
   els.status.className = `status ${state === 'error' ? 'error' : state === 'idle' ? '' : 'connected'}`;
   els.status.textContent = '';
@@ -62,7 +70,7 @@ function render() {
   els.stop.classList.toggle('hidden', !running);
   els.start.disabled = loading || mode === 'checking';
   els.start.textContent = mode === 'preview' ? '● Parent: Test camera & mic' : '● Parent: Start live voice';
-  for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps, els.limit, els.pace, els.sensitivity, els.keepTalk, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
+  for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps,els.visionQuality, els.limit, els.pace, els.sensitivity, els.keepTalk, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
   els.clearMemory.disabled = running || loading;
   for(const control of [els.favoriteTopic,els.reactionSounds,els.rememberSettings,els.forgetSettings])control.disabled=running || loading;
   els.visualToggle.disabled=running || loading || !visualCapabilities.available;
@@ -78,7 +86,7 @@ function render() {
     : !visualCapabilities.imagesAvailable
     ? visualCapabilities.imageError || 'Picture generation is not configured on the Windows server. Set ALIBABA_IMAGE_MODEL in its private .env, restart Mini and refresh this page. See picture setup below.'
     : !els.visualToggle.checked
-    ? 'Turn on “Let Qwen create visual scenes” above to enable generated pictures.'
+    ? 'Turn on “Show visual stories and games” above to enable generated pictures.'
     : 'Picture generation is configured. You can tick this before starting a session; pictures add separate charges. Model access still depends on your Alibaba account.';
   els.picturesInfo.textContent=pictureReason;els.pictures.title=pictureReason;
   els.visualPause.classList.toggle('hidden',!s?.visualsEnabled || !s?.visualGrant);
@@ -97,18 +105,21 @@ function render() {
   els.pauseVideo.textContent = s?.videoPaused ? 'Resume visual sharing' : 'Pause visual sharing';
   els.micBadge.textContent = running ? (s.muted ? 'Microphone muted' : s.mode === 'preview' ? 'Microphone local only' : s.ready ? 'Mic LIVE' : 'Mic preparing') : 'Microphone off';
   els.micBadge.classList.toggle('active', running && s.mode !== 'preview' && !s.muted && s.ready);
-  els.videoBadge.textContent = running && s.wantVideo ? (s.mode === 'preview' ? 'Camera local only' : s.videoPaused ? 'Visuals paused' : s.ready ? `Video LIVE · ${s.fps}fps` : 'Camera local') : 'Camera off';
+  els.videoBadge.textContent = running && s.wantVideo ? (s.mode === 'preview' ? 'Camera local only' : s.videoPaused ? 'Visuals paused' : s.ready ? s.videoPacketsConfirmed?`Video sending · ${s.fps}fps target`:'Camera sharing · awaiting video confirmation' : 'Camera local') : 'Camera off';
   els.videoBadge.classList.toggle('active', running && s.mode !== 'preview' && s.wantVideo && !s.videoPaused && s.ready);
+  els.cameraSurface.classList.toggle('hidden',!running || !s?.wantVideo || !els.preview.srcObject);
+  els.cameraSurfaceLabel.textContent=s?.videoPaused || s?.mode==='preview'?'Local':'Camera';
+  $('cameraPerformance').textContent=running && s.wantVideo?'Local camera: smooth capture · AI target: '+(s.videoFrameSize?s.videoFrameSize.width+'×'+s.videoFrameSize.height+' · ':'')+s.fps+' fps'+(s.senderLimited===false?' · sender pacing unavailable on this browser':'')+(s.cameraStats?(s.cameraStats.bytes>0?' · Video sent: '+s.cameraStats.frames+' frames, '+s.cameraActualFps.toFixed(1)+' fps':' · No sent video packets confirmed yet'):'')+(s.trackingMetrics?' · Local reactions: '+s.trackingMetrics.fps+' fps, '+s.trackingMetrics.processingMs+' ms processing':''):'Camera off.';
   els.placeholder.classList.toggle('hidden', !!(running && s.wantVideo && els.preview.srcObject));
   $('boardPlayBtn').classList.toggle('hidden',running || Boolean(visualActivity?.isActive()));
   els.sharing.classList.toggle('hidden',!running);
   if(running) {
-    const zh=s.language==='zh';
+    const zh=sessionLanguage(s)==='zh';
     const mic=s.audioInputTrack?.enabled && !s.muted;
     const camera=s.wantVideo && !s.videoPaused;
     els.sharing.textContent=s.mode==='preview'
       ? (zh?'仅本地预览 · ':'Local preview · ')+(mic?(zh?'麦克风开启':'Mic on'):(zh?'麦克风静音':'Mic muted'))+' · '+(camera?(zh?'摄像头仅本地':'Camera local only'):(zh?'摄像头关闭':'Camera off'))
-      : (mic && s.mediaReady?(zh?'麦克风实时传送':'Mic live'):(zh?'麦克风未传送':'Mic not sending'))+' · '+(camera && s.mediaReady?(zh?'摄像头实时传送':'Camera live'):(zh?'摄像头未传送':'Camera not sending'));
+      : (mic && s.mediaReady?(zh?'麦克风实时传送':'Mic live'):(zh?'麦克风未传送':'Mic not sending'))+' · '+(camera && s.mediaReady?(zh?'摄像头分享已开启':'Camera sharing on'):(zh?'摄像头未传送':'Camera not sending'));
   }
 }
 async function maybeUnmuteAudio() {
@@ -123,7 +134,7 @@ async function maybeUnmuteAudio() {
     if (current === s && !s.stopped) els.kidAudio.classList.add('hidden');
   } catch {
     if (current !== s || s.stopped) return;
-    const label = s.language === 'zh' ? '▶ 点这里听 Mini 说话' : '▶ Tap to hear Mini';
+    const label = sessionLanguage(s) === 'zh' ? '▶ 点这里听 Mini 说话' : '▶ Tap to hear Mini';
     els.playAudio.textContent = label;
     els.kidAudio.textContent = label;
     els.kidAudio.classList.remove('hidden');
@@ -136,8 +147,8 @@ async function loadConfig() {
     const data = await response.json();
     visualCapabilities=data.visuals || {available:data.mode==='realtime',imagesAvailable:false};
     els.visualInfo.textContent=visualCapabilities.configurationError || (visualCapabilities.imagesAvailable
-      ? 'Visual scenes use extra paid Qwen requests. Pictures are separate paid calls. Limits: 60 plans and 4 pictures per session.'
-      : 'Visual scenes use extra paid Qwen requests. Newly generated artwork is not configured; Mini can still compose drawings with shapes, text and emoji.');
+      ? 'Games and story coordination can use paid Qwen requests. Explicit pictures go directly to the image model. Limits: 60 plans and 4 pictures per session.'
+      : 'Visual scenes use extra paid Qwen requests. Newly generated artwork is not configured; Images need a configured image model and session permission. Interactive games remain available.');
     mode = data.mode;
     els.mode.textContent = mode === 'realtime' ? 'QWEN REALTIME' : 'LOCAL PREVIEW ONLY';
     els.mode.classList.toggle('is-demo', mode !== 'realtime');
@@ -259,7 +270,7 @@ function finishPlayback(s) {
   }
   if(!s.hadAudibleReply) {
     setStatus('Reply ready · tap below if you could not hear Mini','idle');
-    els.kidAudio.textContent=s.language==='zh'?'▶ 点这里听 Mini 说话':'▶ Tap to hear Mini';
+    els.kidAudio.textContent=sessionLanguage(s)==='zh'?'▶ 点这里听 Mini 说话':'▶ Tap to hear Mini';
     els.kidAudio.classList.remove('hidden');
     return;
   }
@@ -283,9 +294,11 @@ function startAwareness(s) {
     allowed:()=>current===s && !s.stopped && s.ready && s.wantVideo && !s.videoPaused && !document.hidden && Boolean(els.preview.srcObject),
     canSpeak:()=>(s.localGreetings || 0)<2 && s.mode==='realtime' && !s.muted && !s.childSpeaking && !s.responseActive && !s.turnPending && !s.playbackActive && !childUI?.isNarrating?.() && !hasLocalVisualGame() && Date.now()-(s.awarenessLastActivity || s.startedAt)>6000,
     onLook:cue=>{
-      if(!cue){for(const key of ['--look-x','--look-y','--head-tilt'])els.face.style.removeProperty(key);return;}
+      if(!cue){delete els.face.dataset.cameraTracking;delete els.face.dataset.cameraSmile;for(const key of ['--look-x','--look-y','--head-tilt'])els.face.style.removeProperty(key);return;}
+      els.face.dataset.cameraTracking='true';els.face.dataset.cameraSmile=String(Boolean(cue.smiling));
       els.face.style.setProperty('--look-x',cue.lookX.toFixed(1)+'px');els.face.style.setProperty('--look-y',cue.lookY.toFixed(1)+'px');els.face.style.setProperty('--head-tilt',cue.tilt.toFixed(1)+'deg');
     },
+    onMetrics:metrics=>{if(current===s && !s.stopped){s.trackingMetrics=metrics;render();}},
     onCue:reaction=>{if(childUI?.reactToVisualCue?.(reaction) && reaction.spoken)s.localGreetings=(s.localGreetings || 0)+1;},
     onStatus:state=>{if(current!==s || s.stopped)return;els.awarenessStatus.textContent=state.message;render();},
   });render();
@@ -300,7 +313,7 @@ function narrateVisual(text) {
   const s=current;if(!s || s.stopped || s.mode!=='realtime' || !s.ready || s.muted || !text)return;
   if(s.childSpeaking){s.pendingLocalNarration=text;return;}
   s.localVisualTurn=true;s.localNarrationForTurn=true;s.playbackSuppressed=true;s.playbackActive=false;els.remoteAudio.muted=true;
-  const language=s.language==='auto'?(/[\u3400-\u9fff]/.test(text)?'zh':'en'):s.language;
+  const language=window.MiniLanguage.resolve({text,previous:sessionLanguage(s)});
   els.miniText.textContent=text;childUI?.sayFallback('chat',text,language);
   clearTimeout(s.playbackTimer);s.playbackTimer=setTimeout(()=>finishPlayback(s),900);
 }
@@ -317,14 +330,14 @@ function refreshVisualAvailability(s) {
 }
 function reportVisualFailure(s,error,stage='planner') {
   const diagnostic=error.visualDiagnostic || {},parts=[diagnostic.code || 'VISUAL_CLIENT_ERROR',diagnostic.stage || stage,
-    diagnostic.model || (stage==='planner'?visualCapabilities.model:visualCapabilities.imageModel),diagnostic.httpStatus?'HTTP '+diagnostic.httpStatus:null,diagnostic.providerCode,diagnostic.parameter,diagnostic.reason,diagnostic.endpoint?'endpoint='+diagnostic.endpoint:null].filter(Boolean);
+    diagnostic.model || (stage==='planner'?visualCapabilities.model:visualCapabilities.imageModel),diagnostic.httpStatus?'HTTP '+diagnostic.httpStatus:null,diagnostic.providerCode,diagnostic.parameter,diagnostic.reason,diagnostic.field,diagnostic.endpoint?'endpoint='+diagnostic.endpoint:null].filter(Boolean);
   s.visualIssue=parts.join(' · ')+': '+(error.message || 'Visual response unavailable.');
   lastVisualIssue=s.visualIssue;
   if(stage==='planner') {
     s.invalidPlans=(s.invalidPlans || 0)+1;
     const recoverable=['VISUAL_PLAN_INVALID','VISUAL_RESPONSE_JSON'].includes(diagnostic.code) && s.invalidPlans<2;
     s.visualsPaused=!recoverable;
-    els.visualStatus.textContent=s.language==='zh'?'Mini 的画面休息一下，我们还可以聊天。':(s.visualsPaused?'Mini’s pictures are resting. We can still talk.':'That drawing didn’t work. You can ask me again.');
+    els.visualStatus.textContent=sessionLanguage(s)==='zh'?'Mini 的画面休息一下，我们还可以聊天。':(s.visualsPaused?'Mini’s pictures are resting. We can still talk.':'That visual request didn’t work. You can ask me again.');
     els.visualStatus.classList.remove('hidden');
   }
   refreshVisualAvailability(s);
@@ -343,10 +356,10 @@ async function requestGeneratedVisual(s,request,fromChoice=false,{spokenReply=''
   const controller=new AbortController();s.visualAbort=controller;
   s.visualPlanning=true;
   generatedVisuals?.setBusy(true);
-  els.visualStatus.textContent=s.language==='zh'?'Mini 正在想怎么画……':'Mini is imagining what to show…';els.visualStatus.classList.remove('hidden');
+  els.visualStatus.textContent=sessionLanguage(s)==='zh'?'Mini 正在想怎么画……':'Mini is imagining what to show…';els.visualStatus.classList.remove('hidden');
   try {
     const response=await fetch('/api/visual/plan',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Mini-Visual-Session':s.visualGrant},
-      body:JSON.stringify({request:request.slice(0,500),spokenReply:spokenReply.slice(0,2000),scene:generatedVisuals?.current() || (visualActivity?.isActive()?{version:1,action:'activity',title:'Tic-tac-toe',activity:{type:'tictactoe'}}:null),language:s.language,followUpsAllowed:s.keepConversationGoing}),signal:controller.signal});
+      body:JSON.stringify({request:request.slice(0,500),spokenReply:spokenReply.slice(0,2000),scene:generatedVisuals?.current() || (visualActivity?.isActive()?{version:1,action:'activity',title:'Tic-tac-toe',activity:{type:'tictactoe'}}:null),language:sessionLanguage(s),followUpsAllowed:s.keepConversationGoing}),signal:controller.signal});
     const type=response.headers?.get('content-type');
     if(type && !type.toLowerCase().includes('application/json'))throw Object.assign(new Error('The tunnel returned a sign-in or error page. Check the tunnel login, then refresh Safari.'),{visualDiagnostic:{code:'VISUAL_GATEWAY',httpStatus:response.status}});
     const data=await response.json();
@@ -354,9 +367,10 @@ async function requestGeneratedVisual(s,request,fromChoice=false,{spokenReply=''
     const plan=window.MiniVisualSchema.validate(data.plan);
     if(s.stopped || current!==s || version!==s.visualRequestVersion || controller.signal.aborted)return;
     s.invalidPlans=0;
+    if(plan.action==='keep' && plan.message){els.visualStatus.textContent=plan.message;els.visualStatus.classList.remove('hidden');}
     await generatedVisuals.apply(plan,{imageTicket:data.imageTicket,allowChoiceContinuation:!fromChoice});
     if(s.stopped || current!==s || version!==s.visualRequestVersion || controller.signal.aborted)return;
-    if(plan.followUp && !narrate){s.contextualFollowUp={question:plan.followUp,reply:spokenReply,child:s.lastChildTranscript || request};if(s.hadAudibleReply)schedulePlannedFollowUp(s);}
+    if(plan.followUp && !narrate && (plan.action!=='artwork' || generatedVisuals?.describe()?.status==='visible')){s.contextualFollowUp={question:plan.followUp,reply:spokenReply,child:s.lastChildTranscript || request};if(s.hadAudibleReply)schedulePlannedFollowUp(s);}
     if(narrate && current===s && !s.stopped && !controller.signal.aborted && plan.action!=='clear' && (plan.action!=='interact' || !s.localNarrationForTurn))narrateVisual(visualActivity?.isActive()?visualActivity.speech():generatedVisuals.speech?.() || plan.message);
   } catch(error) {
     if(!s.stopped && current===s && version===s.visualRequestVersion && !controller.signal.aborted) {
@@ -378,19 +392,20 @@ async function requestGeneratedArtwork(ticket,signal) {
     if(!response.ok){
       const data=await response.json().catch(()=>({})),error=Object.assign(new Error(data.error || 'Mini could not finish that picture.'),{visualDiagnostic:data.diagnostic || {code:'IMAGE_HTTP_ERROR',httpStatus:response.status}});
       if(current===s && !s.stopped && !controller.signal.aborted){if(['VISUAL_MODEL_UNAVAILABLE','VISUAL_ACCESS','VISUAL_AUTH','VISUAL_QUOTA'].includes(data.diagnostic?.code)){s.imagesAllowed=false;visualCapabilities.imagesAvailable=false;visualCapabilities.imageError='Artwork disabled until the Windows server restarts with working model access. '+error.message;}reportVisualFailure(s,error,'artwork');}
-      throw new Error(s.language==='zh'?'Mini 暂时画不完这张图，我们还可以聊天。':'Mini could not finish this picture. We can still talk.');
+      throw new Error(sessionLanguage(s)==='zh'?'Mini 暂时画不完这张图，我们还可以聊天。':'Mini could not finish this picture. We can still talk.');
     }
     return await response.blob();
   } finally {signal.removeEventListener('abort',abort);s.abort.signal.removeEventListener('abort',abort);}
 }
-function generatedStateChanged(state) {
+function generatedStateChanged(state,{deferContext=false}={}) {
   const s=current;if(!s || s.stopped)return;
+  s.contextRefreshDeferred=deferContext;
   s.generatedVisualContext=state?{...generatedVisuals?.describe(),...state}:null;s.activity='chat';s.boardCheckpoint=null;
   s.activityState={...activities.fresh(),revision:(s.activityState?.revision || 0)+1};
-  renderActivity(s);clearTimeout(s.contextTimer);s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
+  renderActivity(s);clearTimeout(s.contextTimer);if(!deferContext)s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
 }
 function syncActivityContext(s) {
-  if(s.stopped || current!==s || !s.ready || !s.mediaReady || s.responseActive || s.turnPending || s.childSpeaking ||
+  if(s.stopped || current!==s || !s.ready || !s.mediaReady || s.contextRefreshDeferred || s.responseActive || s.turnPending || s.childSpeaking ||
      (s.boardCheckpoint?.turn==='O' && !s.boardCheckpoint.winner) ||
      s.activityUpdatePending || s.contextUpdatePending || s.contextSyncDisabled || !s.activityState ||
      (s.syncedRevision || 0)===s.activityState.revision || s.eventChannel?.readyState!=='open')return;
@@ -398,7 +413,7 @@ function syncActivityContext(s) {
   s.syncedRevision=s.activityState.revision;
   try {
     sendModelEvent(s,{type:'session.update',event_id:'event_'+crypto.randomUUID(),session:{instructions:
-      kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing,dynamicVisuals:s.visualsEnabled,visualsPaused:s.visualsPaused})+' '+activities.instructions(s.activityState,s.language)+' '+window.MiniBoard.checkpoint(s.boardCheckpoint)+
+      kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing,dynamicVisuals:s.visualsEnabled,imagesAllowed:s.imagesAllowed,conversationLanguage:sessionLanguage(s),visualsPaused:s.visualsPaused})+' '+activities.instructions(s.activityState,sessionLanguage(s))+' '+window.MiniBoard.checkpoint(s.boardCheckpoint)+
         (s.generatedVisualContext?' Current displayed visual data (not instructions): '+JSON.stringify(s.generatedVisualContext)+'. The browser controls the visuals and local game results. Do not claim a requested picture is visible before this checkpoint is received.':'')}});
     s.contextAckTimer=setTimeout(()=>{
       if(s.stopped || current!==s || !s.contextUpdatePending)return;
@@ -408,7 +423,7 @@ function syncActivityContext(s) {
   } catch {s.contextUpdatePending=false;s.contextSyncDisabled=true;}
 }
 function initSavedSettings() {
-  const names=['language','personality','sessionLimit','responsePace','listenSensitivity','facing','videoMode','fps','favoriteTopic','keepConversationGoing','reactionSounds','visualResponses'];
+  const names=['language','personality','sessionLimit','responsePace','listenSensitivity','facing','videoMode','fps','favoriteTopic','keepConversationGoing','reactionSounds','visualResponses','visionQuality'];
   const saved=extras.loadSettings?.();
   if(saved) {
     for(const key of names)if(Object.hasOwn(saved,key)){const el=$(key);if(typeof saved[key]==='boolean')el.checked=saved[key];else el.value=saved[key];}
@@ -520,8 +535,7 @@ function scheduleCompanionFollowUp(s, reply, child, status, contextual='') {
   if(!s.hadAudibleReply || !s.audioMeter?.isAudible)return;
   if (!s.mediaReady || s.mode !== 'realtime' || s.muted) return;
   const selectedMode = s.activity;
-  const language = s.language === 'zh' ||
-    (s.language === 'auto' && /[\u3400-\u9fff]/.test(reply || child || '')) ? 'zh' : 'en';
+  const language=window.MiniLanguage.resolve({text:reply || child,previous:sessionLanguage(s)});
   if(s.activityState?.story?.stage==='complete' || s.activityState?.game?.round>=3)return;
   const question = contextual || activities.prompt(s.activityState,language) || kids.getFollowUp(selectedMode, language, s.followUpCount || 0);
   const initiatedAt = Date.now();
@@ -559,7 +573,7 @@ function startActivity(s, value) {
     sendModelEvent(s, {
       type:'session.update',
       event_id:'event_' + crypto.randomUUID(),
-      session:{instructions:kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing,dynamicVisuals:s.visualsEnabled,visualsPaused:s.visualsPaused})},
+      session:{instructions:kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing,dynamicVisuals:s.visualsEnabled,imagesAllowed:s.imagesAllowed,conversationLanguage:sessionLanguage(s),visualsPaused:s.visualsPaused})},
     });
   } catch (error) {
     s.activityUpdatePending = false;
@@ -605,7 +619,7 @@ function tryInitialize(s) {
   s.baseInstructions = extras.buildInstructions({personality:s.personality, language:s.language, note:s.note,favoriteTopic:s.favoriteTopic});
   const session = {
     modalities: ['text','audio'],
-    instructions: kids.instructions(s.baseInstructions,'chat',s.wantVideo,{keepConversationGoing:s.keepConversationGoing,opening:s.opening,dynamicVisuals:s.visualsEnabled})+' '+activities.instructions(s.activityState,s.language),
+    instructions: kids.instructions(s.baseInstructions,'chat',s.wantVideo,{keepConversationGoing:s.keepConversationGoing,opening:s.opening,dynamicVisuals:s.visualsEnabled,imagesAllowed:s.imagesAllowed,conversationLanguage:sessionLanguage(s)})+' '+activities.instructions(s.activityState,sessionLanguage(s)),
     input_audio_format: 'pcm',
     output_audio_format: 'pcm',
     input_audio_transcription: {model:'qwen3-asr-flash-realtime'},
@@ -667,11 +681,13 @@ function receiveEvent(s, ev, channel) {
       }
       break;
     case 'input_audio_buffer.speech_started':
+      s.refreshVideoFrame?.();
       interruptAwareness(s);
       cancelGeneratedRequest(s);
       s.boardVoiceRound=visualActivity?.isActive()?visualActivity.roundId():null;
       cancelCompanionFollowUp(s);
       childUI?.stopSpeech();
+      s.contextRefreshDeferred=false;
       s.lastChildTranscript = '';
       s.pendingVisualTurn=null;s.visualSpokenReply='';s.visualReplyFinished=false;s.contextualFollowUp=null;s.localMoveHandled=false;s.localNarrationForTurn=false;
       s.pendingLocalNarration=null;
@@ -689,6 +705,7 @@ function receiveEvent(s, ev, channel) {
       setStatus('You are speaking · listening', 'listening');
       break;
     case 'input_audio_buffer.speech_stopped':
+      s.refreshVideoFrame?.();
       s.childSpeaking = false;
       s.turnPending = true;
       clearTimeout(s.thinkingWatchdog);
@@ -716,6 +733,9 @@ function receiveEvent(s, ev, channel) {
       }
       els.userText.textContent = ev.transcript || '—';
       if (typeof ev.transcript === 'string') {
+        s.contextRefreshDeferred=false;
+        const switchTo=window.MiniLanguage.requested(ev.transcript);if(switchTo)s.languageOverride=switchTo;
+        s.conversationLanguage=window.MiniLanguage.resolve({preferred:s.languageOverride || s.language,text:ev.transcript,previous:s.hasChildSpoken?sessionLanguage(s):undefined});s.hasChildSpoken=true;
         s.lastChildTranscript = ev.transcript.slice(0,240);
         const dynamic=Boolean(s.visualsEnabled && s.visualGrant);
         const openingBoard=!visualActivity?.isActive() && window.MiniBoard.wantsGame(ev.transcript) && !/\b(?:not|don['’]?t|do not)\b|不要|不想/i.test(ev.transcript);
@@ -730,7 +750,7 @@ function receiveEvent(s, ev, channel) {
         renderActivity(s);
         clearTimeout(s.contextTimer);
         s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
-        if(handled){s.localMoveHandled=true;if(s.localVisualTurn && !hasLocalVisualGame())narrateVisual(s.language==='zh'?'我们继续聊天吧。':'Let’s keep chatting.');}
+        if(handled){s.localMoveHandled=true;if(s.localVisualTurn && !hasLocalVisualGame())narrateVisual(sessionLanguage(s)==='zh'?'我们继续聊天吧。':'Let’s keep chatting.');}
         else if(dynamic) {
           if(s.localVisualTurn)requestGeneratedVisual(s,ev.transcript,false,{narrate:true});
           else{s.pendingVisualTurn={request:ev.transcript.slice(0,500),turn:s.turnNumber || 0};flushSpokenVisual(s);}
@@ -814,7 +834,7 @@ function receiveEvent(s, ev, channel) {
       const detail = qwenErrorLabel(ev.error);
       const safe = extras.modelErrorDetails(ev.error);
       console.warn('Mini Qwen error (structured fields only):', detail);
-      if(s.contextUpdatePending && (safe.type==='invalid_request_error' || safe.param.startsWith('session.'))) {
+      if(s.contextUpdatePending) {
         clearTimeout(s.contextAckTimer);
         s.contextUpdatePending=false;s.contextSyncDisabled=true;
         showModelIssue('Mini could not refresh the activity checkpoint. Voice chat remains connected.');
@@ -863,10 +883,12 @@ async function startSendingMedia(s) {
   // The model expects audio to begin before video frames.
   if (s.wantVideo && s.videoSender && s.videoOutTrack) {
     await new Promise(resolve => setTimeout(resolve, 250));
+    if(!s.stopped)s.senderLimited=await window.MiniCamera?.configureSender(s.videoSender,{fps:s.fps,quality:s.visionQuality});
     if (!s.stopped && !s.videoPaused) await s.videoSender.replaceTrack(s.videoOutTrack);
   }
   if (s.stopped) return;
   s.mediaReady = true;
+  if(s.wantVideo){s.cameraStatsTimer=setInterval(()=>updateCameraMetrics(s),1000);updateCameraMetrics(s);}
   if (s.mode === 'realtime') {
     s.micMeter = extras.createMicInputMeter(s.localStream,level=>{childUI?.onMicLevel(level);if(level>=8)s.awarenessLastNoise=Date.now();});
     childUI?.onLiveReady();
@@ -879,48 +901,47 @@ async function startSendingMedia(s) {
   if (s.mode === 'realtime' && !s.muted) childUI?.sayFallback('chat',s.opening);
 }
 
+async function updateCameraMetrics(s){
+  if(current!==s || s.stopped || !s.mediaReady || !s.wantVideo || s.cameraStatsBusy)return;
+  s.cameraStatsBusy=true;
+  try{
+    const stats=await window.MiniCamera?.senderStats(s.videoSender,s.pc);
+    if(!stats || current!==s || s.stopped)return;
+    const previous=s.cameraStats,time=Date.now();
+    s.cameraActualFps=previous?Math.max(0,(stats.frames-previous.frames)*1000/Math.max(1,time-previous.time)):0;
+    s.cameraStats={...stats,time};
+    if(stats.bytes>0)s.videoPacketsConfirmed=true;
+    render();
+  }catch{}finally{s.cameraStatsBusy=false;}
+}
 function makeVideoTrack(s) {
   if (!s.wantVideo) return;
   const cameraTrack = s.localStream.getVideoTracks()[0];
   if (!cameraTrack) throw new Error('Camera not available');
-  if (s.videoMode === 'direct') {
-    cameraTrack.applyConstraints?.({frameRate:{ideal:s.fps,max:s.fps}}).catch(() => {});
-    s.videoOutTrack = cameraTrack;
-    return;
-  }
-  const dimensions = cameraTrack.getSettings();
-  const w = Math.max(160, Math.min(640, dimensions.width || 480));
-  const h = Math.max(120, Math.min(480, dimensions.height || 360));
+  if (s.videoMode === 'direct') {s.videoOutTrack=cameraTrack;return;}
   try {
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d', {alpha:false});
-    if (!ctx || typeof canvas.captureStream !== 'function') throw new Error('Canvas video unavailable');
-    const stream = canvas.captureStream(s.fps);
-    const track = stream.getVideoTracks()[0];
-    if (!track) throw new Error('No canvas video track');
-    s.canvasStream = stream;
-    s.videoOutTrack = track;
-    // Keep the <video> preview smooth, but do expensive canvas draws only
-    // when a new 1-2 fps AI frame is due. Older iPhones benefit especially.
-    let lastFrameAt = -Infinity;
-    function pump(now) {
-      if (s.stopped) return;
-      if (now - lastFrameAt >= 1000 / s.fps &&
-          els.preview.videoWidth > 0 && els.preview.videoHeight > 0) {
-        try {
-          ctx.drawImage(els.preview, 0, 0, canvas.width, canvas.height);
-          lastFrameAt = now;
-        } catch {}
+    const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx || typeof canvas.captureStream!=='function')throw new Error('Canvas video unavailable');
+    const initial=cameraTrack.getSettings();
+    let size=window.MiniCamera.frameSize(els.preview.videoWidth || initial.width,els.preview.videoHeight || initial.height,s.visionQuality);
+    canvas.width=size.width;canvas.height=size.height;s.videoFrameSize=size;
+    const stream=canvas.captureStream(s.fps),track=stream.getVideoTracks()[0];
+    if(!track)throw new Error('No canvas video track');
+    s.canvasStream=stream;s.videoOutTrack=track;
+    function pump(){
+      if(s.stopped)return;
+      if(!s.videoPaused && els.preview.readyState>=2 && els.preview.videoWidth>0){
+        size=window.MiniCamera.frameSize(els.preview.videoWidth,els.preview.videoHeight,s.visionQuality);
+        if(canvas.width!==size.width || canvas.height!==size.height){canvas.width=size.width;canvas.height=size.height;s.videoFrameSize=size;}
+        try{ctx.drawImage(els.preview,0,0,canvas.width,canvas.height);}catch{}
       }
-      s.drawRaf = requestAnimationFrame(pump);
+      s.drawTimer=setTimeout(pump,1000/s.fps);
     }
-    s.drawRaf = requestAnimationFrame(pump);
-  } catch (error) {
-    console.warn('Canvas video unavailable; using a low-fps camera track:', error.message);
-    // Fallback for older Safari implementations. Local preview may become choppy.
-    cameraTrack.applyConstraints?.({frameRate:{ideal:s.fps,max:s.fps}}).catch(() => {});
-    s.videoOutTrack = cameraTrack;
+    s.refreshVideoFrame=()=>{if(!s.stopped && !s.videoPaused && els.preview.readyState>=2){try{ctx.drawImage(els.preview,0,0,canvas.width,canvas.height);}catch{}}};
+    pump();
+  }catch{
+    // Retain smooth capture if canvas streaming is unsupported. Pace the sender, never the camera source.
+    s.videoOutTrack=cameraTrack;
   }
 }
 
@@ -938,7 +959,7 @@ async function startMini() {
   const s = {
     stopped:false, mode, abort:new AbortController(),
     wantVideo:els.videoToggle.checked, facing:els.facing.value,
-    fps:Number(els.fps.value) === 2 ? 2 : 1, videoMode:els.videoMode.value,
+    fps:Number(els.fps.value) === 1 ? 1 : 2, videoMode:els.videoMode.value,visionQuality:els.visionQuality.value==='detail'?'detail':'balanced',
     limit:extras.durationMinutes(els.limit.value),
     silenceMs:extras.silenceDuration(els.pace.value),
     keepConversationGoing:els.keepTalk.checked,
@@ -949,7 +970,8 @@ async function startMini() {
     imagesAllowed:els.pictures.checked && visualCapabilities.imagesAvailable && els.visualToggle.checked,
     awarenessEnabled:els.awarenessToggle.checked && els.videoToggle.checked && Boolean(window.MiniLocalAwareness),
     spokenGreetings:els.spokenGreetings.checked && els.awarenessToggle.checked && els.videoToggle.checked,
-    opening:kids.getOpening(els.language.value,openingRound++),
+    conversationLanguage:window.MiniLanguage.resolve({preferred:els.language.value,device:navigator.languages || [navigator.language]}),
+    opening:kids.getOpening(window.MiniLanguage.resolve({preferred:els.language.value,device:navigator.languages || [navigator.language]}),openingRound++),
     note:extras.boundedNote(els.note.value),
     muted:false, videoPaused:false, channels:new Set(),
     ready:false, updateSent:false, sessionCreated:false, mediaStarted:false, mediaReady:false,
@@ -972,12 +994,13 @@ async function startMini() {
   if (s.mode === 'realtime') s.audioMeter = extras.createVoiceMeter(els.face,{onAudibleChange:audible=>onRemoteAudio(s,audible),canHear:()=>!s.playbackSuppressed && !els.remoteAudio.muted && !els.remoteAudio.paused});
   current = s;
   loading = true;
+  $('sessionEndStatus').textContent='';$('sessionEndStatus').classList.add('hidden');
   render();
   setStatus('Requesting microphone and camera permission…', 'thinking');
   try {
     s.localStream = await navigator.mediaDevices.getUserMedia({
       audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
-      video:s.wantVideo ? {facingMode:{ideal:s.facing},width:{ideal:640},height:{ideal:480},frameRate:{ideal:24,max:30}} : false,
+      video:s.wantVideo ? {facingMode:{ideal:s.facing},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}} : false,
     });
     if (s.stopped) {s.localStream.getTracks().forEach(t => t.stop()); return;}
     s.audioInputTrack = s.localStream.getAudioTracks()[0];
@@ -985,7 +1008,8 @@ async function startMini() {
     if (s.wantVideo) {
       els.preview.srcObject = s.localStream;
       els.preview.classList.toggle('rear', s.facing === 'environment');
-      await els.preview.play().catch(() => {});
+      els.cameraMonitor.srcObject=s.localStream;els.cameraMonitor.classList.toggle('rear',s.facing==='environment');
+      render();resumeCameraPreview(s);startAwareness(s);
     }
     if (s.stopped) return;
     s.timer = setInterval(() => updateSessionClock(s), 500);
@@ -1077,6 +1101,7 @@ async function startMini() {
 function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=false} = {}) {
   const s = current;
   if (!s) return;
+  $('sessionEndStatus').textContent='Last session ended: '+reason;$('sessionEndStatus').classList.remove('hidden');
   s.awareness?.stop();s.awareness=null;els.awarenessStatus.textContent='Local camera reactions off.';
   cancelGeneratedRequest(s);generatedVisuals?.clear();
   if(s.visualGrant){const token=s.visualGrant;s.visualGrant=null;fetch('/api/visual/session',{method:'DELETE',credentials:'same-origin',headers:{'X-Mini-Visual-Session':token},keepalive:true}).catch(()=>{});}
@@ -1096,6 +1121,8 @@ function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=
   cancelCompanionFollowUp(s);
   s.audioMeter?.stop();
   s.micMeter?.stop();
+  clearInterval(s.cameraStatsTimer);
+  clearTimeout(s.drawTimer);
   if (s.drawRaf) cancelAnimationFrame(s.drawRaf);
   for (const channel of s.channels) { try {channel.close();} catch {} }
   try {s.pc?.close();} catch {}
@@ -1104,6 +1131,7 @@ function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=
   s.remoteStream?.getTracks().forEach(track => track.stop());
   els.preview.pause();
   els.preview.srcObject = null;
+  els.cameraMonitor.pause();els.cameraMonitor.srcObject=null;
   els.remoteAudio.pause();
   els.remoteAudio.srcObject = null;
   els.userText.textContent = '—';
@@ -1124,7 +1152,7 @@ function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=
   els.remaining.classList.remove('warning');
   setStatus(reason, reason.includes('failed') || reason.includes('error') || reason.includes('Cannot') ? 'error' : 'idle');
   render();
-  if (gentle) childUI?.onSessionEnded?.(s.language);
+  if (gentle) childUI?.onSessionEnded?.(sessionLanguage(s));
 }
 
 function toggleMute() {
@@ -1218,13 +1246,21 @@ initPreferences();
 initSavedSettings();
 childUI = window.MiniChildUI?.init({
   getSession: () => current,
-  getLanguage: () => els.language.value,
+  getLanguage: () => sessionLanguage(),
   getReactionSounds: () => els.reactionSounds.checked,
   stopSession: (reason, options) => stopMini(reason, options),
   requestActivity,openParentSetup,closeParentSetup,
 });
+function returnToMini(){
+  cancelGeneratedRequest(current);childUI?.stopSpeech();
+  const s=current;if(s){cancelCompanionFollowUp(s);s.contextualFollowUp=null;}
+  if(s && !s.stopped){s.pendingLocalNarration=null;generatedStateChanged(null,{deferContext:true});}
+  resumeCameraPreview(s);
+  const live=s?.ready && s.mode==='realtime';
+  setStatus(s?.muted?'Microphone muted · Mini cannot hear you':live?'Mini is listening':s?'Local preview · no AI connection':'Mini is resting',live && !s.muted?'listening':'idle');render();
+}
 visualActivity=window.MiniBoard.init({
-  getLanguage:()=>current?.language || els.language.value,
+  getLanguage:()=>sessionLanguage(),
   getSession:()=>current,
   onStart:()=>{
     cancelGeneratedRequest(current);generatedVisuals?.clear();
@@ -1236,7 +1272,7 @@ visualActivity=window.MiniBoard.init({
   onChange:game=>{
     const s=current;
     if(s && !s.stopped) {
-      s.activity='tictactoe';s.boardCheckpoint=game;
+      s.contextRefreshDeferred=false;s.activity='tictactoe';s.boardCheckpoint=game;
       s.activityState={...activities.fresh(),kind:'tictactoe',revision:(s.activityState?.revision || 0)+1};
       clearTimeout(s.contextTimer);s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
       renderActivity(s);
@@ -1244,17 +1280,12 @@ visualActivity=window.MiniBoard.init({
     }
     render();
   },
-  onExit:()=>{
-    const s=current;
-    if(s && !s.stopped){s.boardCheckpoint=null;s.activity='chat';s.activityState={...activities.fresh(),revision:(s.activityState?.revision || 0)+1};clearTimeout(s.contextTimer);s.contextTimer=setTimeout(()=>syncActivityContext(s),0);renderActivity(s);}
-    const live=s?.ready && s.mode==='realtime';
-    setStatus(s?.muted?'Microphone muted · Mini cannot hear you':live?'Mini is listening':s?'Local preview · no AI connection':'Mini is resting',live && !s.muted?'listening':'idle');render();
-  },
+  onExit:returnToMini,
   onResult:winner=>childUI?.reactToMiniSpeech?.(winner==='X'?'Great job!':winner==='draw'?'Wow, we filled the board!':'Let’s try another round.'),
   onNarrate:narrateVisual,
 });
 generatedVisuals=window.MiniVisuals.init({
-  getLanguage:()=>current?.language || els.language.value,
+  getLanguage:()=>sessionLanguage(),
   openBoard:()=>visualActivity.open(),
   requestArtwork:requestGeneratedArtwork,
   onStart:()=>{
@@ -1264,13 +1295,7 @@ generatedVisuals=window.MiniVisuals.init({
   onInteraction:choice=>{const s=current;if(s)requestGeneratedVisual(s,'Button interaction: '+JSON.stringify({id:choice.id,label:choice.label}),true,{narrate:true});},
   onStateChange:generatedStateChanged,
   onNarrate:narrateVisual,
-  onExit:()=>{
-    cancelGeneratedRequest(current);
-    if(current)generatedStateChanged(null);
-    if(current?.localVisualTurn && !current.localNarrationForTurn)narrateVisual(current.language==='zh'?'我们继续聊天吧。':'Let’s keep chatting.');
-    const live=current?.ready && current.mode==='realtime';
-    setStatus(current?.muted?'Microphone muted · Mini cannot hear you':live?'Mini is listening':current?'Local preview · no AI connection':'Mini is resting',live && !current.muted?'listening':'idle');render();
-  },
+  onExit:returnToMini,
 });
 els.visualToggle.addEventListener('change',render);
 els.visualPause.addEventListener('click',toggleVisualResponses);
@@ -1285,7 +1310,8 @@ childUI?.onStatus({state:'idle',online:false,running:false});
 
 $('parentSettingsBtn').addEventListener('click',openParentSetup);
 $('closeParentBtn').addEventListener('click',closeParentSetup);
-$('parentSetup').addEventListener('close',()=>{els.code.value='';$('parentSettingsBtn').focus?.();});
+$('parentSetup').addEventListener('close',()=>{els.code.value='';resumeCameraPreview();$('parentSettingsBtn').focus?.();});
+els.cameraSurface.addEventListener('click',()=>resumeCameraPreview());
 $('checkImageModelsBtn').addEventListener('click',async()=>{
   const button=$('checkImageModelsBtn'),label=$('imageModelCheckStatus'),code=els.code.value.trim();els.code.value='';
   if(code.length<10){label.textContent='Enter the parent access code above first (10+ characters).';return;}

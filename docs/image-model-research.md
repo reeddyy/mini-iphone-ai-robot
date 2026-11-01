@@ -1,6 +1,6 @@
 # Image model recommendation for Mini
 
-Researched 1 November 2026. Recommended target: **`qwen-image-3.0`**, one **1024×1024** image per explicit picture request. Keep `qwen-plus` as the separate JSON scene planner. Do not use the image model for voice, game rules or drawing instructions.
+Researched 1 November 2026. Recommended target: **`qwen-image-3.0`**, one **1024×1024** image per explicit picture request. Keep `qwen-plus` as the separate game/story-image coordinator. Do not use the image model for voice or game rules.
 
 Earlier guidance used `qwen-image-plus` without a verified successful Singapore request. The supplied Windows logs return HTTP 404 for it. This research identifies supported newer API IDs and a matching request profile; it does not establish access with your private key.
 

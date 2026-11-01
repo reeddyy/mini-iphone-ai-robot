@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/mini-face.css">
   <link rel="stylesheet" href="/mini-mobile.css">
   <script src="/mini-extras.js" defer></script>
+  <script src="/mini-language.js" defer></script>
   <script src="/mini-kids.js" defer></script>
   <script src="/mini-board.js" defer></script>
   <script src="/mini-visual-schema.js" defer></script>
@@ -17,6 +18,7 @@
   <script src="/mini-local-awareness.js" defer></script>
   <script src="/mini-activities.js" defer></script>
   <script src="/mini-child-ui.js" defer></script>
+  <script src="/mini-camera.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -24,6 +26,7 @@
     <header class="topbar">
       <div class="brand-mark" aria-hidden="true">✦</div>
       <h1>Mini<span class="dot">✦</span></h1>
+      <button id="cameraSurface" class="camera-surface hidden" type="button" aria-label="Camera preview. Tap to resume if paused."><video id="preview" autoplay muted playsinline aria-label="Live camera"></video><span id="cameraSurfaceLabel">Camera</span></button>
       <div id="kidLiveTag" class="kid-live-tag">♡ RESTING</div><button id="parentSettingsBtn" class="parent-settings-button" type="button" aria-label="Open parent settings" aria-haspopup="dialog">⚙</button>
     </header>
     <section class="robot-stage" aria-label="Animated robot face">
@@ -107,13 +110,14 @@
     <section class="panel" aria-label="Live session">
       <div class="section-head"><h2>Start Mini · grown-ups</h2><span id="modeTag" class="tag">CHECKING</span></div>
       <p id="modelDiagnostic" class="kid-model-issue hidden" role="status" aria-live="polite"></p>
+      <p id="sessionEndStatus" class="help hidden" role="status"></p>
       <p id="modeInfo" class="help">Checking server configuration…</p>
       <label class="top-label" for="accessCode">Parent access code</label>
       <p class="help">Required for each paid session. Cleared after connecting.</p>
       <input id="accessCode" class="wide-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Private parent code">
       <div class="settings-grid">
         <label for="language">Reply language</label>
-        <select id="language"><option value="auto">Auto · follow speaker</option><option value="en">Prefer English</option><option value="zh">Prefer Mandarin 中文</option></select>
+        <select id="language"><option value="auto">Auto · English / 中文</option><option value="en">Prefer English</option><option value="zh">Prefer Mandarin 中文</option></select>
         <label for="sessionLimit">Automatic stop</label>
         <select id="sessionLimit"><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes (max)</option></select>
         <label class="toggle-label"><input id="sendVideo" type="checkbox"><span>Allow AI to see the camera (off by default)</span></label>
@@ -128,7 +132,7 @@
       <details class="advanced-setup"><summary>Visual stories, pictures and model setup</summary>
       <div class="settings-grid">
         <label class="toggle-label"><input id="visualResponses" type="checkbox" checked><span>Show visual stories and games · extra paid planning per turn</span></label>
-        <label class="toggle-label"><input id="generatedPictures" type="checkbox" aria-describedby="generatedPicturesInfo"><span>Allow newly generated pictures · separate image charges (off by default)</span></label>
+        <label class="toggle-label"><input id="generatedPictures" type="checkbox" aria-describedby="generatedPicturesInfo"><span>Generate images and animate them · separate image charges (off by default)</span></label>
       </div>
       <p id="visualCapabilityInfo" class="help">Visual planning starts only in a parent-authorized paid session. Maximum 60 plans and 4 pictures per session.</p>
       <p id="visualServiceStatus" class="help" role="status" aria-live="polite">Visual responses have not started.</p>
@@ -141,14 +145,15 @@
         <ol class="help">
           <li>Stop Mini and its Windows server. Open the existing private <code>.env</code> in your project folder.</li>
           <li>Recommended image model: <code>ALIBABA_IMAGE_MODEL=qwen-image-3.0</code>, if enabled in your Singapore workspace. Mini requests one 1024 × 1024 image. Use the exact model ID your account enables; a catalog listing alone does not prove API access. The voice model alone does not generate artwork.</li>
-          <li>Keep the drawing-instruction planner separate: <code>ALIBABA_VISUAL_MODEL=qwen-plus</code>. An image-generation model cannot return the planner's chat instructions.</li>
+          <li>Keep the game and story coordinator separate: <code>ALIBABA_VISUAL_MODEL=qwen-plus</code>. An image-generation model cannot return the planner's chat instructions.</li>
           <li>Save the file, run <code>npm start</code> again and refresh this Safari page. Pulling code does not update your private <code>.env</code>.</li>
-          <li>Before starting a new session, turn on <strong>Show visual stories and games</strong>, then tick <strong>Allow newly generated pictures</strong>.</li>
+          <li>Before starting a new session, turn on <strong>Show visual stories and games</strong>, then tick <strong>Generate images and animate them</strong>.</li>
         </ol>
         <p class="help">The checkbox checks configuration only; it does not test model access or make an image request. Keep your existing API key private.</p>
       </details>
       </details>
       <p class="help">Local reactions use a camera landmark model downloaded from your Mini server (about 11 MB on first use). It tracks visible smiles, a wink and head movement on this device, including during chat and games, without extra cloud checks. This is approximate face geometry, not recognition of people or feelings. Camera video still streams to Qwen during live sharing. Camera pause also pauses local reactions.</p>
+      <p id="cameraPerformance" class="help" role="status">Camera off.</p>
       <p id="awarenessStatus" class="help" role="status">Local camera reactions off.</p>
       <button id="pauseAwarenessBtn" class="outline hidden" type="button">Pause local reactions</button>
       <label class="toggle-label memory-check"><input id="rememberSettings" type="checkbox"><span>Remember these settings on this device. Access codes and camera-sharing choices are never saved.</span></label>
@@ -163,12 +168,14 @@
         <label for="videoMode">Video method</label>
         <select id="videoMode"><option value="canvas">Smooth preview + reduced video (recommended)</option><option value="direct">Direct camera · Safari compatibility</option></select>
         <label for="fps">Video sent to AI</label>
-        <select id="fps"><option value="1">1 frame/sec (recommended)</option><option value="2">2 frames/sec</option></select>
+        <select id="fps"><option value="1">1 frame/sec · lower data</option><option value="2" selected>2 frames/sec · more responsive</option></select>
+        <label for="visionQuality">AI camera detail</label>
+        <select id="visionQuality"><option value="balanced">Balanced · lower data</option><option value="detail">Sharper toys and text · more data</option></select>
         <label for="listenSensitivity">Speech sensitivity</label>
         <select id="listenSensitivity"><option value="quiet" selected>Quiet child · more sensitive</option><option value="normal">Normal voice</option><option value="noisy">Noisy room · less sensitive</option></select>
         <label for="responsePace">Time to finish speaking</label>
         <select id="responsePace"><option value="fast">Quick turn · half a second</option><option value="balanced" selected>A little pause · recommended</option><option value="patient">Extra thinking time</option></select>
-        <label class="toggle-label"><input id="keepConversationGoing" type="checkbox" checked><span>Offer gentle follow-up questions (allow quiet pauses and story endings)</span></label>
+        <label class="toggle-label"><input id="keepConversationGoing" type="checkbox" checked><span>Mini leads playful learning · ideas, encouragement and gentle follow-ups</span></label>
       </div>
       <p class="help cost-note">Mini asks a varied opening question using Safari's voice. Qwen follows your child's interests and choices. With follow-ups enabled, Mini offers one relevant playful suggestion and question. If a visual plan includes a contextual question, Safari may speak it once after a quiet pause, without another model request. Turn follow-ups off for child-led conversation. Say “Mini, stop” or “Mini，别说了” to end a session when speech recognition is available; the Stop button always works. More sensitive listening may hear background noise. Longer sessions cost more. Adding time requires the parent code again. There is no automatic paid reconnect.</p>
       </details>
@@ -215,9 +222,9 @@
     </details>
 
     <section class="panel" aria-label="Live vision">
-      <div class="section-head"><div><h2>3 · Mini's eyes</h2><p>Local preview is smooth; AI sees 1–2 frames per second.</p></div><span class="tag">LIVE VISION</span></div>
+      <div class="section-head"><div><h2>3 · Mini's eyes</h2><p>Smooth local preview; AI sharing has its own frame-rate and detail settings.</p></div><span class="tag">LIVE VISION</span></div>
       <div class="camera-frame">
-        <video id="preview" autoplay muted playsinline aria-label="Camera preview"></video>
+        <video id="cameraMonitor" autoplay muted playsinline aria-label="Larger camera preview"></video>
         <div id="cameraPlaceholder" class="camera-placeholder"><span class="camera-icon">◉</span><span>Camera starts after you tap Start</span></div>
       </div>
       <div class="actions">

@@ -1,7 +1,6 @@
-// Reusable renderer. Qwen composes data; the browser supplies drawing and rules.
+// Reusable renderer. Generated pictures and local animation; interactive games use browser rules.
 (function () {
   'use strict';
-  const NS='http://www.w3.org/2000/svg';
   function handResult(moves,child,mini) {
     const a=moves.find(move=>move.id===child),b=moves.find(move=>move.id===mini);
     if(!a || !b)throw new Error('Unknown hand-game move');
@@ -27,28 +26,9 @@
       $('visualTitle').textContent=plan.title || (lang()==='zh'?'和 Mini 一起看':'Look with Mini');
       $('visualMessage').textContent=plan.message;
       $('visualExit').textContent=lang()==='zh'?'回到 Mini':'Back to Mini';
-      canvas.dataset.aspect=plan.aspect || 'square';canvas.style.backgroundColor=plan.background || '#222b48';
+      canvas.dataset.aspect='square';
       canvas.classList.remove('hidden');
       window.scrollTo({top:0,behavior:'auto'});
-    }
-    function svgElement(name,attrs={}) {const el=document.createElementNS(NS,name);for(const [key,value] of Object.entries(attrs))el.setAttribute(key,String(value));return el;}
-    function draw(nodes) {
-      const svg=svgElement('svg',{viewBox:'0 0 100 100',role:'img','aria-label':plan.title || 'Mini visual scene'});
-      for(const node of nodes) {
-        let el;
-        const paint={fill:node.fill,stroke:node.stroke,'stroke-width':node.strokeWidth};
-        if(node.kind==='ellipse')el=svgElement('ellipse',{cx:node.x,cy:node.y,rx:node.w/2,ry:node.h/2,...paint});
-        if(node.kind==='rect')el=svgElement('rect',{x:node.x-node.w/2,y:node.y-node.h/2,width:node.w,height:node.h,rx:Math.min(node.w,node.h)*.15,...paint});
-        if(node.kind==='line')el=svgElement('line',{x1:node.x,y1:node.y,x2:node.w,y2:node.h,...paint,'stroke-linecap':'round'});
-        if(node.kind==='polygon')el=svgElement('polygon',{points:node.points.map(point=>point.join(',')).join(' '),...paint});
-        if(['text','emoji'].includes(node.kind)) {
-          el=svgElement('text',{x:node.x,y:node.y,'font-size':node.size,'text-anchor':'middle','dominant-baseline':'middle',fill:node.fill});
-          el.textContent=node.text;
-        }
-        const rotate=svgElement('g',{transform:`rotate(${node.rotation} ${node.x} ${node.y})`});
-        const motion=svgElement('g');motion.classList.add('visual-motion-'+node.motion);motion.append(el);rotate.append(motion);svg.append(rotate);
-      }
-      canvas.append(svg);
     }
     function button(label,handler,className='visual-choice') {const el=document.createElement('button');el.type='button';el.className=className;el.textContent=label;el.addEventListener('click',handler);return el;}
     function addChoices() {
@@ -110,28 +90,27 @@
       if(plan.action==='activity' && plan.activity.type==='tictactoe'){options.openBoard?.();return;}
       show();
       if(plan.action==='artwork') {
-        if(plan.fallback){canvas.style.backgroundColor=plan.fallback.background;canvas.dataset.aspect=plan.fallback.aspect;draw(plan.fallback.nodes);artworkStatus='drawing';options.onStateChange?.(describe());}
-        result.textContent=lang()==='zh'?'Mini 正在画画……':'Sketch preview · painting the full picture…';
+        artworkStatus='generating';options.onStateChange?.(describe());
+        result.textContent=lang()==='zh'?'Mini 正在生成图片……':'Making your picture…';
         imageAbort=new AbortController();
         try {
           const blob=await options.requestArtwork(metadata.imageTicket,imageAbort.signal);
           if(epoch!==token || imageAbort.signal.aborted)return;
           if(!['image/png','image/jpeg','image/webp'].includes(blob.type) || blob.size>10*1024*1024)throw new Error('Unsupported picture');
-          objectURL=URL.createObjectURL(blob);const image=document.createElement('img');image.src=objectURL;image.alt=plan.title || (lang()==='zh'?'Mini 画的图':'Mini’s picture');
+          objectURL=URL.createObjectURL(blob);const image=document.createElement('img');image.src=objectURL;image.draggable=false;image.classList.add('visual-motion-'+plan.motion);image.alt=plan.title || (lang()==='zh'?'Mini 画的图':'Mini’s picture');
           await image.decode();if(epoch!==token)return;
           canvas.replaceChildren(image);result.textContent='';artworkStatus='visible';options.onStateChange?.(describe());
         } catch(error) {
           if(epoch===token){
             if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null;}
-            artworkStatus=plan.fallback?'fallback':'failed';
-            result.textContent=plan.fallback?(lang()==='zh'?'先给你看这幅画。':'Sketch only · the full picture is unavailable.'):(error.message || 'Mini could not finish the picture.');
+            artworkStatus='failed';canvas.replaceChildren();
+            result.textContent=error.message || (lang()==='zh'?'图片暂时生成不了，我们还可以聊天。':'The picture couldn’t finish. We can still talk.');
             options.onStateChange?.(describe());
           }
         }
-        finally {if(epoch===token)imageAbort=null;}
+        finally {if(epoch===token){imageAbort=null;addChoices();}}
         return;
       }
-      if(plan.nodes.length)draw(plan.nodes);
       if(plan.action==='activity' && plan.activity.type==='hand_game'){game={round:0,child:0,mini:0,draw:0};nextHandRound(false);}
       else if(plan.action==='activity' && plan.activity.type==='count')renderCount();
       else addChoices();
@@ -139,11 +118,11 @@
       options.onStateChange?.(describe());
     }
     function describe(){return plan?{action:plan.action,title:plan.title,message:plan.message,activity:plan.activity,choices:plan.choices,
-      objects:(plan.nodes || plan.fallback?.nodes || []).filter(node=>node.text).map(node=>node.text),...(artworkStatus?{status:artworkStatus}:{})}:null;}
+      ...(plan.action==='artwork'?{prompt:plan.prompt,motion:plan.motion}:{}),...(artworkStatus?{status:artworkStatus}:{})}:null;}
     $('visualExit').addEventListener('click',()=>clear(true));
     return Object.freeze({apply,clear,isActive:()=>Boolean(plan),current:()=>plan,
       cancelPending:()=>{if(imageAbort){epoch++;imageAbort.abort();imageAbort=null;if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null;}
-        artworkStatus=plan?.fallback?'fallback':'paused';result.textContent=lang()==='zh'?'图片已暂停。':'Picture paused.';options.onStateChange?.(describe());}},
+        artworkStatus='paused';result.textContent=lang()==='zh'?'图片已暂停。':'Picture paused.';options.onStateChange?.(describe());}},
       setBusy:busy=>{for(const el of choices.querySelectorAll('button'))el.disabled=busy;},describe,
       speech:()=>game?.lastNarration || (plan?[plan.message,result.textContent].filter(Boolean).join(' '):'')});
   }

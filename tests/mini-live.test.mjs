@@ -95,6 +95,8 @@ function mockEnvironment() {
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-activities.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-board.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-visual-schema.js',import.meta.url)),'utf8'),ctx);
+  vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-camera.js',import.meta.url)),'utf8'),ctx);
+  vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-language.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(app,ctx);
   const s={
     mode:'realtime',stopped:false,ready:true,mediaReady:true,language:'en',
@@ -775,7 +777,7 @@ test('Automatic board language follows a Mandarin game request',()=>{
 test('Arbitrary spoken requests reach Qwen planning without a visual keyword classifier',async()=>{
   const env=mockEnvironment();env.s.visualsEnabled=true;env.s.visualGrant='test-grant';
   let sent;
-  env.ctx.fetch=async(url,options)=>{sent={url,options};return {ok:true,json:async()=>({plan:{version:1,action:'character',title:'Jellyfish astronaut',nodes:[{kind:'emoji',text:'🪼',size:40}]}})};};
+  env.ctx.fetch=async(url,options)=>{sent={url,options};return {ok:true,json:async()=>({plan:{version:1,action:'artwork',title:'Jellyfish astronaut',prompt:'A jellyfish astronaut by the moon.'}})};};
   emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Become a jellyfish astronaut',item_id:'novel'});
   assert.equal(sent,undefined,'wait for the spoken reply instead of composing a competing story');
   emit(env,'response.created');emit(env,'response.audio_transcript.done',{transcript:'Our jellyfish astronaut is floating beside the moon.'});emit(env,'response.done',{response:{status:'completed'}});
@@ -820,7 +822,7 @@ test('Game moves speak the actual board position while a contradictory remote ga
 });
 test('A visual button continuation narrates the same returned scene message without another model response',async()=>{
   const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});
-  env.ctx.fetch=async()=>({ok:true,json:async()=>({plan:{version:1,action:'scene',title:'Moon rabbit',message:'The rabbit waves beside its rocket.',nodes:[{kind:'emoji',text:'🐇'}]}})});
+  env.ctx.fetch=async()=>({ok:true,json:async()=>({plan:{version:1,action:'artwork',title:'Moon rabbit',message:'The rabbit waves beside its rocket.',prompt:'A rabbit waves beside its rocket.'}})});
   await vm.runInContext('requestGeneratedVisual(testSession,"Button interaction: moon",true,{narrate:true})',env.ctx);
   assert.equal(env.calls.filter(value=>value[0]==='fallback').at(-1)[2],'The rabbit waves beside its rocket.');
   assert.equal(env.visualRenderer.current().message,'The rabbit waves beside its rocket.');assert.equal(env.ctx.document.getElementById('remoteAudio').muted,true);
@@ -858,7 +860,7 @@ test('A later Qwen visual response wins even if an earlier network response arri
   const old=vm.runInContext('requestGeneratedVisual(testSession,"show a cat")',env.ctx);
   const latest=vm.runInContext('requestGeneratedVisual(testSession,"show a spaceship")',env.ctx);
   assert.equal(replies[0].options.signal.aborted,true);
-  const reply=title=>({ok:true,json:async()=>({plan:{version:1,action:'scene',title,nodes:[{kind:'emoji',text:'🚀'}]}})});
+  const reply=title=>({ok:true,json:async()=>({plan:{version:1,action:'artwork',title,prompt:'A friendly spaceship.'}})});
   replies[1].resolve(reply('Spaceship'));await latest;
   replies[0].resolve(reply('Old cat'));await old;
   assert.equal(env.visualRenderer.current().title,'Spaceship');
@@ -874,7 +876,7 @@ test('New speech and stopping cancel pending visual work, revoke the grant, and 
   const pending=vm.runInContext('requestGeneratedVisual(testSession,"show a cat")',env.ctx);
   emit(env,'input_audio_buffer.speech_started');assert.equal(signal.aborted,true);
   vm.runInContext('stopMini()',env.ctx);
-  resolve({ok:true,json:async()=>({plan:{version:1,action:'scene',nodes:[{kind:'emoji',text:'🐱'}]}})});await pending;
+  resolve({ok:true,json:async()=>({plan:{version:1,action:'artwork',prompt:'A friendly cat.'}})});await pending;
   assert.equal(env.visualRenderer.current(),null);assert.equal(revoked,true);assert.equal(env.s.visualGrant,null);
 });
 
@@ -936,7 +938,7 @@ test('Picture permission explains each unavailable state and enables only for a 
   vm.runInContext('visualCapabilities.imagesAvailable=true;render()',env.ctx);
   assert.equal(get('generatedPictures').disabled,false);assert.equal(get('generatedPictures').checked,false);
   vm.runInContext('els.visualToggle.checked=false;render()',env.ctx);
-  assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/Turn on.*visual scenes/);
+  assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/Turn on.*visual stories and games/);
   vm.runInContext('els.visualToggle.checked=true;current=testSession;render()',env.ctx);
   assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/Stop Mini/);
   vm.runInContext("current=null;mode='preview';render()",env.ctx);
@@ -977,7 +979,7 @@ test('Local camera reactions continue during conversation and games, but speech 
 
 test('Contextual follow-ups preserve topic, wait for playback, cancel on speech and respect preference',()=>{
   const env=mockEnvironment();env.s.hadAudibleReply=true;let audible=true;env.s.audioMeter={isAudible:()=>audible};
-  vm.runInContext('generatedVisuals.plan={version:1,action:"scene"};scheduleCompanionFollowUp(testSession,"A blue cat hops along.","A blue cat","completed","Shall the blue cat visit the moon or Mars?")',env.ctx);
+  vm.runInContext('generatedVisuals.plan={version:1,action:"artwork",prompt:"A blue cat"};scheduleCompanionFollowUp(testSession,"A blue cat hops along.","A blue cat","completed","Shall the blue cat visit the moon or Mars?")',env.ctx);
   env.flushTimeouts(6000);assert.equal(env.calls.some(c=>c[0]==='followup'),false);
   audible=false;env.flushTimeouts(1500);assert.deepEqual(env.calls.find(c=>c[0]==='followup').slice(1),['chat','Shall the blue cat visit the moon or Mars?','en']);
   env.calls.length=0;
@@ -1013,4 +1015,52 @@ test('A delayed planner cannot append a second follow-up to the same spoken turn
   vm.runInContext('scheduleCompanionFollowUp(testSession,"A blue cat hops.","A blue cat","completed","Moon or Mars?")',env.ctx);env.flushTimeouts(6000);
   vm.runInContext('scheduleCompanionFollowUp(testSession,"A blue cat hops.","A blue cat","completed","Would it like boots?")',env.ctx);env.flushTimeouts(6000);
   assert.equal(env.calls.filter(c=>c[0]==='followup').length,1);
+});
+
+test('Back to Mini preserves the live camera and microphone without sending a settings update',async()=>{
+  const env=mockEnvironment();let stopped=0,plays=0;
+  const camera={kind:'video',readyState:'live',stop(){stopped++;this.readyState='ended';}},mic=env.s.audioInputTrack;
+  Object.assign(mic,{kind:'audio',readyState:'live',stop(){stopped++;this.readyState='ended';}});
+  const stream={getVideoTracks:()=>[camera],getTracks:()=>[mic,camera]};
+  Object.assign(env.s,{wantVideo:true,localStream:stream,videoOutTrack:camera,pc:{connectionState:'connected',close(){stopped++;}}});
+  env.ctx.document.getElementById('preview').play=()=>{plays++;return Promise.resolve();};
+  await env.visualRenderer.apply({version:1,action:'artwork',prompt:'A friendly cat.'});
+  env.flushTimeouts(0);emit(env,'session.updated');env.sent.length=0;
+  await env.visualRenderer.apply({version:1,action:'clear'});env.flushTimeouts(0);
+  assert.equal(env.sent.length,0,'closing a picture is local, without another session.update');
+  env.s.contextUpdatePending=true;emit(env,'session.updated');env.flushTimeouts(0);assert.equal(env.sent.length,0,'a late previous acknowledgement cannot refresh settings just because a picture closed');assert.equal(stopped,0);assert.equal(env.s.stopped,false);
+  assert.equal(env.s.wantVideo,true);assert.equal(env.s.videoPaused,false);assert.equal(mic.enabled,true);assert.equal(env.s.abort.signal.aborted,false);
+  assert.equal(env.ctx.document.getElementById('preview').srcObject,stream);assert.ok(plays>0);
+  vm.runInContext('stopMini()',env.ctx);assert.equal(camera.readyState,'ended');assert.equal(mic.readyState,'ended');assert.equal(env.ctx.document.getElementById('cameraMonitor').srcObject,null);
+});
+test('An unclassified error from a pending optional context update cannot stop the live session',()=>{
+  const env=mockEnvironment();env.s.contextUpdatePending=true;env.s.wantVideo=true;
+  emit(env,'error',{error:{code:'InvalidParameter',type:'unknown',param:''}});
+  assert.equal(env.s.stopped,false);assert.equal(env.s.contextUpdatePending,false);assert.equal(env.s.contextSyncDisabled,true);
+  assert.equal(env.s.audioInputTrack.enabled,true);assert.equal(env.s.abort.signal.aborted,false);
+  assert.match(env.ctx.document.getElementById('modelDiagnostic').textContent,/checkpoint.*Voice chat remains connected/);
+});
+
+test('Direct camera mode never throttles the source preview track',()=>{
+  const env=mockEnvironment();let constraints=0;
+  const camera={applyConstraints(){constraints++;return Promise.resolve();}};
+  Object.assign(env.s,{wantVideo:true,videoMode:'direct',fps:2,localStream:{getVideoTracks:()=>[camera]}});
+  vm.runInContext('makeVideoTrack(testSession)',env.ctx);
+  assert.equal(env.s.videoOutTrack,camera);assert.equal(constraints,0);
+});
+
+test('Closing a picture cancels its optional play-and-learn invitation',()=>{
+  const env=mockEnvironment();env.s.hadAudibleReply=true;env.s.audioMeter={isAudible:()=>false};
+  vm.runInContext('scheduleCompanionFollowUp(testSession,"A cat is here.","Cat","completed","Let’s be picture detectives. What do you notice first?");returnToMini()',env.ctx);
+  env.flushTimeouts(6000);assert.equal(env.calls.some(c=>c[0]==='followup'),false);
+});
+
+test('An explicit Mandarin switch reaches image coordination and persists through a short English word',async()=>{
+  const env=mockEnvironment();Object.assign(env.s,{language:'en',visualsEnabled:true,visualGrant:'grant'});const requests=[];
+  env.ctx.fetch=async(_url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({plan:{version:1,action:'keep'}})};};
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'请用中文回答'});
+  assert.equal(env.s.conversationLanguage,'zh');assert.equal(env.s.languageOverride,'zh');
+  await vm.runInContext('requestGeneratedVisual(testSession,"给我看一只猫")',env.ctx);assert.equal(requests.at(-1).language,'zh');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'cat'});assert.equal(env.s.conversationLanguage,'zh');
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'English please'});assert.equal(env.s.conversationLanguage,'en');
 });

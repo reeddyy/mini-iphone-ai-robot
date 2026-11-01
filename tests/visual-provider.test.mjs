@@ -8,7 +8,7 @@ test('Ordinary-chat JSON tolerates complete fences and empty optional placeholde
   const plans=['{"version":1,"action":"keep"}','```json\n{"version":1,"action":"keep"}\n```','{"version":1,"action":"keep","title":null,"nodes":[],"choices":[],"activity":null,"background":null,"prompt":null}'];
   for(const content of plans)assert.equal(parseVisualContent(content).action,'keep');
   for(const content of ['{"version":1,"action":"keep","script":null}','{"version":1,"action":"keep","nodes":[{"kind":"text","text":"bad"}]}','Before: {"version":1,"action":"keep"}','{"version":1,"action":"scene","nodes":[{"kind":"image","href":"https://example.com"}]}'])assert.throws(()=>parseVisualContent(content));
-  assert.equal(parseVisualContent('{"version":1,"action":"scene","nodes":[{"kind":"emoji","text":"⭐"}]}').nodes[0].text,'⭐');
+  assert.equal(parseVisualContent('{"version":1,"action":"artwork","prompt":"A shining star.","motion":"pulse"}').motion,'pulse');
 });
 test('Planner HTTP failures expose only bounded codes, status and model, never provider messages or private request text',async()=>{
   for(const [status,code,expected] of [[401,'InvalidApiKey','VISUAL_AUTH'],[403,'AccessDenied','VISUAL_ACCESS'],[404,'ModelNotFound','VISUAL_MODEL_UNAVAILABLE'],[400,'InvalidParameter','VISUAL_REQUEST'],[429,'unknown','VISUAL_RATE_LIMIT'],[503,'private-child-words','VISUAL_PROVIDER_UNAVAILABLE']]) {
@@ -46,12 +46,8 @@ test('Image generation failures identify the artwork stage and storage restricti
   await assert.rejects(generateArtwork({...args,prompt:'A flower',fetchFn:async()=>json({output:{choices:[{message:{content:[{image:'https://127.0.0.1/private'}]}}]}})}),error=>error.code==='IMAGE_DESTINATION');
 });
 
-test('Benign color and size variants normalize without allowing executable fields',()=>{
-  const plan=parseVisualContent(JSON.stringify({version:1,action:'scene',background:'#abc',nodes:[{kind:'ellipse',fill:'pink',stroke:'none',w:120}],followUp:'Should the pink moon glow?'}));
-  assert.equal(plan.background,'#aabbcc');assert.equal(plan.nodes[0].fill,'#ffc0cb');assert.equal(plan.nodes[0].stroke,'none');assert.equal(plan.nodes[0].w,100);
-  for(const node of [{kind:'image',href:'https://example.com'}, {kind:'ellipse',fill:'url(javascript:alert(1))'}, {kind:'text',text:'hi',onclick:'bad'}]){
-    assert.throws(()=>parseVisualContent(JSON.stringify({version:1,action:'scene',nodes:[node]})),error=>error.code==='VISUAL_PLAN_INVALID' && /^[A-Z_]+$/.test(error.details.reason));
-  }
+test('Legacy drawing instructions are rejected instead of becoming a sketch',()=>{
+  for(const content of [{version:1,action:'scene',nodes:[{kind:'emoji',text:'🐱'}]},{version:1,action:'artwork',prompt:'cat',fallback:{nodes:[]}},{version:1,action:'artwork',prompt:'cat',motion:'url(javascript:bad)'}])assert.throws(()=>parseVisualContent(JSON.stringify(content)),error=>error.code==='VISUAL_PLAN_INVALID');
 });
 
 test('Qwen Image 2.0/3.0 use one 1K image on the native API while legacy models retain their resolution',async()=>{
@@ -70,4 +66,13 @@ test('Qwen Image 2.0/3.0 use one 1K image on the native API while legacy models 
     }});
     assert.equal(calls,2,'one generation and one credential-free download, no model retries');assert.equal(image.contentType,'image/png');
   }
+});
+
+test('Unused null fields normalize and malformed artwork reports a safe canonical field',()=>{
+  const valid=parseVisualContent(JSON.stringify({version:1,action:'artwork',title:'Cat',prompt:'A playful kitten.',motion:null,choices:null}));
+  assert.equal(valid.motion,'float');assert.deepEqual(valid.choices,[]);
+  assert.throws(()=>parseVisualContent(JSON.stringify({version:1,action:'artwork',prompt:'cat',motion:'run arbitrary code'})),error=>error.details.reason==='MOTION_VALUE' && error.details.field==='plan.motion');
+  assert.throws(()=>parseVisualContent(JSON.stringify({version:1,action:'artwork',prompt:'cat',private_child_text:'do not log me'})),error=>{
+    assert.equal(error.details.field,'plan');assert.equal(error.details.reason,'UNSUPPORTED_FIELD');assert.doesNotMatch(JSON.stringify(error.details),/private_child|do not log/);return true;
+  });
 });

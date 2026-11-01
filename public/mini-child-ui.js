@@ -75,7 +75,9 @@
       if (!session?.ready || session.stopped) return;
       const mic = session.audioInputTrack;
       const utterance = new window.SpeechSynthesisUtterance(message);
-      utterance.lang = spokenLanguage === 'zh' ? 'zh-CN' : 'en-US';
+      const voice=window.MiniLanguage?.voiceFor(spokenLanguage,window.speechSynthesis.getVoices?.() || []);
+      if(voice)utterance.voice=voice;
+      utterance.lang=voice?.lang || (spokenLanguage==='zh'?'zh-CN':'en-US');
       utterance.rate = 0.9;
       utterance.pitch = 1.05;
       const item = {mic,session,restore:false,guard:null};

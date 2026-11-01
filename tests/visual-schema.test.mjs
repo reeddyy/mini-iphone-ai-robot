@@ -14,28 +14,16 @@ test('Image-generation variants cannot be used as the chat-based visual planner'
   }
   for(const model of ['qwen-plus','qwen-flash','qwen-vl-plus'])assert.equal(visualModelIssue(model),null,'accept other chat models without claiming their account access');
 });
-test('Novel scenes and character faces use generic drawing primitives, not a subject enum',()=>{
-  for(const title of ['A cat with starry whiskers','A jellyfish astronaut','Three purple submarines']) {
-    const scene=validateVisualPlan({version:1,action:'character',title,nodes:[
-      {kind:'ellipse',x:50,y:50,w:70,h:60,fill:'#ffeedd'},
-      {kind:'polygon',points:[[20,35],[30,10],[40,35]],fill:'#ffbbcc'},
-      {kind:'line',x:30,y:60,w:10,h:54,stroke:'#302a51',strokeWidth:1},
-      {kind:'text',text:'<hello> 你好',x:50,y:90,size:7,fill:'#ffffff'},
-    ]});
-    assert.equal(scene.title,title);assert.equal(scene.nodes.length,4);
-    assert.equal(scene.nodes[3].text,'<hello> 你好');
-    assert.equal(validateVisualPlan(scene).nodes.length,4,'normalized plans remain valid at the browser boundary');
+test('Novel subjects use generated-image prompts and allowlisted animation',()=>{
+  for(const title of ['A cat with starry whiskers','A jellyfish astronaut','Three purple submarines']){
+    const plan=validateVisualPlan({version:1,action:'artwork',title,prompt:title,motion:'wiggle',choices:[{id:'moon',label:'Visit the moon'}]});
+    assert.equal(plan.prompt,title);assert.equal(plan.motion,'wiggle');assert.equal(validateVisualPlan(plan).choices[0].id,'moon');
   }
 });
-test('Executable markup, remote assets and unbounded geometry cannot enter a scene',()=>{
-  for(const node of [
-    {kind:'script',text:'alert(1)'},{kind:'rect',onclick:'alert(1)'},{kind:'rect',style:'position:fixed'},
-    {kind:'ellipse',fill:'url(https://example.com)'},{kind:'image',href:'https://example.com'},
-    {kind:'text',text:'a'.repeat(81)},{kind:'ellipse',x:Infinity},{kind:'polygon',points:[[0,0],[1,1],[999,3]]},
-  ])assert.throws(()=>validateVisualPlan({version:1,action:'scene',nodes:[node]}));
-  assert.throws(()=>validateVisualPlan({version:1,action:'scene',nodes:Array(33).fill({kind:'rect'})}));
+test('Generated markup, nodes, arbitrary motion and remote image URLs cannot enter the protocol',()=>{
+  for(const extra of [{nodes:[]},{fallback:{nodes:[]}},{html:'<svg></svg>'},{src:'https://example.com/cat.png'},{motion:'position:fixed'}])assert.throws(()=>validateVisualPlan({version:1,action:'artwork',prompt:'A kitten',...extra}));
   assert.throws(()=>validateVisualPlan(JSON.parse('{"version":1,"action":"keep","__proto__":{}}')));
-  assert.throws(()=>validateVisualPlan({version:1,action:'keep',nodes:[]}));
+  assert.throws(()=>validateVisualPlan({version:1,action:'artwork',prompt:'a'.repeat(801)}));
 });
 test('Hand-game rules are complete, unambiguous and limited before play',()=>{
   const plan=validateVisualPlan(duel);assert.equal(plan.activity.moves.length,3);
@@ -56,9 +44,6 @@ test('Counts, choices and artwork have separate bounded contracts',()=>{
   assert.throws(()=>validateVisualPlan({version:1,action:'artwork',prompt:'cat',nodes:[]}));
   assert.equal(validateVisualPlan({version:1,action:'artwork',prompt:'A gentle moon cat.'}).prompt,'A gentle moon cat.');
 });
-test('Artwork fallback drawings use the same strict primitives and cannot contain executable or remote content',()=>{
-  const value={version:1,action:'artwork',prompt:'A moon cat',fallback:{nodes:[{kind:'emoji',text:'🐈'}]}};
-  assert.equal(validateVisualPlan(validateVisualPlan(value)).fallback.nodes[0].text,'🐈');
-  for(const fallback of [{nodes:[{kind:'image',href:'https://example.com'}]},{nodes:[],html:'<script>bad</script>'},{nodes:[{kind:'rect',onclick:'bad'}]}])assert.throws(()=>validateVisualPlan({...value,fallback}));
-  assert.throws(()=>validateVisualPlan({version:1,action:'keep',fallback:value.fallback}));
+test('Generated artwork never accepts sketch fallbacks or nodes',()=>{
+  for(const action of ['artwork','keep','activity'])assert.throws(()=>validateVisualPlan({version:1,action,prompt:'A moon cat',fallback:{nodes:[{kind:'emoji',text:'🐈'}]}}));
 });

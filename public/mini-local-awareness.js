@@ -14,35 +14,35 @@
       rightEye:distance(points[386],points[374])/distance(points[362],points[263])};
   }
   function createPolicy() {
-    let previous=null,streak=0,lastCue=-Infinity,lastSeen=-Infinity,lastHello=-Infinity,hellos=0,smiling=false;
+    let previous=null,motionAnchor=null,streak=0,lastCue=-Infinity,lastSeen=-Infinity,lastHello=-Infinity,hellos=0,smiling=false;
     return {accept(points,now,spoken=false){
       const g=geometry(points);
-      if(!g){streak=0;previous=null;smiling=false;return {face:false};}
+      if(!g){streak=0;previous=null;motionAnchor=null;smiling=false;return {face:false};}
       const arriving=now-lastSeen>10000;lastSeen=now;
       streak=g.smile?streak+1:0;
       const wink=Math.min(g.leftEye,g.rightEye)<.11 && Math.max(g.leftEye,g.rightEye)>.23;
-      const moving=previous && (Math.hypot(g.x-previous.x,g.y-previous.y)>.035 || Math.abs(g.tilt-previous.tilt)>.12);
+      const moving=motionAnchor && (Math.hypot(g.x-motionAnchor.x,g.y-motionAnchor.y)>.035 || Math.abs(g.tilt-motionAnchor.tilt)>.12);
       let cue=streak>=2 && !smiling?'smile':wink?'wink':moving?'motion':arriving?'hello':null;
       if(!g.smile)smiling=false;
-      previous=g;
-      if(now-lastCue<6000)cue=null;
-      if(cue){if(cue!=='hello')lastCue=now;if(cue==='smile')smiling=true;}
+      previous=g;motionAnchor ||= g;
+      if(now-lastCue<1500)cue=null;
+      if(cue){if(cue==='motion')motionAnchor=g;if(cue!=='hello')lastCue=now;if(cue==='smile')smiling=true;}
       const speak=Boolean(cue==='hello' && spoken && hellos<2 && now-lastHello>=60000);
       if(speak){hellos++;lastHello=now;}
-      return {face:true,lookX:Math.max(-8,Math.min(8,(.5-g.x)*22)),lookY:Math.max(-5,Math.min(5,(g.y-.5)*14)),tilt:Math.max(-5,Math.min(5,-g.tilt*30)),cue,spoken:speak};
+      return {face:true,smiling:g.smile,lookX:Math.max(-8,Math.min(8,(.5-g.x)*22)),lookY:Math.max(-5,Math.min(5,(g.y-.5)*14)),tilt:Math.max(-5,Math.min(5,-g.tilt*30)),cue,spoken:speak};
     }};
   }
   function start(options) {
-    let stopped=false,paused=false,busy=false,ready=false,worker=null,timer=null,lastState='',epoch=0,jobEpoch=0,loadingTimer=null;
     const policy=createPolicy(),now=options.now || Date.now;
+    let stopped=false,paused=false,busy=false,ready=false,worker=null,timer=null,lastState='',epoch=0,jobEpoch=0,loadingTimer=null,lastJob=-Infinity,processing=0,lastMetrics=0,completed=0,warmupFrames=0,metricsSince=now();
     const status=(state,message)=>{if(lastState!==state){lastState=state;options.onStatus?.({state,message});}};
     const reset=()=>options.onLook?.(null);
     function failed(){if(stopped)return;clearTimeout(loadingTimer);(options.clearInterval || clearInterval)(timer);paused=true;busy=false;reset();worker?.terminate();worker=null;status('error','Local reactions could not run. Use Retry local reactions or update Safari. Voice and camera sharing can continue.');}
     async function tick() {
-      if(stopped || paused || busy || !ready)return;
+      if(stopped || paused || busy || !ready || now()-lastJob<Math.max(160,processing*1.5))return;
       if(!options.allowed()){epoch++;reset();status('waiting','Local reactions waiting for the camera.');return;}
       if(!options.video.videoWidth || options.video.readyState<2)return;
-      busy=true;const version=epoch;
+      busy=true;lastJob=now();const version=epoch;
       try{
         const bitmap=await (options.capture || createImageBitmap)(options.video);
         if(stopped || paused || version!==epoch || !options.allowed()){bitmap.close();busy=false;return;}
@@ -56,8 +56,8 @@
       worker.onmessage=({data})=>{
         if(stopped)return;
         if(data.type==='error'){failed();return;}
-        if(data.type==='ready'){clearTimeout(loadingTimer);ready=true;timer=(options.setInterval || setInterval)(tick,250);tick();return;}
-        if(data.type==='done'){busy=false;return;}
+        if(data.type==='ready'){clearTimeout(loadingTimer);ready=true;timer=(options.setInterval || setInterval)(tick,80);tick();return;}
+        if(data.type==='done'){const elapsed=now()-lastJob;warmupFrames++;processing=warmupFrames<=2?0:processing?processing*.7+elapsed*.3:elapsed;busy=false;completed++;if(now()-lastMetrics>=1000){options.onMetrics?.({fps:Number((completed*1000/Math.max(1,now()-metricsSince)).toFixed(1)),processingMs:Math.round(elapsed)});lastMetrics=now();metricsSince=now();completed=0;}return;}
         if(data.type!=='landmarks' || jobEpoch!==epoch || paused || !options.allowed())return;
         const cue=policy.accept(data.points,now(),options.spoken && options.canSpeak?.());
         options.onLook?.(cue.face?cue:null);

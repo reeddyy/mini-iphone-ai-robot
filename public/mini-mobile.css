@@ -56,3 +56,15 @@ button:focus-visible,summary:focus-visible{outline:3px solid #fbd89d;outline-off
   .shell[data-visual-activity] .board-footer{flex-wrap:wrap}.shell[data-visual-activity] .board-footer p{font-size:10px}.shell[data-visual-activity] .board-help{font-size:12px}
   .shell[data-visual-activity] .visual-choice{min-width:52px;font-size:12px;padding:6px;min-height:44px}.shell[data-visual-activity] .visual-hand-choice>span:first-child{font-size:25px}
 }
+/* Keep the camera source rendered outside the parent dialog throughout capture. */
+.camera-surface{position:relative;flex:none;width:54px;height:44px;padding:0;overflow:hidden;border:1px solid #9ad6bc77;border-radius:12px;background:#101626}
+.camera-surface video{display:block;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}.camera-surface video.rear{transform:none}
+.camera-surface span{position:absolute;bottom:1px;left:0;right:0;color:white;background:#080b1d99;font-size:8px;line-height:12px;text-align:center;pointer-events:none}
+#visualCanvas img{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+@media(max-width:350px){.topbar{gap:6px}.camera-surface{width:44px}}
+.parent-setup .camera-frame video{object-fit:contain;background:#080b1d}
+.robot-stage #robotFace[data-camera-tracking] .eye :is(.pupil,.glint){transition:transform .1s linear}
+.robot-stage #robotFace[data-camera-smile="true"]:not(.speaking):not([data-local-voice="true"]) .mouth{width:46px;height:25px;border-bottom-width:6px}
+.robot-stage #robotFace[data-camera-smile="true"] .mini-cheek{opacity:.9}
+.visual-canvas>img{will-change:transform}
+@media(prefers-reduced-motion:reduce){.visual-canvas>img{will-change:auto}}

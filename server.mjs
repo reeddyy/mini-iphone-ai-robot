@@ -1,5 +1,6 @@
 import http from 'node:http';
 import {readImageModels} from './model-catalog.mjs';
+import {directPicturePlan} from './picture-request.mjs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +12,8 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const STATIC = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
+  ['/mini-language.js', ['mini-language.js', 'text/javascript; charset=utf-8']],
+  ['/mini-camera.js', ['mini-camera.js', 'text/javascript; charset=utf-8']],
   ['/mini-extras.js', ['mini-extras.js', 'text/javascript; charset=utf-8']],
   ['/mini-kids.js', ['mini-kids.js', 'text/javascript; charset=utf-8']],
   ['/mini-activities.js', ['mini-activities.js', 'text/javascript; charset=utf-8']],
@@ -184,12 +187,13 @@ export function createApp({
         const disconnected=()=>{if(!res.writableEnded)controller.abort();};res.on('close',disconnected);
         try {
           if(kind==='plan') {
-            const plan=await planVisual({fetchFn,base,apiKey,model:visualModel,request:body.request,spokenReply:body.spokenReply || '',scene,
-              language:['en','zh','auto'].includes(body.language)?body.language:'auto',imagesAllowed:grant.imagesAllowed && !imageFailure,followUpsAllowed:body.followUpsAllowed===true,signal:controller.signal});
+            const pictureOptions={request:body.request,spokenReply:body.spokenReply || '',language:['en','zh','auto'].includes(body.language)?body.language:'auto',imagesAllowed:grant.imagesAllowed && !imageFailure && grant.images<4,followUpsAllowed:body.followUpsAllowed===true,pictureIndex:grant.images};
+            const plan=directPicturePlan(pictureOptions) || await planVisual({fetchFn,base,apiKey,model:visualModel,scene,
+              ...pictureOptions,followUpsAllowed:body.followUpsAllowed===true,signal:controller.signal});
             if(controller.signal.aborted || !visualSessions.has(token))throw Error('Cancelled');
             let imageTicket;
             if(plan.action==='artwork') {
-              if(!grant.imagesAllowed || imageFailure)return json(res,403,{error:'Generated pictures are not enabled. Mini can still draw with shapes.'});
+              if(!pictureOptions.imagesAllowed)return json(res,200,{plan:{version:1,action:'keep',message:'Pictures are unavailable for this session. We can still talk.'}});
               imageTicket=randomBytes(16).toString('hex');grant.ticket={id:imageTicket,prompt:plan.prompt};
             }
             return json(res,200,{plan,...(imageTicket?{imageTicket}:{})});
@@ -299,7 +303,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       process.exitCode = 1;
     });
     app.listen(port, '127.0.0.1', () => {
-      console.log(`Mini V6.5: http://localhost:${port}`);
+      console.log(`Mini V6.6: http://localhost:${port}`);
       console.log(process.env.ALIBABA_API_KEY ? 'AI mode: pay-as-you-go Qwen realtime' : 'AI mode: LOCAL PREVIEW ONLY (no AI charges)');
       console.log('For iPhone Safari, use a protected HTTPS tunnel. Do not use a Token Plan key.');
     });

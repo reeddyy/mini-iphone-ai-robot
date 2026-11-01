@@ -7,9 +7,9 @@ function environment(overrides={}) {
   function element() {
     const classes=new Set(),events={};
     return {children:[],dataset:{},style:{},textContent:'',disabled:false,
-      classList:{add:()=>{},remove:()=>{},contains:name=>classes.has(name)},
+      classList:{add:name=>classes.add(name),remove:name=>classes.delete(name),contains:name=>classes.has(name)},
       replaceChildren(...nodes){this.children=nodes;},append(...nodes){this.children.push(...nodes);},
-      get childNodes(){return this.children;},setAttribute(){},
+      get childNodes(){return this.children;},setAttribute(){},decode:()=>Promise.resolve(),
       addEventListener(type,fn){events[type]=fn;},click(){if(!this.disabled)events.click?.();},querySelectorAll(){return this.children;},
     };
   }
@@ -66,12 +66,12 @@ test('Leaving a pending picture aborts it and a late result cannot replace the n
   resolve({type:'image/png',size:10});await pending;
   assert.equal(env.renderer.current().title,'Three apples');assert.equal(env.get('visualCanvas').children[0].children.length,3);
 });
-test('An image-service failure leaves the matching fallback drawing visible without another provider request',async()=>{
+test('An image-service failure shows no sketch or substitute drawing',async()=>{
   let requests=0;
   const env=environment({requestArtwork:async()=>{requests++;throw Error('Image unavailable');}});
-  await env.renderer.apply({version:1,action:'artwork',title:'Moon cat',message:'Our cat is on the moon.',prompt:'A cat on the moon',fallback:{nodes:[{kind:'emoji',text:'🐈'}]}},{imageTicket:'ticket'});
-  assert.equal(requests,1);assert.equal(env.get('visualCanvas').children.length,1);assert.equal(env.states.at(-1).status,'fallback');
-  assert.equal(env.renderer.describe().objects[0],'🐈');assert.match(env.renderer.speech(),/cat is on the moon.*Sketch only/);
+  await env.renderer.apply({version:1,action:'artwork',title:'Moon cat',message:'Our cat is on the moon.',prompt:'A cat on the moon'},{imageTicket:'ticket'});
+  assert.equal(requests,1);assert.equal(env.get('visualCanvas').children.length,0);assert.equal(env.states.at(-1).status,'failed');
+  assert.match(env.renderer.speech(),/cat is on the moon.*Image unavailable/);
 });
 test('Spoken counts and hand-game results are taken from the same state rendered on screen',async()=>{
   const spoken=[],env=environment({onNarrate:text=>spoken.push(text)});
@@ -83,4 +83,12 @@ test('Spoken counts and hand-game results are taken from the same state rendered
   await env.renderer.apply({version:1,action:'activity',activity:{type:'count',count:3,symbol:'🍎',label:'apple'}});
   env.get('visualCanvas').children[0].children[0].click();
   assert.equal(spoken.at(-1),'1 of 3.');assert.equal(env.get('visualResult').textContent,'1 / 3');
+});
+
+test('Generated pictures animate with an allowlisted motion and retain their story choices',async()=>{
+  const env=environment({requestArtwork:async()=>({type:'image/png',size:10})});
+  await env.renderer.apply({version:1,action:'artwork',prompt:'A dancing kitten.',motion:'wiggle',choices:[{id:'moon',label:'Dance on the moon'}]},{imageTicket:'ticket'});
+  const image=env.get('visualCanvas').children[0];assert.equal(image.src,'blob:fixture');assert.equal(image.classList.contains('visual-motion-wiggle'),true);
+  assert.equal(env.states.at(-1).status,'visible');env.get('visualChoices').children[0].click();assert.equal(env.interactions[0].id,'moon');
+  env.get('visualExit').click();assert.equal(env.renderer.isActive(),false);assert.deepEqual(env.revoked,['blob:fixture']);
 });

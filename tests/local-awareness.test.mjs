@@ -37,3 +37,9 @@ test('A greeting does not delay the first smile; pause discards in-flight landma
   worker.onmessage({data:{type:'ready'}});await new Promise(resolve=>setImmediate(resolve));
   tracker.toggle();tracker.toggle();worker.onmessage({data:{type:'landmarks',points:face(true)}});assert.equal(looks.at(-1),null);tracker.stop();
 });
+
+test('Gentle cumulative head motion is noticed instead of requiring a single-frame jerk',()=>{
+  const policy=api().createPolicy();policy.accept(face(),0);let latest;
+  for(let i=1;i<=4;i++){const points=face().map(p=>({...p,x:p.x+i*.01}));latest=policy.accept(points,i*250);}
+  assert.equal(latest.cue,'motion');
+});
