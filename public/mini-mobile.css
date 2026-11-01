@@ -1,0 +1,58 @@
+/* A single conversation stage, with parent controls in a native modal sheet. */
+:root{color-scheme:dark;--dock-height:82px}
+body{margin:0;background:radial-gradient(ellipse at 50% 30%,#30304e 0,#171d31 48%,#101626 100%);overscroll-behavior:none}
+.shell{width:100%;max-width:660px;min-height:100svh;height:100dvh;display:flex;flex-direction:column;margin:auto;padding:calc(12px + env(safe-area-inset-top)) 22px calc(var(--dock-height) + env(safe-area-inset-bottom));overflow:hidden}
+.topbar{flex:none;gap:10px;margin:0;padding:0;min-height:48px;align-items:center}
+.topbar .brand-mark{display:none}.topbar h1{font-size:25px;letter-spacing:-1px}.topbar .dot{font-size:17px;margin-left:3px;color:#f9c5b7}
+.kid-live-tag{font-size:9px;letter-spacing:.06em;padding:7px 9px;background:#ffffff08;border-color:#ffffff20;color:#bfbcd6}
+.parent-settings-button{flex:none;display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid #ffffff29;background:#ffffff08;color:#e5dff4;font-size:25px;border-radius:50%}
+.robot-stage{flex:1;min-height:270px!important;height:auto;display:flex;flex-direction:column;justify-content:center;align-items:center;margin:0!important;padding:34px 0 8px;position:relative}
+.robot-stage #robotFace{flex:none;margin:0 auto;animation:mini-float 5s ease-in-out infinite}
+.robot-stage .halo{top:30%;left:calc(50% - 120px);width:240px;height:240px;background:#b6a1ff;filter:blur(75px);opacity:.18}
+.robot-stage .status{margin:24px 0 0;font-size:12px;line-height:1.45;color:#c2c1d7;max-width:100%;text-align:center;background:none;border:0;padding:0;min-height:18px}
+#faceTip,#kidGameMode,.kid-parent-note,.shell>footer{display:none!important}
+.kid-home{flex:none;width:100%;max-width:540px;padding:0;margin:0 auto;text-align:center}
+.kid-home .kid-hint{font-size:clamp(18px,4.8vw,23px);line-height:1.4;font-weight:600;min-height:56px;max-width:330px;margin:5px auto 10px;color:#f1eafa}
+.kid-home .sharing-notice{font-size:11px;color:#b4c6c9;margin:8px 0;min-height:16px}
+.kid-session-notice{font-size:13px;margin:5px 0}.activity-progress{margin:4px 0}
+.kid-lower{position:fixed;bottom:0;left:0;right:0;z-index:15;display:flex;justify-content:center;gap:12px;padding:12px 22px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(0deg,#101626 70%,#10162600)}
+.kid-lower #kidParentLink,.kid-lower #kidStopBtn{position:static!important;width:min(100%,320px);min-height:52px;border-radius:20px;margin:0;box-shadow:0 6px 20px #080b1d40;font-size:17px;display:block;visibility:visible}
+.kid-lower #kidParentLink{background:#e0d2ff;color:#302440;border:1px solid #f0e6ff;font-weight:750}.kid-lower #kidStopBtn{background:#313047;border:1px solid #736779;color:#f8d8df}
+.shell[data-visual-activity] .kid-lower #kidParentLink{display:block}
+button:focus-visible,summary:focus-visible{outline:3px solid #fbd89d;outline-offset:3px}button,summary{-webkit-tap-highlight-color:transparent}button{touch-action:manipulation}
+.parent-setup{position:fixed;inset:auto 0 0;margin:0 auto;width:min(100%,620px);max-height:92dvh;overflow-y:auto;overscroll-behavior:contain;padding:0 18px calc(24px + env(safe-area-inset-bottom));border:1px solid #82758d;border-bottom:0;border-radius:28px 28px 0 0;background:#172033;color:#eee8fa;text-align:left;box-sizing:border-box;z-index:40}
+.parent-setup::backdrop{background:#080b1dcc;backdrop-filter:blur(6px)}
+.parent-sheet-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:16px 0 12px;background:#172033;border-bottom:1px solid #ffffff1a}
+.parent-sheet-header h2{font-size:21px}.parent-sheet-header button{min-width:65px;min-height:44px;margin:0;padding:8px 13px;border-radius:14px}
+.parent-setup .panel{margin:15px 0;padding:15px;border-radius:18px}.parent-intro{margin:12px 3px!important}.parent-setup .help{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.parent-setup .settings-grid label{font-size:14px;line-height:1.45}.toggle-label input{flex:none;width:23px;height:23px;margin:0;accent-color:#bdb0ff}.toggle-label{min-height:44px}
+.parent-setup select,.parent-setup input,.parent-setup textarea{font-size:16px}.parent-setup select{padding:10px 7px}.parent-setup button{min-height:44px}
+.parent-setup .actions{flex-wrap:wrap}.parent-setup .parent-diagnostics{margin:12px 0}.parent-setup .session-actions{position:sticky;bottom:-1px;z-index:1;padding:12px 0;background:#172033}
+.shell[data-visual-activity] .robot-stage{flex:none;height:91px;min-height:91px!important;padding:0;margin:0!important}
+.shell[data-visual-activity] .robot-stage #robotFace{top:-71px;left:50%;transform:translateX(-50%) scale(.34);animation:none;transform-origin:50% 50%}
+.shell[data-visual-activity] .robot-stage .status{position:absolute;bottom:3px;max-width:100%;font-size:11px;margin:0}
+.shell[data-visual-activity] #kidLiveTag{visibility:visible!important}
+.shell[data-visual-activity] .kid-home{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.shell[data-visual-activity] .sharing-notice{margin:0 0 4px}
+.visual-scene,.board-activity{margin:2px 0 8px;padding:14px;border-radius:22px;text-align:left}
+.board-heading{gap:8px}.board-heading h2{font-size:20px}.board-exit{font-size:11px;min-height:44px;padding:8px}
+.board-help{font-size:13px;line-height:1.4;margin:7px 0}.board-status{font-size:16px;line-height:1.35;min-height:22px;margin:6px 0}
+.tic-board{max-width:min(100%,34dvh);margin:auto;gap:7px}.tic-board button{min-height:48px;border-radius:14px}.board-footer{margin-top:10px;gap:8px}
+.visual-canvas{max-width:min(100%,33dvh);margin:auto;aspect-ratio:1}.visual-canvas[data-aspect="wide"]{max-width:min(100%,44dvh);aspect-ratio:4/3}
+.visual-result{font-size:14px;min-height:0;margin:8px 0}.visual-result:empty{display:none}.visual-choices{gap:8px;margin:9px 0 0}.visual-choice{font-size:15px;min-width:75px;min-height:48px;padding:9px}
+.visual-scene[data-type="hand_game"] .visual-canvas{max-width:100%;min-height:110px}.visual-hand-card>span{font-size:45px}.visual-hand-prompt{font-size:17px;padding:8px}.visual-hand-choice>span:first-child{font-size:32px}
+.visual-request-status{margin:4px 0 8px;font-size:12px}.kid-audio{margin:8px auto;min-height:44px;font-size:15px}
+@media(max-height:680px){.robot-stage{min-height:225px!important;padding-top:26px}.robot-stage #robotFace{zoom:.85}.robot-stage .status{margin-top:16px}.kid-home .kid-hint{min-height:44px;font-size:18px}.shell[data-visual-activity] .robot-stage{height:75px;min-height:75px!important}.shell[data-visual-activity] .robot-stage #robotFace{zoom:1;top:-77px;transform:translateX(-50%) scale(.29)}.visual-scene,.board-activity{padding:10px}.board-heading h2{font-size:17px}.tic-board{max-width:29dvh}}
+@media(max-width:350px){.shell{padding-left:14px;padding-right:14px}.parent-setup{padding-left:12px;padding-right:12px}.parent-setup .panel{padding:12px}.settings-grid{grid-template-columns:minmax(88px,38%) 1fr}.kid-live-tag{font-size:8px}}
+@media(orientation:landscape) and (max-height:500px){.shell{max-width:850px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:46px 1fr;padding-bottom:calc(var(--dock-height) + env(safe-area-inset-bottom))}.topbar{grid-column:1/-1}.robot-stage{min-height:0!important;padding:0}.robot-stage #robotFace{zoom:.65}.robot-stage .status{margin-top:14px}.kid-home{align-self:center;max-height:100%;overflow:auto}.shell[data-visual-activity] .robot-stage{height:100%!important}.shell[data-visual-activity] .robot-stage #robotFace{top:0;transform:translateX(-50%) scale(.5)}.shell[data-visual-activity] .kid-home{align-self:stretch}.tic-board{max-width:40dvh}.visual-canvas{max-width:44dvh}.kid-home .kid-hint{min-height:0}}
+@media(prefers-reduced-motion:reduce){.robot-stage #robotFace{animation:none!important}.parent-setup::backdrop{backdrop-filter:none}}
+.parent-setup{max-width:620px;max-height:92dvh}.parent-setup .session-actions{position:static;padding:0;background:none}
+.parent-setup .settings-grid{grid-template-columns:minmax(88px,36%) 1fr}
+@media(orientation:landscape) and (max-height:500px){
+  .shell[data-visual-activity] :is(.board-activity,.visual-scene){display:grid;grid-template-columns:minmax(120px,43%) 1fr;gap:5px 10px;margin-top:0}
+  .shell[data-visual-activity] .board-heading{grid-column:1/-1}.shell[data-visual-activity] .board-heading h2{font-size:17px}
+  .shell[data-visual-activity] :is(.tic-board,.visual-canvas){grid-column:1;grid-row:2/5;width:100%;max-width:140px;align-self:center}
+  .shell[data-visual-activity] .tic-board button{min-height:40px}.shell[data-visual-activity] :is(.board-help,.board-status,.board-footer,.visual-result,.visual-choices){grid-column:2;margin:2px 0}
+  .shell[data-visual-activity] .board-footer{flex-wrap:wrap}.shell[data-visual-activity] .board-footer p{font-size:10px}.shell[data-visual-activity] .board-help{font-size:12px}
+  .shell[data-visual-activity] .visual-choice{min-width:52px;font-size:12px;padding:6px;min-height:44px}.shell[data-visual-activity] .visual-hand-choice>span:first-child{font-size:25px}
+}

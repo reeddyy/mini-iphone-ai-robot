@@ -1,5 +1,16 @@
 # Changelog
 
+## V6.5 — Local reactions and a clearer mobile companion
+
+- Replace cloud-gated camera reactions in the current UI with pinned on-device Face Mesh in a dedicated worker. Track visible smile/wink and head position/movement during chat and games; retain quiet-only optional hellos, parent consent and media teardown. No extra vision calls, identity recognition or emotion classification.
+- Add a native parent settings sheet with focus management, thumb-accessible Start/Stop, responsive portrait/landscape game layouts, and parent-only provider diagnostics. Free local activities move into settings.
+- Open explicit tic-tac-toe immediately without a planner round trip. Preserve canonical local game narration and speech/scene alignment.
+- Normalize safe planner colour/size variants; supply bounded schema failure reasons and permit one explicit-turn recovery before pausing repeated invalid plans. Disable thinking for JSON output and provider prompt expansion for artwork.
+- Label sketch previews/fallbacks honestly. Cache persistent artwork access/model failures across sessions until server restart; do not silently retry or substitute image models.
+- Add parent-authorized, read-only account model metadata checks. These never generate a picture or prove regional generation entitlement.
+- Strengthen topic-specific play suggestions; optional contextual follow-ups come from the same planner response, wait for quiet, cancel on input and have bounded per-session use.
+- Validation: unit/API regressions plus Chromium mobile and real local landmark inference using a public-domain adult fixture. No paid Qwen calls, private child imagery or physical iPhone tests. Account-specific image generation remains unverified.
+
 ## Unreleased — Child controls and gentler conversation
 
 - Route artwork through the documented Singapore native API with the workspace header, retain an explicit workspace-route option and include the chosen route in diagnostics. Add validated artwork fallback drawings, replace them on successful image decode, and disable further paid image calls after a model/access/quota rejection for the current grant.

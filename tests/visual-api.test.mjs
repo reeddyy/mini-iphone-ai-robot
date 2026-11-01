@@ -54,7 +54,7 @@ test('An image model in the planner setting produces actionable setup guidance w
     assert.equal(config.mode,'realtime','voice must stay available');assert.equal(config.awareness.available,true);
     assert.equal(config.visuals.available,false);assert.equal(config.visuals.imagesAvailable,false);
     assert.match(config.visuals.configurationError,/ALIBABA_VISUAL_MODEL=qwen-plus/);
-    assert.match(config.visuals.configurationError,/ALIBABA_IMAGE_MODEL=qwen-image-plus/);
+    assert.match(config.visuals.configurationError,/ALIBABA_IMAGE_MODEL separately/);
     const token=await start();
     for(let i=0;i<3;i++){
       const response=await post('/api/visual/plan',token,{request:'Hello Mini'});assert.equal(response.status,400);
@@ -104,7 +104,7 @@ test('Generated artwork requires per-session consent and a single-use planner ti
     assert.equal(calls.filter(call=>call.url.includes('/multimodal-generation/')).length,1);
   });
 });
-test('An unavailable image model disables further artwork calls for its grant and future plans use drawings',async()=>{
+test('An unavailable image model disables further artwork calls across new grants until server restart and future plans use drawings',async()=>{
   const permissions=[];let imageCalls=0;
   await withApp({imageModel:'qwen-image-plus',provider:(url,init)=>{
     if(String(url).includes('/chat/completions')){
@@ -118,9 +118,10 @@ test('An unavailable image model disables further artwork calls for its grant an
     assert.equal(planned.plan.fallback.nodes[0].text,'🐈');
     const failed=await post('/api/visual/image',token,{ticket:planned.imageTicket}),details=await failed.json();
     assert.equal(failed.status,502);assert.equal(details.diagnostic.endpoint,'singapore');
-    assert.equal((await post('/api/visual/image',token,{ticket:planned.imageTicket})).status,403);
+    assert.equal((await post('/api/visual/image',token,{ticket:planned.imageTicket})).status,503);
     const next=await (await post('/api/visual/plan',token,{request:'Paint another cat'})).json();assert.equal(next.plan.action,'scene');
-    assert.deepEqual(permissions,[true,false]);assert.equal(imageCalls,1,'no silent image retry or regional fallback');
+    const freshToken=await start(true);await post('/api/visual/plan',freshToken,{request:'Paint again'});
+    assert.deepEqual(permissions,[true,false,false]);assert.equal(imageCalls,1,'no silent image retry or regional fallback');
   });
 });
 test('The workspace image endpoint is an explicit option, with workspace credentials kept server-side',async()=>{

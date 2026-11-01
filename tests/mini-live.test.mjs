@@ -914,16 +914,13 @@ test('Artwork failures show the exact model/status to the parent and a simple me
 });
 
 test('All browser visual requests preserve gateway credentials and avoid setting Authorization',async()=>{
-  const env=mockEnvironment(),requests=[];let awareness;
+  const env=mockEnvironment(),requests=[];
   Object.assign(env.s,{visualsEnabled:true,visualGrant:'test-grant',imagesAllowed:true,awarenessEnabled:true});
   env.ctx.fetch=async(url,init)=>{requests.push({url,init});return {ok:true,json:async()=>({plan:{version:1,action:'keep'},observation:{}}),blob:async()=>({})};};
   await vm.runInContext('requestGeneratedVisual(testSession,"hello")',env.ctx);
   await vm.runInContext('requestGeneratedArtwork("ticket",new AbortController().signal)',env.ctx);
-  env.ctx.window.MiniAwareness={start:options=>{awareness=options;return {interrupt(){},stop(){},isPaused:()=>false};}};
-  vm.runInContext('startAwareness(testSession)',env.ctx);
-  await awareness.observe(['fixture','fixture'],new AbortController().signal);
   vm.runInContext('stopMini()',env.ctx);
-  assert.deepEqual(requests.map(value=>value.url),['/api/visual/plan','/api/visual/image','/api/visual/observe','/api/visual/session']);
+  assert.deepEqual(requests.map(value=>value.url),['/api/visual/plan','/api/visual/image','/api/visual/session']);
   for(const {init} of requests){
     assert.equal(init.headers['X-Mini-Visual-Session'],'test-grant');
     assert.equal(Object.keys(init.headers).some(key=>key.toLowerCase()==='authorization'),false);
@@ -957,30 +954,63 @@ test('Wrong visual-model setup is explained before a session while ordinary voic
   assert.match(get('generatedPicturesInfo').textContent,/Fix the visual planner/);
 });
 
-test('Awareness eligibility respects camera, mute, conversation, playback, page visibility and activities',()=>{
-  const env=mockEnvironment();Object.assign(env.s,{awarenessEnabled:true,visualGrant:'grant',wantVideo:true,videoOutTrack:{readyState:'live'}});
-  const eligible=()=>vm.runInContext('Boolean(awarenessCanRun(testSession))',env.ctx);
-  assert.equal(eligible(),true);
-  for(const key of ['videoPaused','muted','childSpeaking','turnPending','responseActive','playbackActive','contextUpdatePending','activityUpdatePending','visualPlanning']){
-    env.s[key]=true;assert.equal(eligible(),false,key);env.s[key]=false;
+test('Local camera reactions continue during conversation and games, but speech stays gated',()=>{
+  const env=mockEnvironment();let options,stopped=0;
+  Object.assign(env.s,{awarenessEnabled:true,wantVideo:true,endsAt:Date.now()+300000});
+  env.ctx.document.getElementById('preview').srcObject={};
+  env.ctx.window.MiniLocalAwareness={start:value=>{options=value;return {interrupt(){},stop(){stopped++;},isPaused:()=>false};}};
+  vm.runInContext('startAwareness(testSession)',env.ctx);
+  assert.equal(Boolean(options.allowed()),true);assert.equal(Boolean(options.canSpeak()),false);
+  env.s.awarenessLastActivity=Date.now()-7000;assert.equal(Boolean(options.canSpeak()),true);
+  for(const key of ['muted','childSpeaking','turnPending','responseActive','playbackActive']){
+    env.s[key]=true;assert.equal(Boolean(options.allowed()),true,key);assert.equal(Boolean(options.canSpeak()),false,key);env.s[key]=false;
   }
-  env.s.audioInputTrack.enabled=false;assert.equal(eligible(),false);env.s.audioInputTrack.enabled=true;
-  env.s.videoOutTrack.readyState='ended';assert.equal(eligible(),false);env.s.videoOutTrack.readyState='live';
-  env.ctx.document.hidden=true;assert.equal(eligible(),false);env.ctx.document.hidden=false;
-  vm.runInContext('visualActivity.open()',env.ctx);assert.equal(eligible(),false);
-  vm.runInContext('visualActivity.close(false)',env.ctx);assert.equal(eligible(),true);
-  env.s.wantVideo=false;assert.equal(eligible(),false);
-});
-test('Awareness waits for quiet, interrupts on speech, stops with capture and clears per-session consent',()=>{
-  const env=mockEnvironment();let options,interrupted=0,stopped=0;
-  Object.assign(env.s,{awarenessEnabled:true,visualGrant:'grant',wantVideo:true,videoOutTrack:{readyState:'live'},endsAt:Date.now()+300000});
-  env.ctx.window.MiniAwareness={start:value=>{options=value;return {interrupt(){interrupted++;},stop(){stopped++;},isPaused:()=>false};}};
-  vm.runInContext('startAwareness(testSession)',env.ctx);assert.equal(options.allowed(),false);
-  env.s.awarenessLastActivity=Date.now()-7000;assert.equal(Boolean(options.allowed()),true);
-  options.onCue({cue:'wave',spoken:false});assert.equal(env.calls.at(-1)[0],'visual_cue');
-  emit(env,'input_audio_buffer.speech_started');assert.equal(interrupted,1);assert.equal(options.allowed(),false);
+  vm.runInContext('visualActivity.open()',env.ctx);assert.equal(Boolean(options.allowed()),true);assert.equal(Boolean(options.canSpeak()),false);
+  vm.runInContext('visualActivity.close(false)',env.ctx);
+  options.onCue({cue:'smile',spoken:false});assert.equal(env.calls.at(-1)[0],'visual_cue');
+  env.s.videoPaused=true;assert.equal(Boolean(options.allowed()),false);env.s.videoPaused=false;
+  env.ctx.document.hidden=true;assert.equal(Boolean(options.allowed()),false);env.ctx.document.hidden=false;
   env.ctx.document.getElementById('visualAwareness').checked=true;env.ctx.document.getElementById('spokenGreetings').checked=true;
   vm.runInContext('stopMini()',env.ctx);assert.equal(stopped,1);
   assert.equal(env.ctx.document.getElementById('visualAwareness').checked,false);assert.equal(env.ctx.document.getElementById('spokenGreetings').checked,false);
-  assert.match(env.ctx.document.getElementById('awarenessStatus').textContent,/off/);
+});
+
+test('Contextual follow-ups preserve topic, wait for playback, cancel on speech and respect preference',()=>{
+  const env=mockEnvironment();env.s.hadAudibleReply=true;let audible=true;env.s.audioMeter={isAudible:()=>audible};
+  vm.runInContext('generatedVisuals.plan={version:1,action:"scene"};scheduleCompanionFollowUp(testSession,"A blue cat hops along.","A blue cat","completed","Shall the blue cat visit the moon or Mars?")',env.ctx);
+  env.flushTimeouts(6000);assert.equal(env.calls.some(c=>c[0]==='followup'),false);
+  audible=false;env.flushTimeouts(1500);assert.deepEqual(env.calls.find(c=>c[0]==='followup').slice(1),['chat','Shall the blue cat visit the moon or Mars?','en']);
+  env.calls.length=0;
+  vm.runInContext('scheduleCompanionFollowUp(testSession,"The cat hops.","Cat","completed","Moon or Mars?")',env.ctx);
+  emit(env,'input_audio_buffer.speech_started');env.flushTimeouts();assert.equal(env.calls.some(c=>c[0]==='followup'),false);
+  Object.assign(env.s,{childSpeaking:false,turnPending:false,responseActive:false,keepConversationGoing:false});
+  vm.runInContext('scheduleCompanionFollowUp(testSession,"The cat hops.","Cat","completed","Moon or Mars?")',env.ctx);env.flushTimeouts();assert.equal(env.calls.some(c=>c[0]==='followup'),false);
+});
+
+test('An explicit tic-tac-toe request opens and narrates the local board without a planning request',async()=>{
+  const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});let plans=0;
+  env.ctx.fetch=async()=>{plans++;throw Error('Must not plan a known board');};
+  emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Play tic tac toe'});
+  assert.equal(vm.runInContext('visualActivity.isActive()',env.ctx),true);assert.equal(plans,0);assert.equal(env.s.localVisualTurn,true);
+  assert.match(env.calls.find(c=>c[0]==='fallback')[2],/You are X/);
+});
+
+test('One invalid drawing can recover; repeated invalid instructions pause paid plans',async()=>{
+  const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});
+  env.ctx.fetch=async()=>({ok:false,json:async()=>({error:'Invalid shapes',diagnostic:{code:'VISUAL_PLAN_INVALID'}})});
+  await vm.runInContext('requestGeneratedVisual(testSession,"cat")',env.ctx);assert.equal(env.s.visualsPaused,false);
+  await vm.runInContext('requestGeneratedVisual(testSession,"dog")',env.ctx);assert.equal(env.s.visualsPaused,true);
+});
+
+test('A negated board request does not suppress the ordinary Qwen reply',()=>{
+  const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});
+  emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');emit(env,'conversation.item.input_audio_transcription.completed',{transcript:"I do not want tic tac toe"});
+  emit(env,'response.created',{response:{id:'normal-reply'}});
+  assert.equal(vm.runInContext('visualActivity.isActive()',env.ctx),false);assert.equal(env.s.localVisualTurn,false);assert.equal(env.s.playbackSuppressed,false);
+});
+test('A delayed planner cannot append a second follow-up to the same spoken turn',()=>{
+  const env=mockEnvironment();env.s.hadAudibleReply=true;env.s.audioMeter={isAudible:()=>false};
+  vm.runInContext('scheduleCompanionFollowUp(testSession,"A blue cat hops.","A blue cat","completed","Moon or Mars?")',env.ctx);env.flushTimeouts(6000);
+  vm.runInContext('scheduleCompanionFollowUp(testSession,"A blue cat hops.","A blue cat","completed","Would it like boots?")',env.ctx);env.flushTimeouts(6000);
+  assert.equal(env.calls.filter(c=>c[0]==='followup').length,1);
 });

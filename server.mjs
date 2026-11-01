@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {readImageModels} from './model-catalog.mjs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,24 +17,29 @@ const STATIC = new Map([
   ['/mini-board.js', ['mini-board.js', 'text/javascript; charset=utf-8']],
   ['/mini-visual-schema.js', ['mini-visual-schema.js', 'text/javascript; charset=utf-8']],
   ['/mini-visuals.js', ['mini-visuals.js', 'text/javascript; charset=utf-8']],
+  ['/mini-face-worker.js', ['mini-face-worker.js', 'text/javascript; charset=utf-8']],
+  ['/mini-local-awareness.js', ['mini-local-awareness.js', 'text/javascript; charset=utf-8']],
+  ['/mini-mobile.css', ['mini-mobile.css', 'text/css; charset=utf-8']],
   ['/mini-awareness.js', ['mini-awareness.js', 'text/javascript; charset=utf-8']],
   ['/mini-child-ui.js', ['mini-child-ui.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
   ['/mini-face.css', ['mini-face.css', 'text/css; charset=utf-8']],
 ]);
+const FACE_ASSETS=['face_mesh.js','face_mesh.binarypb','face_mesh_solution_packed_assets.data','face_mesh_solution_packed_assets_loader.js','face_mesh_solution_simd_wasm_bin.data','face_mesh_solution_simd_wasm_bin.js','face_mesh_solution_simd_wasm_bin.wasm','face_mesh_solution_wasm_bin.js','face_mesh_solution_wasm_bin.wasm','LICENSE'];
+for(const file of FACE_ASSETS){const path='vendor/mediapipe/face-mesh-0.4.1633559619-mini1/'+file;STATIC.set('/'+path,[path,file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.wasm')?'application/wasm':'application/octet-stream']);}
 const WINDOW_MS = 600_000;
 const MAX_SDP_BYTES = 120_000;
 const MODEL = 'qwen3.8-omni-flash-realtime';
 
-function respond(res, status, body, contentType = 'text/plain; charset=utf-8') {
+function respond(res, status, body, contentType = 'text/plain; charset=utf-8', worker = false, immutable = false) {
   res.writeHead(status, {
     'Content-Type': contentType,
-    'Cache-Control': 'no-store',
+    'Cache-Control': immutable?'public, max-age=31536000, immutable':'no-store',
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'no-referrer',
     'X-Frame-Options': 'DENY',
     'Permissions-Policy': 'camera=(self), microphone=(self)',
-    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; media-src 'self' blob:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'Content-Security-Policy': (worker ? "default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src 'self';" : "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; media-src 'self' blob:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"),
   });
   res.end(body);
 }
@@ -88,6 +94,7 @@ export function createApp({
   const attempts = [];
   const authFails = [];
   const visualSessions=new Map();
+  let imageFailure=null,modelCheck=null,modelCheckAt=0;
   function revoke(token) {
     const grant=visualSessions.get(token);
     for(const controller of grant?.controllers.values() || [])controller.abort();
@@ -101,13 +108,13 @@ export function createApp({
     try {
       if (req.method === 'GET' && STATIC.has(path)) {
         const [file, type] = STATIC.get(path);
-        return respond(res, 200, await readFile(join(ROOT, 'public', file)), type);
+        return respond(res, 200, await readFile(join(ROOT, 'public', file)), type, path==='/mini-face-worker.js',path.startsWith('/vendor/mediapipe/'));
       }
       if (req.method === 'GET' && path === '/api/config') {
         return json(res, 200, { mode: upstream ? 'realtime' : 'preview', model: upstream ? MODEL : null, maxSessionMinutes: 60,
-          visuals:{available:Boolean(upstream && !visualIssue),model:visualModel,imagesAvailable:Boolean(upstream && imageModel && !visualIssue),maxPlans:60,maxImages:4,
+          visuals:{available:Boolean(upstream && !visualIssue),model:visualModel,imagesAvailable:Boolean(upstream && imageModel && !visualIssue && !imageFailure),maxPlans:60,maxImages:4,
             imageModel:imageModel || null,imageEndpoint,
-            ...(visualIssue?{configurationError:visualIssue.message}:{})},
+            ...(visualIssue?{configurationError:visualIssue.message}:{}),...(imageFailure?{imageError:imageFailure.error}:{})},
           awareness:{available:Boolean(upstream),model:awarenessModel,maxChecks:40,minIntervalSeconds:15} });
       }
       if (req.method === 'GET' && path === '/favicon.ico') return respond(res, 204, '');
@@ -154,7 +161,8 @@ export function createApp({
         const kind=path.endsWith('/plan')?'plan':'image';
         let scene=null;
         if(kind==='plan') {
-          if(Object.keys(body).some(key=>!['request','scene','language','spokenReply'].includes(key)) || typeof body.request!=='string' || !body.request.trim() || body.request.length>500 ||
+          if(Object.keys(body).some(key=>!['request','scene','language','spokenReply','followUpsAllowed'].includes(key)) || typeof body.request!=='string' || !body.request.trim() || body.request.length>500 ||
+            (body.followUpsAllowed!==undefined && typeof body.followUpsAllowed!=='boolean') ||
             (body.spokenReply!==undefined && (typeof body.spokenReply!=='string' || body.spokenReply.length>2000)))return json(res,400,{error:'A short visual request and bounded spoken reply are required.'});
           if(body.scene!==undefined && body.scene!==null){try{scene=validateVisualPlan(body.scene);}catch{return json(res,400,{error:'Invalid scene context.'});}}
           grant.recent=grant.recent.filter(time=>time>Date.now()-60000);
@@ -162,6 +170,7 @@ export function createApp({
           grant.plans++;grant.recent.push(Date.now());
           grant.controllers.get('image')?.abort();grant.ticket=null;
         } else {
+          if(imageFailure)return json(res,503,imageFailure);
           if(Object.keys(body).some(key=>key!=='ticket') || !grant.imagesAllowed || !imageModel)return json(res,403,{error:'Generated pictures are not enabled for this session.'});
           if(!grant.ticket || body.ticket!==grant.ticket.id)return json(res,400,{error:'Ask Mini for a new picture first.'});
           if(grant.images>=4)return json(res,429,{error:'Picture limit reached for this session.'});
@@ -176,11 +185,11 @@ export function createApp({
         try {
           if(kind==='plan') {
             const plan=await planVisual({fetchFn,base,apiKey,model:visualModel,request:body.request,spokenReply:body.spokenReply || '',scene,
-              language:['en','zh','auto'].includes(body.language)?body.language:'auto',imagesAllowed:grant.imagesAllowed,signal:controller.signal});
+              language:['en','zh','auto'].includes(body.language)?body.language:'auto',imagesAllowed:grant.imagesAllowed && !imageFailure,followUpsAllowed:body.followUpsAllowed===true,signal:controller.signal});
             if(controller.signal.aborted || !visualSessions.has(token))throw Error('Cancelled');
             let imageTicket;
             if(plan.action==='artwork') {
-              if(!grant.imagesAllowed)return json(res,403,{error:'Generated pictures are not enabled. Mini can still draw with shapes.'});
+              if(!grant.imagesAllowed || imageFailure)return json(res,403,{error:'Generated pictures are not enabled. Mini can still draw with shapes.'});
               imageTicket=randomBytes(16).toString('hex');grant.ticket={id:imageTicket,prompt:plan.prompt};
             }
             return json(res,200,{plan,...(imageTicket?{imageTicket}:{})});
@@ -190,7 +199,7 @@ export function createApp({
           return respond(res,200,image.bytes,image.contentType);
         } catch(error) {
           const failure=describeVisualFailure(error,{stage:kind==='plan'?'planner':'artwork',model:kind==='plan'?visualModel:imageModel,endpoint:kind==='image'?imageEndpoint:'workspace',signal:controller.signal});
-          if(kind==='image' && ['VISUAL_MODEL_UNAVAILABLE','VISUAL_ACCESS','VISUAL_AUTH','VISUAL_QUOTA'].includes(failure.diagnostic.code))grant.imagesAllowed=false;
+          if(kind==='image' && ['VISUAL_MODEL_UNAVAILABLE','VISUAL_ACCESS','VISUAL_AUTH','VISUAL_QUOTA'].includes(failure.diagnostic.code)){grant.imagesAllowed=false;imageFailure=failure;for(const session of visualSessions.values())session.imagesAllowed=false;}
           if(!controller.signal.aborted)console.warn('Mini visual issue:',JSON.stringify(failure.diagnostic));
           if(!res.destroyed && !res.writableEnded)return json(res,502,failure);
           return;
@@ -205,7 +214,7 @@ export function createApp({
         console.info('Mini diagnostic POST reached origin (no AI request).');
         return json(res, 200, {ok:true, origin:'mini', method:'POST'});
       }
-      if (req.method !== 'POST' || !['/api/realtime/sdp','/api/parent/authorize'].includes(path)) return respond(res, 404, 'Not found');
+      if (req.method !== 'POST' || !['/api/realtime/sdp','/api/parent/authorize','/api/parent/models'].includes(path)) return respond(res, 404, 'Not found');
 
       prune(attempts); prune(authFails);
       if (authFails.length >= 8) return json(res, 429, {error:'Too many incorrect access codes. Stop and restart your server to try again.'});
@@ -213,6 +222,15 @@ export function createApp({
         authFails.push(Date.now());
         console.warn('Mini authorization rejected: private ROBOT_ACCESS_CODE did not match (no secret logged).');
         return json(res, 401, {error:'Incorrect private robot access code. Check ROBOT_ACCESS_CODE in the Windows .env file, restart Mini, and enter the same value in Safari.'});
+      }
+      if(path==='/api/parent/models') {
+        if(!base)return json(res,412,{error:'Configure the server API key and Singapore workspace first.'});
+        if(!modelCheck || Date.now()-modelCheckAt>60000){
+          modelCheckAt=Date.now();
+          modelCheck=readImageModels({fetchFn,base:imageBase,apiKey,workspaceId:workspace,configuredModel:imageModel,signal:AbortSignal.timeout(12000)})
+            .catch(()=>({ok:false,error:'Could not read model metadata. Check your signed-in Singapore Model Studio catalog; no image request was made.'}));
+        }
+        return json(res,200,await modelCheck);
       }
       // Reauthorize a parent action without creating another paid AI session.
       // Shares the access-code failure throttle with session startup.
@@ -250,7 +268,7 @@ export function createApp({
         const token=randomBytes(32).toString('base64url');
         visualSessions.set(token,{expiresAt:Date.now()+60*60000,plans:0,images:0,recent:[],controllers:new Map(),ticket:null,
           visualsAllowed:req.headers['x-mini-visuals']==='true',awarenessAllowed,observations:0,lastObservation:null,
-          imagesAllowed:req.headers['x-mini-visuals']==='true' && req.headers['x-mini-images']==='true' && Boolean(imageModel)});
+          imagesAllowed:req.headers['x-mini-visuals']==='true' && req.headers['x-mini-images']==='true' && Boolean(imageModel) && !imageFailure});
         res.setHeader('X-Mini-Visual-Session',token);
       }
       return respond(res, 200, answer, 'application/sdp');
@@ -281,7 +299,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       process.exitCode = 1;
     });
     app.listen(port, '127.0.0.1', () => {
-      console.log(`Mini V6.4: http://localhost:${port}`);
+      console.log(`Mini V6.5: http://localhost:${port}`);
       console.log(process.env.ALIBABA_API_KEY ? 'AI mode: pay-as-you-go Qwen realtime' : 'AI mode: LOCAL PREVIEW ONLY (no AI charges)');
       console.log('For iPhone Safari, use a protected HTTPS tunnel. Do not use a Token Plan key.');
     });

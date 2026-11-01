@@ -33,3 +33,15 @@ The parent diagnostic “First audible reply” uses the local remote-stream aud
 Live Qwen and physical competitor trials require the user's configured devices and credentials and remain unrun until performed explicitly. Instruction checkpoint updates do not create extra model responses, but their context can still affect provider token usage.
 
 Awareness tests validate strict cue output, consent/scopes, observation budgets, cooldowns, late-result cancellation and teardown. Local Chromium uses synthetic canvas frames and simulated observations to exercise capture, HTTP and expression rendering; it does not measure face, smile or wave recognition accuracy. Spoken greetings in those checks use mocked speech synthesis, not iPhone audio hardware.
+
+## Reproduce the V6.5 cloud browser smoke check
+
+This uses test doubles for every Qwen call and real local face-landmark inference. It never uses `.env` or sends frames to Alibaba. Download scikit-image's public-domain NASA `astronaut.png` to a temporary path; source and license context are in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
+
+Start `node tests/fixtures/companion-smoke-server.mjs` in a terminal. In another, launch Chromium with a fresh temporary profile, `--headless --disable-dev-shm-usage --disable-background-networking --disable-component-update --disable-sync --no-first-run --use-fake-device-for-media-stream --use-fake-ui-for-media-stream --remote-debugging-port=9228 about:blank` (a sandboxed container may need `--no-sandbox`; do not use that flag for normal browsing). Then run:
+
+```sh
+node scripts/companion-browser-smoke.mjs /tmp/mini-astronaut.png
+```
+
+The check covers 320×568, 390×844, 430×932 and 844×390 views, parent-dialog focus, metadata-only setup, instant local board, mock image decode/failure, cross-session failure suppression, real worker smile landmarks, visual reactions during Mini speech, child-speech priority, Stop track cleanup and absence of external requests. Screenshots are written under `/tmp/mini-mobile-*`. Restart the fixture server before rerunning because model failure suppression intentionally lasts for the process. Shut down the fixture/browser afterwards. These results do not substitute for live Singapore Qwen or physical iPhone testing.

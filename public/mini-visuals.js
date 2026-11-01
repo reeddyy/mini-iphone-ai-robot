@@ -111,7 +111,7 @@
       show();
       if(plan.action==='artwork') {
         if(plan.fallback){canvas.style.backgroundColor=plan.fallback.background;canvas.dataset.aspect=plan.fallback.aspect;draw(plan.fallback.nodes);artworkStatus='drawing';options.onStateChange?.(describe());}
-        result.textContent=lang()==='zh'?'Mini 正在画画……':'Mini is drawing…';
+        result.textContent=lang()==='zh'?'Mini 正在画画……':'Sketch preview · painting the full picture…';
         imageAbort=new AbortController();
         try {
           const blob=await options.requestArtwork(metadata.imageTicket,imageAbort.signal);
@@ -124,7 +124,7 @@
           if(epoch===token){
             if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null;}
             artworkStatus=plan.fallback?'fallback':'failed';
-            result.textContent=plan.fallback?(lang()==='zh'?'先给你看这幅画。':'Here’s a drawing instead.'):(error.message || 'Mini could not finish the picture.');
+            result.textContent=plan.fallback?(lang()==='zh'?'先给你看这幅画。':'Sketch only · the full picture is unavailable.'):(error.message || 'Mini could not finish the picture.');
             options.onStateChange?.(describe());
           }
         }

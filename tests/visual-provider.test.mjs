@@ -45,3 +45,11 @@ test('Image generation failures identify the artwork stage and storage restricti
   });
   await assert.rejects(generateArtwork({...args,prompt:'A flower',fetchFn:async()=>json({output:{choices:[{message:{content:[{image:'https://127.0.0.1/private'}]}}]}})}),error=>error.code==='IMAGE_DESTINATION');
 });
+
+test('Benign color and size variants normalize without allowing executable fields',()=>{
+  const plan=parseVisualContent(JSON.stringify({version:1,action:'scene',background:'#abc',nodes:[{kind:'ellipse',fill:'pink',stroke:'none',w:120}],followUp:'Should the pink moon glow?'}));
+  assert.equal(plan.background,'#aabbcc');assert.equal(plan.nodes[0].fill,'#ffc0cb');assert.equal(plan.nodes[0].stroke,'none');assert.equal(plan.nodes[0].w,100);
+  for(const node of [{kind:'image',href:'https://example.com'}, {kind:'ellipse',fill:'url(javascript:alert(1))'}, {kind:'text',text:'hi',onclick:'bad'}]){
+    assert.throws(()=>parseVisualContent(JSON.stringify({version:1,action:'scene',nodes:[node]})),error=>error.code==='VISUAL_PLAN_INVALID' && /^[A-Z_]+$/.test(error.details.reason));
+  }
+});

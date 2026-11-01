@@ -21,7 +21,7 @@
   }
   function color(value,fallback) {
     if(value===undefined)return fallback;
-    if(typeof value!=='string' || !/^#[a-f0-9]{6}$/i.test(value))fail();
+    if(typeof value!=='string' || value!=='none' && !/^#[a-f0-9]{6}$/i.test(value))fail();
     return value;
   }
   function id(value) {if(typeof value!=='string' || !/^[a-z][a-z0-9_-]{0,31}$/.test(value))fail();return value;}
@@ -76,9 +76,9 @@
     return {type:value.type,moves,rounds};
   }
   function validate(value) {
-    object(value,['version','action','title','message','background','aspect','nodes','choices','activity','prompt','choiceId','fallback']);
+    object(value,['version','action','title','message','background','aspect','nodes','choices','activity','prompt','choiceId','fallback','followUp']);
     if(value.version!==1 || !actions.includes(value.action))fail();
-    const result={version:1,action:value.action,title:text(value.title,80),message:text(value.message,240)};
+    const result={version:1,action:value.action,title:text(value.title,80),message:text(value.message,240),...(value.followUp!==undefined?{followUp:text(value.followUp,140)}:{})};
     if(['keep','clear','interact'].includes(value.action)) {
       if(['nodes','activity','prompt','choices','background','aspect','fallback'].some(key=>value[key]!==undefined))fail();
       if(value.action==='interact')result.choiceId=id(value.choiceId);

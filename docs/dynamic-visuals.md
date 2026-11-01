@@ -18,14 +18,14 @@ The renderer supports ellipses, rounded rectangles, lines, polygons, literal tex
 1. Stop the server, run `git pull` and `npm test` in the existing project, and keep your private `.env`.
 2. The planner reuses `ALIBABA_API_KEY` and `ALIBABA_WORKSPACE_ID` from the Singapore pay-as-you-go setup. Its default is `ALIBABA_VISUAL_MODEL=qwen-plus`; use a compatible JSON-output chat model enabled in that workspace. Model availability is account-specific.
 3. Leave `ALIBABA_IMAGE_MODEL` blank for scenes and games without generated artwork. To enable artwork, configure a model available in your Singapore workspace that supports the synchronous multimodal image-generation request/response described below. Image requests now default to the native Singapore host (`ALIBABA_IMAGE_ENDPOINT=singapore`); `workspace` is an explicit alternative for accounts using that route. The server supplies the workspace header in both cases. Models requiring asynchronous task polling are not supported by this adapter. The example model names in tests are fixtures, not evidence of account access.
-4. Run `npm start`, refresh the HTTPS Safari page, and start a short parent-authorized session. **Let Qwen create visual scenes** enables the planner. **Allow newly generated pictures** is separate, off by default, and resets on Stop. This picture consent is never included in saved settings.
+4. Run `npm start`, refresh the HTTPS Safari page, and start a short parent-authorized session. **Show visual stories and games** enables the planner. **Allow newly generated pictures** is separate, off by default, and resets on Stop. This picture consent is never included in saved settings.
 
 ### If the generated-pictures checkbox is disabled
 
-Read the explanation next to the checkbox. Stop any running session before changing picture permission, and enable **Let Qwen create visual scenes** first. If the server reports that pictures are not configured, add an image model to your existing private Windows `.env`; `git pull` does not modify that file. For example, if `qwen-image-plus` is available and enabled for your Singapore workspace, use:
+Read the explanation next to the checkbox. Stop any running session before changing picture permission, and enable **Show visual stories and games** first. If the server reports that pictures are not configured, add an image model to your existing private Windows `.env`; `git pull` does not modify that file. Use the exact enabled model ID from your account metadata or signed-in Singapore console. The example placeholder below must be replaced:
 
 ```dotenv
-ALIBABA_IMAGE_MODEL=qwen-image-plus
+ALIBABA_IMAGE_MODEL=YOUR_ENABLED_IMAGE_MODEL_ID
 ```
 
 Replace an existing blank `ALIBABA_IMAGE_MODEL=` line rather than adding a duplicate. Keep your current API key and workspace settings. Stop the Windows server with Ctrl+C, save `.env`, run `npm start`, and refresh Safari. You can then tick picture permission before starting a new session. A configured name enables the checkbox; actual account access is checked only when a picture is requested. This adapter requires the synchronous multimodal generation API, so a model using asynchronous task polling will need a different adapter.
@@ -36,7 +36,7 @@ For normal chat/story turns, the planner waits for Mini's completed spoken-reply
 
 ```dotenv
 ALIBABA_VISUAL_MODEL=qwen-plus
-ALIBABA_IMAGE_MODEL=qwen-image-plus
+ALIBABA_IMAGE_MODEL=YOUR_ENABLED_IMAGE_MODEL_ID
 ```
 
 After editing the existing private Windows `.env`, restart the Mini server and refresh Safari. The updated app detects Qwen image-generation models in the planner setting, displays the correction in Parent setup and disables those visual calls until corrected. Voice and separately configured camera awareness remain available. This setup check does not call a provider, automatically change your model selection or verify model access in your account.
@@ -51,14 +51,14 @@ Parent setup now shows the **loaded planner and artwork model names** and the **
 | `VISUAL_ACCESS`, `VISUAL_QUOTA` | Model permissions, billing or quota; voice access does not establish access to other models |
 | `VISUAL_MODEL_UNAVAILABLE` | Configured model or API route unavailable in this workspace; the line includes the model and HTTP status |
 | `VISUAL_REQUEST` | Provider rejected request parameters; an allowlisted parameter or `JSON_REQUIRES_NON_THINKING` hint may be shown |
-| `VISUAL_RESPONSE_JSON`, `VISUAL_PLAN_INVALID`, `VISUAL_OUTPUT_LIMIT` | Invalid/incomplete drawing instructions; try a simpler request after manually resuming |
+| `VISUAL_RESPONSE_JSON`, `VISUAL_PLAN_INVALID`, `VISUAL_OUTPUT_LIMIT` | Invalid/incomplete drawing instructions; one invalid plan may recover on the next child turn; repeated invalid output pauses planning |
 | `VISUAL_NETWORK`, `VISUAL_TIMEOUT` | Windows server connectivity or a timed-out operation |
 | `VISUAL_GATEWAY` | Tunnel returned a sign-in/error page instead of the Mini JSON API |
 | `IMAGE_DOWNLOAD`, `IMAGE_FORMAT`, `IMAGE_DESTINATION` | Image generation returned an unusable or unreachable picture result |
 
-A planner failure pauses further planning calls for that session, so ordinary conversation does not repeatedly send failing paid requests. Voice chat and local rules continue; the child sees one simple resting message rather than technical details. **Resume visual responses** in Parent setup only re-enables planning for the next spoken request; the button does not itself call a model. Fix account/configuration issues before resuming. Artwork failures are reported separately and do not disable vector scenes. Failed or cancelled provider requests can still incur charges.
+Persistent planner access/configuration errors and repeated invalid plans pause further planning calls for that session, so ordinary conversation does not repeatedly send failing paid requests. Voice chat and local rules continue; the child sees one simple resting message rather than technical details. **Resume visual responses** in Parent setup only re-enables planning for the next spoken request; the button does not itself call a model. Fix account/configuration issues before resuming. Artwork failures are reported separately and do not disable vector scenes. Failed or cancelled provider requests can still incur charges.
 
-An artwork 404 means the provider could not serve that model on the requested route; it does not by itself establish which account permission or regional model is missing. The default image route is now `https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`, with `X-DashScope-WorkSpace`. Voice and scene planning retain their existing workspace routes. No automatic model, endpoint or region retry is made. A model/access/quota rejection disables further paid image attempts for that grant; future plans are told to compose drawings instead. Start a new parent-authorized session after correcting model access.
+An artwork 404 means the provider could not serve that model on the requested route; it does not by itself establish which account permission or regional model is missing. The default image route is now `https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`, with `X-DashScope-WorkSpace`. Voice and scene planning retain their existing workspace routes. No automatic model, endpoint or region retry is made. A model/auth/access/quota rejection disables further paid image attempts across all grants in this server process; future plans are told to compose drawings instead. Correct model access and restart the Windows server before trying artwork again.
 
 Artwork plans can include a matching vector/emoji `fallback` made from the same validated drawing primitives. It appears while the image is being generated and remains if generation fails. A successful decoded image replaces it. This uses the original planning response, without another planning or image call. Parent diagnostics still report the image failure, so a fallback is not presented as proof that the image model works.
 
@@ -87,3 +87,15 @@ The regional host/protocol paths follow Alibaba's [official DashScope SDK config
 Automated tests cover arbitrary scene subjects, protocol rejection, deterministic rule results, parent-session grants, consent, single-use tickets, request limits and cancellation. Local Chromium checks use simulated provider responses with the real renderer and HTTP endpoints, including phone widths and reduced motion. No paid provider calls were made during implementation. Live Qwen planning, image-model access, content quality and physical iPhone Safari behavior remain unrun here.
 
 Prompts encourage gentle age-appropriate content, but structural validation is not child-content certification. Adult supervision and provider content protections remain necessary. Transcripts, scenes, grants and downloaded artwork stay in application memory; the provider's own retention policies still apply.
+
+## V6.5 recovery, speed and setup
+
+Explicit tic-tac-toe requests now open the existing local board immediately, including with dynamic visuals enabled. No planner call is needed to open that known game. Other supported games and arbitrary characters/scenes retain Qwen planning. Normal illustrations still wait for the completed spoken reply so their subject and options can match what was narrated. Provider latency and artwork quality remain dependent on the enabled model; this update is not evidence that a particular image model works in your account.
+
+The planner explicitly disables thinking for JSON mode. A complete JSON fence, null optional values, common named/three-digit colours and slightly oversized shape dimensions can be normalized before strict validation. Unknown node types, extra executable fields, URLs and invalid game graphs remain rejected. Safe failure diagnostics include a bounded reason such as NODE_COLOR or SCHEMA_MISMATCH, without raw child/model text. One malformed plan leaves the current scene usable and permits the next explicit child turn; two consecutive malformed plans pause further calls. Access/configuration errors pause immediately. There is no automatic retry.
+
+Artwork uses the prompt's explicit subject, colours, expression and constraints; provider-side prompt expansion is disabled to avoid an additional rewrite. While waiting, the renderer labels its primitive fallback **Sketch preview**. If the full image fails, it says **Sketch only · the full picture is unavailable**. It does not present this fallback as a successful generated picture. Persistent model/auth/access/quota failures disable artwork across all grants until the server restarts. Other requests continue as scenes; voice chat remains available.
+
+In the parent sheet, open **Visual stories, pictures and model setup → Image model setup and diagnostics** and use **Check model IDs · no generation** with the private parent code. The server reads at most three pages of native `/api/v1/models` metadata, caches it for one minute and returns only filtered identifiers. This follows the official DashScope SDK's Models metadata resource. It never runs a paid test, changes `.env`, selects a model or exposes your key. Missing metadata or a catalog entry cannot establish generation entitlement. Your signed-in Singapore catalog and billing/model permissions remain the source for an enabled model supporting the configured native multimodal image API. The observed `qwen-image-plus` 404 has not been reproduced/resolved against your Windows account here.
+
+When optional follow-ups are enabled, a plan can include `followUp` (at most 140 characters), even alongside `keep`. It must build on the same child topic and spoken reply, not introduce a conflicting story. Safari may ask it once after six seconds of quiet, at most six times per session, provided Qwen did not already ask a question and the child/story has not ended. New speech, touch, mute and Stop cancel it. The question comes from the existing planner call; it never triggers `response.create` or a second model turn.

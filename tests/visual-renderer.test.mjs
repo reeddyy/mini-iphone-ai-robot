@@ -71,7 +71,7 @@ test('An image-service failure leaves the matching fallback drawing visible with
   const env=environment({requestArtwork:async()=>{requests++;throw Error('Image unavailable');}});
   await env.renderer.apply({version:1,action:'artwork',title:'Moon cat',message:'Our cat is on the moon.',prompt:'A cat on the moon',fallback:{nodes:[{kind:'emoji',text:'🐈'}]}},{imageTicket:'ticket'});
   assert.equal(requests,1);assert.equal(env.get('visualCanvas').children.length,1);assert.equal(env.states.at(-1).status,'fallback');
-  assert.equal(env.renderer.describe().objects[0],'🐈');assert.match(env.renderer.speech(),/cat is on the moon.*drawing instead/);
+  assert.equal(env.renderer.describe().objects[0],'🐈');assert.match(env.renderer.speech(),/cat is on the moon.*Sketch only/);
 });
 test('Spoken counts and hand-game results are taken from the same state rendered on screen',async()=>{
   const spoken=[],env=environment({onNarrate:text=>spoken.push(text)});

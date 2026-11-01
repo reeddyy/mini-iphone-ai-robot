@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101426">
   <meta name="description" content="Mini: a simple, voice-first child companion with parent-controlled live AI and camera">
-  <title>Mini V6.4 · Expressive Little Companion</title>
+  <title>Mini · Your little companion</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/mini-face.css">
+  <link rel="stylesheet" href="/mini-mobile.css">
   <script src="/mini-extras.js" defer></script>
   <script src="/mini-kids.js" defer></script>
   <script src="/mini-board.js" defer></script>
   <script src="/mini-visual-schema.js" defer></script>
   <script src="/mini-visuals.js" defer></script>
-  <script src="/mini-awareness.js" defer></script>
+  <script src="/mini-local-awareness.js" defer></script>
   <script src="/mini-activities.js" defer></script>
   <script src="/mini-child-ui.js" defer></script>
   <script src="/app.js" defer></script>
@@ -22,8 +23,8 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand-mark" aria-hidden="true">✦</div>
-      <div><div class="eyebrow">A cuter little Mini · V6.4</div><h1>Hi, I’m Mini<span class="dot">!</span></h1></div>
-      <div id="kidLiveTag" class="kid-live-tag">♡ NEEDS GROWN-UP</div>
+      <h1>Mini<span class="dot">✦</span></h1>
+      <div id="kidLiveTag" class="kid-live-tag">♡ RESTING</div><button id="parentSettingsBtn" class="parent-settings-button" type="button" aria-label="Open parent settings" aria-haspopup="dialog">⚙</button>
     </header>
     <section class="robot-stage" aria-label="Animated robot face">
       <div class="halo"></div>
@@ -60,7 +61,7 @@
     <section class="kid-home" aria-label="Talk with Mini">
       <p id="kidHint" class="kid-hint" role="status" aria-live="polite">Hi! Ask a grown-up to wake up my talking brain.</p>
       <p id="kidGameMode" class="kid-mode-line">💜 You can say anything to Mini.</p>
-      <p id="modelDiagnostic" class="kid-model-issue hidden" role="status" aria-live="polite"></p>
+
       <p id="kidSessionNotice" class="kid-session-notice hidden" role="status"></p>
       <p id="sharingNotice" class="sharing-notice hidden" role="status"></p>
       <p id="activityProgress" class="activity-progress hidden" role="status"></p>
@@ -91,62 +92,68 @@
       </section>
       <button id="kidAudioBtn" class="outline kid-audio hidden" type="button">▶ Tap to hear Mini</button>
       <div class="kid-lower">
-        <button id="kidParentLink" class="kid-parent-link" type="button">👨‍👩‍👧 Grown-up: Start Mini</button>
-        <button id="kidStopBtn" class="kid-stop hidden" type="button">■ Stop live chat</button>
-        <button id="localPlayBtn" class="kid-parent-link" type="button">✦ Play a tap game · free</button>
-        <button id="boardPlayBtn" class="kid-parent-link" type="button">○ × Tic-tac-toe · free</button>
+        <button id="kidParentLink" class="kid-parent-link" type="button" aria-haspopup="dialog">Wake Mini <span aria-hidden="true">✦</span></button>
+        <button id="kidStopBtn" class="kid-stop hidden" type="button">■ Stop Mini</button>
+
       </div>
-      <p class="kid-parent-note">A grown-up starts the voice session. You can ask Mini for a story, a guessing game, or about a toy—just by speaking.</p>
+      <p class="kid-parent-note">Stories, little games and big imaginations. Just talk to Mini.</p>
     </section>
 
-    <details id="parentSetup" class="parent-setup">
-      <summary>⚙️ Parent setup &amp; safety controls</summary>
-      <p class="help parent-intro">A grown-up starts each paid voice session. Choose a language and duration; leave the camera off unless you want to share it. Extra time requires the parent code again. These settings are collapsed, not PIN-locked.</p>
+    <dialog id="parentSetup" class="parent-setup" aria-labelledby="parentTitle">
+      <div class="parent-sheet-header"><h2 id="parentTitle">For grown-ups</h2><button id="closeParentBtn" type="button" class="outline" aria-label="Close parent settings">Done</button></div>
+      <p class="help parent-intro">Choose how Mini joins in. Each live session needs your code and paid-usage confirmation. Camera sharing is always your choice.</p>
 
 
     <section class="panel" aria-label="Live session">
       <div class="section-head"><h2>Start Mini · grown-ups</h2><span id="modeTag" class="tag">CHECKING</span></div>
+      <p id="modelDiagnostic" class="kid-model-issue hidden" role="status" aria-live="polite"></p>
       <p id="modeInfo" class="help">Checking server configuration…</p>
       <label class="top-label" for="accessCode">Parent access code</label>
-      <p class="help">Enter it each time you start a session. Mini clears the code after connecting so children cannot restart paid AI just by pressing Start.</p>
+      <p class="help">Required for each paid session. Cleared after connecting.</p>
       <input id="accessCode" class="wide-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Private parent code">
       <div class="settings-grid">
         <label for="language">Reply language</label>
         <select id="language"><option value="auto">Auto · follow speaker</option><option value="en">Prefer English</option><option value="zh">Prefer Mandarin 中文</option></select>
         <label for="sessionLimit">Automatic stop</label>
-        <select id="sessionLimit"><option value="5">5 minutes · short test</option><option value="15" selected>15 minutes · recommended</option><option value="30">30 minutes · extended</option><option value="45">45 minutes · extended</option><option value="60">60 minutes · maximum</option></select>
+        <select id="sessionLimit"><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes (max)</option></select>
         <label class="toggle-label"><input id="sendVideo" type="checkbox"><span>Allow AI to see the camera (off by default)</span></label>
-        <label class="toggle-label"><input id="visualResponses" type="checkbox" checked><span>Let Qwen create visual scenes · extra paid planning request per spoken turn</span></label>
+        <label class="toggle-label"><input id="visualAwareness" type="checkbox"><span>Mirror smiles and head movement · on this device</span></label>
+        <label class="toggle-label"><input id="spokenGreetings" type="checkbox"><span>Occasional spoken hello · at most twice per session</span></label>
+      </div>
+      <div class="actions session-actions">
+        <button id="startBtn" class="primary" type="button">● Parent: Start voice chat</button>
+        <button id="stopBtn" class="outline hidden" type="button">■ Stop session</button>
+        <button id="extendBtn" class="outline hidden" type="button">+5 min · paid</button>
+      </div>
+      <details class="advanced-setup"><summary>Visual stories, pictures and model setup</summary>
+      <div class="settings-grid">
+        <label class="toggle-label"><input id="visualResponses" type="checkbox" checked><span>Show visual stories and games · extra paid planning per turn</span></label>
         <label class="toggle-label"><input id="generatedPictures" type="checkbox" aria-describedby="generatedPicturesInfo"><span>Allow newly generated pictures · separate image charges (off by default)</span></label>
-        <label class="toggle-label"><input id="visualAwareness" type="checkbox"><span>Notice visible smiles, waves and arrivals · camera required, extra paid visual checks (off by default)</span></label>
-        <label class="toggle-label"><input id="spokenGreetings" type="checkbox"><span>Allow an occasional spoken hello from visual awareness (off by default)</span></label>
       </div>
       <p id="visualCapabilityInfo" class="help">Visual planning starts only in a parent-authorized paid session. Maximum 60 plans and 4 pictures per session.</p>
       <p id="visualServiceStatus" class="help" role="status" aria-live="polite">Visual responses have not started.</p>
       <button id="pauseVisualsBtn" class="outline hidden" type="button">Pause visual responses</button>
       <p id="generatedPicturesInfo" class="help" role="status" aria-live="polite">Checking picture-generation setup…</p>
       <details class="advanced-setup">
-        <summary>Set up generated pictures on Windows</summary>
+        <summary>Image model setup and diagnostics</summary>
+        <button id="checkImageModelsBtn" class="outline" type="button">Check model IDs · no generation</button>
+        <p id="imageModelCheckStatus" class="help" role="status">Enter the parent code above, then check. This reads account metadata with the key already on your server; it does not generate or charge for a picture.</p>
         <ol class="help">
           <li>Stop Mini and its Windows server. Open the existing private <code>.env</code> in your project folder.</li>
-          <li>Set <code>ALIBABA_IMAGE_MODEL</code> to a compatible image model enabled in your Singapore Model Studio workspace. For example: <code>ALIBABA_IMAGE_MODEL=qwen-image-plus</code> if that model is available to your account. The voice model alone does not generate artwork.</li>
+          <li>Set <code>ALIBABA_IMAGE_MODEL</code> to a compatible image model enabled in your Singapore Model Studio workspace. Use the exact model ID your account enables; a catalog listing alone does not prove API access. The voice model alone does not generate artwork.</li>
           <li>Keep the drawing-instruction planner separate: <code>ALIBABA_VISUAL_MODEL=qwen-plus</code>. An image-generation model cannot return the planner's chat instructions.</li>
           <li>Save the file, run <code>npm start</code> again and refresh this Safari page. Pulling code does not update your private <code>.env</code>.</li>
-          <li>Before starting a new session, turn on <strong>Let Qwen create visual scenes</strong>, then tick <strong>Allow newly generated pictures</strong>.</li>
+          <li>Before starting a new session, turn on <strong>Show visual stories and games</strong>, then tick <strong>Allow newly generated pictures</strong>.</li>
         </ol>
         <p class="help">The checkbox checks configuration only; it does not test model access or make an image request. Keep your existing API key private.</p>
       </details>
-      <p class="help">Visual awareness checks temporary camera snapshots at most every 15 seconds, up to 40 times per session. It notices visible cues; it does not identify family members or determine feelings. Camera frames also continue to stream to Qwen while sharing is enabled.</p>
-      <p id="awarenessStatus" class="help" role="status">Visual awareness off.</p>
-      <button id="pauseAwarenessBtn" class="outline hidden" type="button">Pause visual awareness</button>
+      </details>
+      <p class="help">Local reactions use a camera landmark model downloaded from your Mini server (about 11 MB on first use). It tracks visible smiles, a wink and head movement on this device, including during chat and games, without extra cloud checks. This is approximate face geometry, not recognition of people or feelings. Camera video still streams to Qwen during live sharing. Camera pause also pauses local reactions.</p>
+      <p id="awarenessStatus" class="help" role="status">Local camera reactions off.</p>
+      <button id="pauseAwarenessBtn" class="outline hidden" type="button">Pause local reactions</button>
       <label class="toggle-label memory-check"><input id="rememberSettings" type="checkbox"><span>Remember these settings on this device. Access codes and camera-sharing choices are never saved.</span></label>
       <button id="forgetSettingsBtn" class="outline" type="button">Forget saved settings</button>
       <p id="settingsInfo" class="help" role="status">Settings stay in this session unless you choose to remember them.</p>
-      <div class="actions session-actions">
-        <button id="startBtn" class="primary" type="button">● Parent: Start voice chat</button>
-        <button id="stopBtn" class="outline hidden" type="button">■ Stop session</button>
-        <button id="extendBtn" class="outline hidden" type="button">+5 min · paid</button>
-      </div>
       <div class="live-stats"><span id="sessionClock">00:00</span><span id="remainingTime">Remaining: --:--</span><span id="replyDelay">First audible reply: —</span><span id="micBadge">Microphone off</span><span id="videoBadge">Camera off</span></div>
       <p class="help">First audible reply measures from end-of-speech detection to audio detected playing on this device. It is unavailable when the browser audio meter cannot run.</p>
       <details class="advanced-setup"><summary>More voice and camera settings</summary>
@@ -163,7 +170,7 @@
         <select id="responsePace"><option value="fast">Quick turn · half a second</option><option value="balanced" selected>A little pause · recommended</option><option value="patient">Extra thinking time</option></select>
         <label class="toggle-label"><input id="keepConversationGoing" type="checkbox" checked><span>Offer gentle follow-up questions (allow quiet pauses and story endings)</span></label>
       </div>
-      <p class="help cost-note">Mini asks a varied opening question using Safari's voice. Qwen follows your child's interests and choices. With follow-ups enabled, Safari may supply one question during an unfinished game or story (no extra model request). Turn follow-ups off for child-led conversation. Say “Mini, stop” or “Mini，别说了” to end a session when speech recognition is available; the Stop button always works. More sensitive listening may hear background noise. Longer sessions cost more. Adding time requires the parent code again. There is no automatic paid reconnect.</p>
+      <p class="help cost-note">Mini asks a varied opening question using Safari's voice. Qwen follows your child's interests and choices. With follow-ups enabled, Mini offers one relevant playful suggestion and question. If a visual plan includes a contextual question, Safari may speak it once after a quiet pause, without another model request. Turn follow-ups off for child-led conversation. Say “Mini, stop” or “Mini，别说了” to end a session when speech recognition is available; the Stop button always works. More sensitive listening may hear background noise. Longer sessions cost more. Adding time requires the parent code again. There is no automatic paid reconnect.</p>
       </details>
 
       <div class="actions">
@@ -173,6 +180,10 @@
       <p class="help">Microphone streams continuously after Start. If camera sharing is checked, video frames stream continuously too. Stop ends both. No recording is saved by this app.</p>
     </section>
 
+      <details class="advanced-setup"><summary>Free play · microphone and camera off</summary><div class="actions">
+        <button id="localPlayBtn" class="kid-parent-link" type="button">✦ Play a tap game · free</button>
+        <button id="boardPlayBtn" class="kid-parent-link" type="button">○ × Tic-tac-toe · free</button>
+      </div></details>
       <details class="parent-diagnostics" id="parentDiagnostics">
         <summary>Microphone and AI hearing diagnostics</summary>
       <div class="kid-listening" role="group" aria-label="Microphone and speech detection">
@@ -224,8 +235,8 @@
       <button id="playAudioBtn" class="outline" type="button">▶ Enable speaker audio</button>
       <p class="help">If Safari blocks automatic audio playback, tap Enable speaker audio. Use phone speaker volume or headphones to reduce echo.</p>
     </section>
-        </details>
-    <footer>Mini V6.3 · Voice-first companion · Parent-started paid AI · Camera opt-in</footer>
+        </dialog>
+    <footer>Mini · Voice-first companion · Parent-started paid AI · Camera opt-in</footer>
   </main>
   <dialog id="extendDialog" class="parent-dialog" aria-labelledby="extendTitle">
     <form id="extendForm">

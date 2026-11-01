@@ -157,7 +157,7 @@
       try{chimeContext?.close().catch(()=>{});}catch{}
       chimeContext=null;
       if(wasPlaying){
-        cancelReactions();tag.textContent='♡ NEEDS GROWN-UP';setHint(words().blocked);setModeLabel();
+        cancelReactions();tag.textContent='♡ RESTING';setHint(words().blocked);setModeLabel();
         $('status').textContent=language()==='zh'?'Mini 休息中 · 麦克风和摄像头关闭':'Mini is resting · mic and camera off';
         $('faceTip').textContent=language()==='zh'?'直接跟 Mini 说话吧！💜':'No buttons to learn. Just talk to me! 💜';
       }
@@ -177,7 +177,7 @@
     function startLocalPlay() {
       const session=options.getSession();
       if(session && !session.stopped)return;
-      if(localGame){stopLocalPlay();cancelReactions();setHint(words().blocked);setModeLabel();tag.textContent='♡ NEEDS GROWN-UP';return;}
+      if(localGame){stopLocalPlay();cancelReactions();setHint(words().blocked);setModeLabel();tag.textContent='♡ RESTING';return;}
       stopLocalPlay();cancelReactions();
       localGame={round:0,phase:'watch'};
       $('localPlayBtn').textContent=language()==='zh'?'结束点击游戏':'■ Stop tap game';
@@ -238,7 +238,7 @@
       if(info.running && localGame){stopLocalPlay();cancelReactions();}
       if(info.running && face.dataset.expression==='sleepy') delete face.dataset.expression;
       tag.classList.toggle('active',online);
-      tag.textContent=online?(options.getSession()?.muted?'● MIC MUTED':'● AI READY'):'♡ NEEDS GROWN-UP';
+      tag.textContent=online?(options.getSession()?.muted?'● MIC MUTED':'● READY'):'♡ RESTING';
       kidStop.classList.toggle('hidden',!info.running);
       if(!info.running) {
         sessionNotice.classList.add('hidden');
@@ -268,7 +268,7 @@
       micStatus.textContent=options.getSession()?.muted?'🔇 Microphone muted':'🎤 Microphone on';
       micHelp.textContent='When Mini asks, answer normally. Mini now listens for one-word replies.';
       vadStatus.textContent='AI speech detection: ready';
-      parent.open=false;
+      if(options.closeParentSetup)options.closeParentSetup();else parent.open=false;
       window.scrollTo({top:0,behavior:'smooth'});
       setModeLabel();
       setHint(words().starting);
@@ -350,11 +350,10 @@
     }
     function reactToVisualCue({cue,spoken=false}) {
       const session=options.getSession();
-      if(!['hello','wave','smile'].includes(cue) || !session?.ready || !session.awarenessEnabled || !session.wantVideo || session.videoPaused || session.stopped || session.muted || speechActive || activeNarration ||
-        session.childSpeaking || session.responseActive || session.turnPending || session.playbackActive)return false;
-      cancelReactions();mood(cue==='wave'?'wink':cue==='smile'?'happy':'curious',1100);
+      if(!['hello','wave','smile','wink','motion'].includes(cue) || !session?.ready || !session.awarenessEnabled || !session.wantVideo || session.videoPaused || session.stopped || speechActive || session.childSpeaking)return false;
+      cancelReactions();mood(['wave','wink'].includes(cue)?'wink':cue==='smile'?'happy':'curious',1100);
       if(cue==='wave')sparkle('✨');
-      if(spoken && session.spokenGreetings && cue!=='smile')sayFallback('chat',language()==='zh'?'你好呀！':'Hello there!',language());
+      if(spoken && session.spokenGreetings && cue==='hello' && !session.muted && !activeNarration && !session.responseActive && !session.turnPending && !session.playbackActive)sayFallback('chat',language()==='zh'?'你好呀！':'Hello there!',language());
       return true;
     }
     function onMicLevel(value) {
@@ -394,8 +393,7 @@
       face.style.removeProperty('--look-y');
     });
     $('kidParentLink').addEventListener('click',()=>{
-      parent.open=true;
-      parent.scrollIntoView({block:'start',behavior:'smooth'});
+      if(options.openParentSetup)options.openParentSetup();else {parent.open=true;parent.scrollIntoView({block:'start',behavior:'smooth'});}
     });
     $('localPlayBtn').addEventListener('click',startLocalPlay);
     kidStop.addEventListener('click',()=>{
