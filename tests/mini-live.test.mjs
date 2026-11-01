@@ -54,6 +54,7 @@ function mockEnvironment() {
     onResponseFinished(){calls.push(['response_done']);},
     onVoiceDetected(v){calls.push(['voice',v]);},
     onTranscription(text){calls.push(['transcript',text]);},
+    reactToVisualCue(cue){calls.push(['visual_cue',cue.cue]);return true;},
     sayFallback(mode){calls.push(['fallback',mode]);},
     sayFollowUp(mode,question,lang){calls.push(['followup',mode,question,lang]);return true;},
     onLiveReady(){calls.push(['ready']);},
@@ -827,4 +828,32 @@ test('Visual planning failure leaves voice capture alive and artwork requires pa
   assert.equal(env.s.stopped,false);assert.equal(env.s.audioInputTrack.enabled,true);
   assert.match(env.ctx.document.getElementById('visualRequestStatus').textContent,/unavailable/);
   await assert.rejects(vm.runInContext('requestGeneratedArtwork("ticket",new AbortController().signal)',env.ctx),/grown-up/);
+});
+
+test('Awareness eligibility respects camera, mute, conversation, playback, page visibility and activities',()=>{
+  const env=mockEnvironment();Object.assign(env.s,{awarenessEnabled:true,visualGrant:'grant',wantVideo:true,videoOutTrack:{readyState:'live'}});
+  const eligible=()=>vm.runInContext('Boolean(awarenessCanRun(testSession))',env.ctx);
+  assert.equal(eligible(),true);
+  for(const key of ['videoPaused','muted','childSpeaking','turnPending','responseActive','playbackActive','contextUpdatePending','activityUpdatePending','visualPlanning']){
+    env.s[key]=true;assert.equal(eligible(),false,key);env.s[key]=false;
+  }
+  env.s.audioInputTrack.enabled=false;assert.equal(eligible(),false);env.s.audioInputTrack.enabled=true;
+  env.s.videoOutTrack.readyState='ended';assert.equal(eligible(),false);env.s.videoOutTrack.readyState='live';
+  env.ctx.document.hidden=true;assert.equal(eligible(),false);env.ctx.document.hidden=false;
+  vm.runInContext('visualActivity.open()',env.ctx);assert.equal(eligible(),false);
+  vm.runInContext('visualActivity.close(false)',env.ctx);assert.equal(eligible(),true);
+  env.s.wantVideo=false;assert.equal(eligible(),false);
+});
+test('Awareness waits for quiet, interrupts on speech, stops with capture and clears per-session consent',()=>{
+  const env=mockEnvironment();let options,interrupted=0,stopped=0;
+  Object.assign(env.s,{awarenessEnabled:true,visualGrant:'grant',wantVideo:true,videoOutTrack:{readyState:'live'},endsAt:Date.now()+300000});
+  env.ctx.window.MiniAwareness={start:value=>{options=value;return {interrupt(){interrupted++;},stop(){stopped++;},isPaused:()=>false};}};
+  vm.runInContext('startAwareness(testSession)',env.ctx);assert.equal(options.allowed(),false);
+  env.s.awarenessLastActivity=Date.now()-7000;assert.equal(Boolean(options.allowed()),true);
+  options.onCue({cue:'wave',spoken:false});assert.equal(env.calls.at(-1)[0],'visual_cue');
+  emit(env,'input_audio_buffer.speech_started');assert.equal(interrupted,1);assert.equal(options.allowed(),false);
+  env.ctx.document.getElementById('visualAwareness').checked=true;env.ctx.document.getElementById('spokenGreetings').checked=true;
+  vm.runInContext('stopMini()',env.ctx);assert.equal(stopped,1);
+  assert.equal(env.ctx.document.getElementById('visualAwareness').checked,false);assert.equal(env.ctx.document.getElementById('spokenGreetings').checked,false);
+  assert.match(env.ctx.document.getElementById('awarenessStatus').textContent,/off/);
 });

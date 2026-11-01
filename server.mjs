@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { timingSafeEqual, randomBytes } from 'node:crypto';
 import {planVisual,generateArtwork,validateVisualPlan} from './visual-provider.mjs';
+import {observeCamera,validateFrames} from './awareness-provider.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const STATIC = new Map([
@@ -15,6 +16,7 @@ const STATIC = new Map([
   ['/mini-board.js', ['mini-board.js', 'text/javascript; charset=utf-8']],
   ['/mini-visual-schema.js', ['mini-visual-schema.js', 'text/javascript; charset=utf-8']],
   ['/mini-visuals.js', ['mini-visuals.js', 'text/javascript; charset=utf-8']],
+  ['/mini-awareness.js', ['mini-awareness.js', 'text/javascript; charset=utf-8']],
   ['/mini-child-ui.js', ['mini-child-ui.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
   ['/mini-face.css', ['mini-face.css', 'text/css; charset=utf-8']],
@@ -68,12 +70,13 @@ export function createApp({
   fetchFn = fetch,
   visualModel = process.env.ALIBABA_VISUAL_MODEL || 'qwen-plus',
   imageModel = process.env.ALIBABA_IMAGE_MODEL || '',
+  awarenessModel = process.env.ALIBABA_AWARENESS_MODEL || 'qwen-vl-plus',
 } = {}) {
   if (apiKey && apiKey.startsWith('sk-sp-')) {
     throw new Error('Token Plan key detected. A standalone live robot requires a Model Studio pay-as-you-go API key.');
   }
   const workspace = apiKey ? validateWorkspaceId(workspaceId) : null;
-  for(const model of [visualModel,imageModel].filter(Boolean))if(!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,99}$/.test(model))throw new Error('Invalid visual model name');
+  for(const model of [visualModel,imageModel,awarenessModel].filter(Boolean))if(!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,99}$/.test(model))throw new Error('Invalid visual model name');
   const base=workspace?`https://${workspace}.ap-southeast-1.maas.aliyuncs.com`:null;
   const upstream = workspace
     ? `https://${workspace}.ap-southeast-1.maas.aliyuncs.com/api/v1/webrtc/realtime?model=${MODEL}`
@@ -98,7 +101,8 @@ export function createApp({
       }
       if (req.method === 'GET' && path === '/api/config') {
         return json(res, 200, { mode: upstream ? 'realtime' : 'preview', model: upstream ? MODEL : null, maxSessionMinutes: 60,
-          visuals:{available:Boolean(upstream),model:visualModel,imagesAvailable:Boolean(upstream && imageModel),maxPlans:60,maxImages:4} });
+          visuals:{available:Boolean(upstream),model:visualModel,imagesAvailable:Boolean(upstream && imageModel),maxPlans:60,maxImages:4},
+          awareness:{available:Boolean(upstream),model:awarenessModel,maxChecks:40,minIntervalSeconds:15} });
       }
       if (req.method === 'GET' && path === '/favicon.ico') return respond(res, 204, '');
       if(path.startsWith('/api/visual/')) {
@@ -107,7 +111,34 @@ export function createApp({
         const grant=visualSessions.get(token);
         if(!grant)return json(res,401,{error:'Start a parent-authorized session with visual responses enabled.'});
         if(path==='/api/visual/session' && req.method==='DELETE'){revoke(token);return json(res,200,{ok:true});}
+        if(path==='/api/visual/observe' && req.method==='POST') {
+          if(!grant.awarenessAllowed)return json(res,403,{error:'Visual awareness and camera sharing were not enabled for this session.'});
+          if(!String(req.headers['content-type'] || '').startsWith('application/json'))return json(res,415,{error:'JSON required.'});
+          let frames;
+          try {
+            const body=JSON.parse(await bodyWithLimit(req,250000));
+            if(!body || typeof body!=='object' || Object.keys(body).some(key=>key!=='frames'))throw Error();
+            frames=validateFrames(body.frames);
+          } catch(error){return json(res,error.status || 400,{error:'Two bounded JPEG camera frames are required.'});}
+          if(grant.observations>=40 || (grant.lastObservation!==null && Date.now()-grant.lastObservation<15000))return json(res,429,{error:'Visual check limit reached. Voice chat can continue.'});
+          if(grant.controllers.has('observe'))return json(res,409,{error:'A visual check is already running.'});
+          grant.observations++;grant.lastObservation=Date.now();
+          const controller=new AbortController();grant.controllers.set('observe',controller);
+          const timeout=setTimeout(()=>controller.abort(),15000);
+          const disconnected=()=>{if(!res.writableEnded)controller.abort();};res.on('close',disconnected);
+          try {
+            const observation=await observeCamera({fetchFn,base,apiKey,model:awarenessModel,frames,signal:controller.signal});
+            if(controller.signal.aborted || !visualSessions.has(token))throw Error();
+            return json(res,200,{observation});
+          } catch {
+            if(!res.destroyed && !res.writableEnded)return json(res,502,{error:'Visual awareness paused. Voice chat can continue.'});
+            return;
+          } finally {
+            clearTimeout(timeout);res.off('close',disconnected);grant.controllers.delete('observe');
+          }
+        }
         if(req.method!=='POST' || !['/api/visual/plan','/api/visual/image'].includes(path))return respond(res,404,'Not found');
+        if(!grant.visualsAllowed)return json(res,403,{error:'Visual scenes were not enabled for this session.'});
         if(!String(req.headers['content-type'] || '').startsWith('application/json'))return json(res,415,{error:'JSON required.'});
         let body;
         try{body=JSON.parse(await bodyWithLimit(req,40000));if(!body || typeof body!=='object' || Array.isArray(body))throw Error();}
@@ -200,11 +231,14 @@ export function createApp({
       if (answer.length > MAX_SDP_BYTES || !answer.startsWith('v=0') || !/^m=audio\s/m.test(answer.replace(/\r/g,''))) {
         return json(res, 502, {error:'Model Studio returned an invalid SDP answer.'});
       }
-      if(req.headers['x-mini-visuals']==='true') {
+      const awarenessAllowed=req.headers['x-mini-awareness']==='true' && req.headers['x-mini-camera']==='true';
+      if(req.headers['x-mini-visuals']==='true' || awarenessAllowed) {
         pruneVisuals();
         if(visualSessions.size>=128)revoke(visualSessions.keys().next().value);
         const token=randomBytes(32).toString('base64url');
-        visualSessions.set(token,{expiresAt:Date.now()+60*60000,plans:0,images:0,recent:[],controllers:new Map(),ticket:null,imagesAllowed:req.headers['x-mini-images']==='true' && Boolean(imageModel)});
+        visualSessions.set(token,{expiresAt:Date.now()+60*60000,plans:0,images:0,recent:[],controllers:new Map(),ticket:null,
+          visualsAllowed:req.headers['x-mini-visuals']==='true',awarenessAllowed,observations:0,lastObservation:null,
+          imagesAllowed:req.headers['x-mini-visuals']==='true' && req.headers['x-mini-images']==='true' && Boolean(imageModel)});
         res.setHeader('X-Mini-Visual-Session',token);
       }
       return respond(res, 200, answer, 'application/sdp');

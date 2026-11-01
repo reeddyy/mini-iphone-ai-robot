@@ -17,6 +17,7 @@ Use the same scenarios when comparing Mini, Loona DeskMate, LOOI, and Reachy Min
 | Choice duel and counting | Ask for scissors-paper-stone, choose by voice and touch, then request three apples and count them. | Mini chooses before the child; correct win/tie/lose result; exactly three objects; one count per tap |
 | Visual continuation | Start a story with a novel character and setting; choose a displayed path, interrupt a pending scene, then return to Mini. | Relevant next scene; voice/visual consistency; latest request wins; full face restored; Stop remains accessible |
 | Optional artwork | With a compatible model configured, compare pictures off/on in separate sessions. Request a painting, cancel it, then Stop. | Consent enforced; actual model access; visible loading/failure state; decoded picture; no late picture after cancellation; observed extra cost |
+| Camera awareness | With adult volunteers and awareness opted in, enter view, hold a visible smile and wave; repeat with poor lighting, camera pause and while someone speaks. | Correct observable cues; false reactions; time to react; cooldowns; no identity/emotion claims; no interruptions; no snapshots after pause/Stop; extra cost |
 
 Run at least five repetitions per supported voice scenario in a quiet room. Use adult volunteers and invented content first. Device audio output matters: generated text and an open socket do not establish audible success. Do not record children's voices or retain their transcripts for benchmarking.
 
@@ -29,3 +30,5 @@ Report the median and slowest observed audible delay and interruption time, plus
 The parent diagnostic “First audible reply” uses the local remote-stream audio meter, gated on playback being unmuted and unpaused. It measures from the provider's end-of-speech event, not from the physical moment the child stopped talking. It is unavailable if the audio meter cannot run. A blocked speaker, failed audio route or OS volume setting still needs a human listening check.
 
 Live Qwen and physical competitor trials require the user's configured devices and credentials and remain unrun until performed explicitly. Instruction checkpoint updates do not create extra model responses, but their context can still affect provider token usage.
+
+Awareness tests validate strict cue output, consent/scopes, observation budgets, cooldowns, late-result cancellation and teardown. Local Chromium uses synthetic canvas frames and simulated observations to exercise capture, HTTP and expression rendering; it does not measure face, smile or wave recognition accuracy. Spoken greetings in those checks use mocked speech synthesis, not iPhone audio hardware.

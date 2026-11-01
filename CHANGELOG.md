@@ -2,6 +2,8 @@
 
 ## Unreleased — Child controls and gentler conversation
 
+- Add separately consented camera awareness: local motion/native face-presence gates, bounded two-frame Qwen vision observations, and quiet-time face reactions to presence, visible smiles and waves. No face enrollment, identity matching, emotion labels or recordings.
+- Add optional Safari-spoken hellos, off by default, with microphone restoration and interruption. Respect conversation/audio, activities, touch, mute, camera pause, page visibility and the final minute of a session. Limit reactions to eight per session and observation attempts to 40, at least 15 seconds apart. Provider errors pause awareness until manual resume; Stop aborts checks, revokes the shared grant and resets consent.
 - Add Qwen-directed scene planning for arbitrary visual subjects using validated drawing primitives, emoji, text, motion and choices. Keep a compact Mini beside scenes, with a persistent Stop control and Back to Mini.
 - Add generic locally scored choice duels (including scissors-paper-stone), exact count activities and visual story choices. Mini commits its random duel move before the child chooses; spoken selections can use Qwen interpretation.
 - Add optional, separately consented artwork generation through a configured synchronous image model. Use parent-session grants, single-use image tickets, request limits, cancellation, bounded image downloads and non-executable rendering. Image consent is never saved.

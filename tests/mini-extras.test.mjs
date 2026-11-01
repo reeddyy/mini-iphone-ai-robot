@@ -123,7 +123,7 @@ test('Remembered settings accept only safe fixed preferences, never credentials 
   assert.equal(extras.loadSettings(),null);
   assert.equal(map.size,0);
   extras.saveSettings({language:'zh',sessionLimit:'15',favoriteTopic:'space',reactionSounds:false,
-    accessCode:'must-not-save',sendVideo:true,ALIBABA_API_KEY:'must-not-save',familyNote:'private words',userTranscript:'private words'});
+    accessCode:'must-not-save',sendVideo:true,visualAwareness:true,spokenGreetings:true,ALIBABA_API_KEY:'must-not-save',familyNote:'private words',userTranscript:'private words'});
   const stored=JSON.parse(map.get('mini-parent-settings-v1'));
   assert.deepEqual(stored,{language:'zh',sessionLimit:'15',favoriteTopic:'space',reactionSounds:false});
   assert.equal(extras.loadSettings().language,'zh');

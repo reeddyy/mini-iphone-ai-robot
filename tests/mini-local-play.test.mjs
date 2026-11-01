@@ -58,3 +58,14 @@ test('Local play is silent by default and never initializes an audio context',()
   env.get('localPlayBtn').click();env.tick(1600);
   assert.equal(contexts,0);
 });
+
+test('Visible cues animate only with camera awareness consent and yield to speech',()=>{
+  const env=setup(),session={ready:true,stopped:false,awarenessEnabled:true,wantVideo:true};env.setSession(session);
+  assert.equal(env.ui.reactToVisualCue({cue:'wave'}),true);assert.equal(env.get('robotFace').dataset.expression,'wink');
+  env.tick(1200);
+  assert.equal(env.ui.reactToVisualCue({cue:'smile'}),true);assert.equal(env.get('robotFace').dataset.expression,'happy');
+  session.childSpeaking=true;assert.equal(env.ui.reactToVisualCue({cue:'wave'}),false);session.childSpeaking=false;
+  session.videoPaused=true;assert.equal(env.ui.reactToVisualCue({cue:'wave'}),false);session.videoPaused=false;
+  session.awarenessEnabled=false;assert.equal(env.ui.reactToVisualCue({cue:'wave'}),false);
+  assert.equal(env.ui.reactToVisualCue({cue:'sad'}),false);
+});

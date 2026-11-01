@@ -310,7 +310,7 @@
       setHint(words().prompting);
     }
     function reactToMiniSpeech(transcript) {
-      // React only to Mini's own reply, not to the child's face or inferred emotion.
+      // Spoken-reply reactions are separate from validated visible-cue reactions.
       if (typeof transcript !== 'string' || !transcript.trim()) return;
       const t = transcript.toLowerCase().slice(0,1100);
       if (/\b(?:correct|great job|well done|you got it|brilliant|excellent|awesome)\b|答对|真棒|太棒|厉害|做得好/i.test(t)) {
@@ -347,6 +347,15 @@
       if(typeof value!=='string'||!value.trim())return;
       vadStatus.textContent='✅ AI heard: '+value.trim().slice(0,60);
       lastVoiceAt=Date.now();
+    }
+    function reactToVisualCue({cue,spoken=false}) {
+      const session=options.getSession();
+      if(!['hello','wave','smile'].includes(cue) || !session?.ready || !session.awarenessEnabled || !session.wantVideo || session.videoPaused || session.stopped || session.muted || speechActive || activeNarration ||
+        session.childSpeaking || session.responseActive || session.turnPending || session.playbackActive)return false;
+      cancelReactions();mood(cue==='wave'?'wink':cue==='smile'?'happy':'curious',1100);
+      if(cue==='wave')sparkle('✨');
+      if(spoken && session.spokenGreetings && cue!=='smile')sayFallback('chat',language()==='zh'?'你好呀！':'Hello there!',language());
+      return true;
     }
     function onMicLevel(value) {
       const level=Number.isFinite(value)?Math.max(0,Math.min(100,Math.round(value))):0;
@@ -404,6 +413,8 @@
       onResponseStarted,
       onResponseFinished,
       reactToMiniSpeech,
+      reactToVisualCue,
+      isNarrating:()=>Boolean(activeNarration || pendingStarter),
       onVoiceDetected,
       onTranscription,
       onMicLevel,
