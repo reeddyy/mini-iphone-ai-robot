@@ -120,9 +120,12 @@ export async function planVisual({fetchFn,base,apiKey,model,request,spokenReply=
   return parseVisualContent(content);
 }
 export async function generateArtwork({fetchFn,base,workspaceId,apiKey,model,prompt,signal}) {
+  // The 2.0/3.0 native API supports the 1K profile used in published international calls.
+  // Preserve the older model's original resolution instead of silently changing its contract.
+  const size=/^qwen-image-(?:2|3)\.0(?:-|$)/i.test(model)?'1024*1024':'1328*1328';
   let response;try{response=await fetchFn(base+'/api/v1/services/aigc/multimodal-generation/generation',{
     method:'POST',headers:{Authorization:'Bearer '+apiKey,'Content-Type':'application/json',...(workspaceId?{'X-DashScope-WorkSpace':workspaceId}:{})},signal,
-    body:JSON.stringify({model,input:{messages:[{role:'user',content:[{text:'Create a gentle, child-appropriate illustration. No scary, sexual, violent or private identifying content. '+prompt}]}]},parameters:{n:1,size:'1328*1328',prompt_extend:false,watermark:true}}),
+    body:JSON.stringify({model,input:{messages:[{role:'user',content:[{text:'Create a gentle, child-appropriate illustration. No scary, sexual, violent or private identifying content. '+prompt}]}]},parameters:{n:1,size,prompt_extend:false,watermark:true}}),
   });}catch{throw new VisualProviderError('VISUAL_NETWORK','The Windows server could not reach the image generator.');}
   if(!response.ok)throw await providerFailure(response,'artwork');
   let data;try{data=JSON.parse((await readLimited(response,100000)).toString('utf8'));}catch{throw new VisualProviderError('IMAGE_RESPONSE_FORMAT','The image generator returned an unreadable response.');}

@@ -140,7 +140,7 @@
         <p id="imageModelCheckStatus" class="help" role="status">Enter the parent code above, then check. This reads account metadata with the key already on your server; it does not generate or charge for a picture.</p>
         <ol class="help">
           <li>Stop Mini and its Windows server. Open the existing private <code>.env</code> in your project folder.</li>
-          <li>Set <code>ALIBABA_IMAGE_MODEL</code> to a compatible image model enabled in your Singapore Model Studio workspace. Use the exact model ID your account enables; a catalog listing alone does not prove API access. The voice model alone does not generate artwork.</li>
+          <li>Recommended image model: <code>ALIBABA_IMAGE_MODEL=qwen-image-3.0</code>, if enabled in your Singapore workspace. Mini requests one 1024 × 1024 image. Use the exact model ID your account enables; a catalog listing alone does not prove API access. The voice model alone does not generate artwork.</li>
           <li>Keep the drawing-instruction planner separate: <code>ALIBABA_VISUAL_MODEL=qwen-plus</code>. An image-generation model cannot return the planner's chat instructions.</li>
           <li>Save the file, run <code>npm start</code> again and refresh this Safari page. Pulling code does not update your private <code>.env</code>.</li>
           <li>Before starting a new session, turn on <strong>Show visual stories and games</strong>, then tick <strong>Allow newly generated pictures</strong>.</li>

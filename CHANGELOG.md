@@ -1,5 +1,10 @@
 # Changelog
 
+## Image model research follow-up
+
+- Recommend `qwen-image-3.0` for ordinary requested illustrations, with Pro as an explicit quality comparison and 2.0 as a manual fallback. Document the primary project announcement, maintained adapter and published international-call evidence; account access and latency remain unverified here.
+- Use one 1024×1024 image for the 2.0/3.0 families; retain the legacy resolution for older model IDs. No automatic model substitution or private `.env` change.
+
 ## V6.5 — Local reactions and a clearer mobile companion
 
 - Replace cloud-gated camera reactions in the current UI with pinned on-device Face Mesh in a dedicated worker. Track visible smile/wink and head position/movement during chat and games; retain quiet-only optional hellos, parent consent and media teardown. No extra vision calls, identity recognition or emotion classification.

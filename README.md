@@ -15,6 +15,8 @@ Stop Mini and press Ctrl+C in its Windows terminal, run `git pull`, then `npm st
 
 Local/API tests use mocked Qwen responses. Chromium checks cover real local landmark inference with a public-domain adult photo plus mobile portrait/landscape, consent, media cleanup and image-error behavior. Actual child-cue accuracy, Qwen artwork quality/latency, Singapore account access and physical iPhone behavior still need device validation.
 
+For newly generated pictures, use **`qwen-image-3.0`** as the recommended target, subject to Singapore account access. Mini requests one 1024×1024 image for the 2.0/3.0 families. See [the model research and exact Windows settings](docs/image-model-research.md); the recommendation is based on current integration evidence, not a live call with your key.
+
 ### Current development updates
 
 - **Optional local camera reactions:** Smiles, winks, face position and head movement are estimated on-device at up to four samples per second. Gaze follows the face and expressions can react during Mini's speech and games; child speech keeps the listening expression. There are no extra cloud vision checks in this UI. Optional spoken hellos wait for quiet and are capped at two per session. Consent resets on Stop. See [camera setup and limits](docs/visual-awareness.md).

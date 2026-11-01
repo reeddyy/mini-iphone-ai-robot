@@ -53,3 +53,21 @@ test('Benign color and size variants normalize without allowing executable field
     assert.throws(()=>parseVisualContent(JSON.stringify({version:1,action:'scene',nodes:[node]})),error=>error.code==='VISUAL_PLAN_INVALID' && /^[A-Z_]+$/.test(error.details.reason));
   }
 });
+
+test('Qwen Image 2.0/3.0 use one 1K image on the native API while legacy models retain their resolution',async()=>{
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64');
+  for(const [model,size] of [['qwen-image-3.0','1024*1024'],['qwen-image-3.0-pro','1024*1024'],['qwen-image-2.0','1024*1024'],['qwen-image-2.0-pro','1024*1024'],['qwen-image-plus','1328*1328']]) {
+    let calls=0;
+    const image=await generateArtwork({...args,base:'https://dashscope-intl.aliyuncs.com',workspaceId:'ws-fixture',model,prompt:'One purple kitten with a yellow hat.',fetchFn:async(url,init)=>{
+      calls++;
+      if(calls===1){
+        assert.equal(url,'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation');
+        const body=JSON.parse(init.body);assert.equal(body.model,model);assert.equal(body.parameters.size,size);assert.equal(body.parameters.n,1);
+        assert.equal(body.parameters.prompt_extend,false);assert.match(body.input.messages[0].content[0].text,/One purple kitten with a yellow hat/);
+        return json({output:{choices:[{message:{content:[{image:'https://dashscope-fixture.oss-accelerate.aliyuncs.com/picture.png'}]}}]}});
+      }
+      assert.equal(init.headers,undefined);assert.equal(init.redirect,'error');return new Response(png);
+    }});
+    assert.equal(calls,2,'one generation and one credential-free download, no model retries');assert.equal(image.contentType,'image/png');
+  }
+});

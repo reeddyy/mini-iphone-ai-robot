@@ -17,15 +17,16 @@ The renderer supports ellipses, rounded rectangles, lines, polygons, literal tex
 
 1. Stop the server, run `git pull` and `npm test` in the existing project, and keep your private `.env`.
 2. The planner reuses `ALIBABA_API_KEY` and `ALIBABA_WORKSPACE_ID` from the Singapore pay-as-you-go setup. Its default is `ALIBABA_VISUAL_MODEL=qwen-plus`; use a compatible JSON-output chat model enabled in that workspace. Model availability is account-specific.
-3. Leave `ALIBABA_IMAGE_MODEL` blank for scenes and games without generated artwork. To enable artwork, configure a model available in your Singapore workspace that supports the synchronous multimodal image-generation request/response described below. Image requests now default to the native Singapore host (`ALIBABA_IMAGE_ENDPOINT=singapore`); `workspace` is an explicit alternative for accounts using that route. The server supplies the workspace header in both cases. Models requiring asynchronous task polling are not supported by this adapter. The example model names in tests are fixtures, not evidence of account access.
+3. Leave `ALIBABA_IMAGE_MODEL` blank for scenes and games without generated artwork. For Mini’s requested pictures, the researched target is `qwen-image-3.0` with a 1024×1024 request; see [model recommendation and evidence](image-model-research.md). To enable artwork, configure a model available in your Singapore workspace that supports the synchronous multimodal image-generation request/response described below. Image requests now default to the native Singapore host (`ALIBABA_IMAGE_ENDPOINT=singapore`); `workspace` is an explicit alternative for accounts using that route. The server supplies the workspace header in both cases. Models requiring asynchronous task polling are not supported by this adapter. The example model names in tests are fixtures, not evidence of account access.
 4. Run `npm start`, refresh the HTTPS Safari page, and start a short parent-authorized session. **Show visual stories and games** enables the planner. **Allow newly generated pictures** is separate, off by default, and resets on Stop. This picture consent is never included in saved settings.
 
 ### If the generated-pictures checkbox is disabled
 
-Read the explanation next to the checkbox. Stop any running session before changing picture permission, and enable **Show visual stories and games** first. If the server reports that pictures are not configured, add an image model to your existing private Windows `.env`; `git pull` does not modify that file. Use the exact enabled model ID from your account metadata or signed-in Singapore console. The example placeholder below must be replaced:
+Read the explanation next to the checkbox. Stop any running session before changing picture permission, and enable **Show visual stories and games** first. If the server reports that pictures are not configured, add an image model to your existing private Windows `.env`; `git pull` does not modify that file. Use `qwen-image-3.0` as the recommended target if your Singapore account enables it. The standard and Pro variants use the same native API; see [the research notes](image-model-research.md).
 
 ```dotenv
-ALIBABA_IMAGE_MODEL=YOUR_ENABLED_IMAGE_MODEL_ID
+ALIBABA_IMAGE_MODEL=qwen-image-3.0
+ALIBABA_IMAGE_ENDPOINT=singapore
 ```
 
 Replace an existing blank `ALIBABA_IMAGE_MODEL=` line rather than adding a duplicate. Keep your current API key and workspace settings. Stop the Windows server with Ctrl+C, save `.env`, run `npm start`, and refresh Safari. You can then tick picture permission before starting a new session. A configured name enables the checkbox; actual account access is checked only when a picture is requested. This adapter requires the synchronous multimodal generation API, so a model using asynchronous task polling will need a different adapter.
@@ -36,7 +37,8 @@ For normal chat/story turns, the planner waits for Mini's completed spoken-reply
 
 ```dotenv
 ALIBABA_VISUAL_MODEL=qwen-plus
-ALIBABA_IMAGE_MODEL=YOUR_ENABLED_IMAGE_MODEL_ID
+ALIBABA_IMAGE_MODEL=qwen-image-3.0
+ALIBABA_IMAGE_ENDPOINT=singapore
 ```
 
 After editing the existing private Windows `.env`, restart the Mini server and refresh Safari. The updated app detects Qwen image-generation models in the planner setting, displays the correction in Parent setup and disables those visual calls until corrected. Voice and separately configured camera awareness remain available. This setup check does not call a provider, automatically change your model selection or verify model access in your account.
