@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { timingSafeEqual, randomBytes } from 'node:crypto';
-import {planVisual,generateArtwork,validateVisualPlan} from './visual-provider.mjs';
+import {planVisual,generateArtwork,validateVisualPlan,visualModelIssue} from './visual-provider.mjs';
 import {observeCamera,validateFrames} from './awareness-provider.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -77,6 +77,7 @@ export function createApp({
   }
   const workspace = apiKey ? validateWorkspaceId(workspaceId) : null;
   for(const model of [visualModel,imageModel,awarenessModel].filter(Boolean))if(!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,99}$/.test(model))throw new Error('Invalid visual model name');
+  const visualIssue=visualModelIssue(visualModel);
   const base=workspace?`https://${workspace}.ap-southeast-1.maas.aliyuncs.com`:null;
   const upstream = workspace
     ? `https://${workspace}.ap-southeast-1.maas.aliyuncs.com/api/v1/webrtc/realtime?model=${MODEL}`
@@ -101,7 +102,8 @@ export function createApp({
       }
       if (req.method === 'GET' && path === '/api/config') {
         return json(res, 200, { mode: upstream ? 'realtime' : 'preview', model: upstream ? MODEL : null, maxSessionMinutes: 60,
-          visuals:{available:Boolean(upstream),model:visualModel,imagesAvailable:Boolean(upstream && imageModel),maxPlans:60,maxImages:4},
+          visuals:{available:Boolean(upstream && !visualIssue),model:visualModel,imagesAvailable:Boolean(upstream && imageModel && !visualIssue),maxPlans:60,maxImages:4,
+            ...(visualIssue?{configurationError:visualIssue.message}:{})},
           awareness:{available:Boolean(upstream),model:awarenessModel,maxChecks:40,minIntervalSeconds:15} });
       }
       if (req.method === 'GET' && path === '/favicon.ico') return respond(res, 204, '');
@@ -139,6 +141,7 @@ export function createApp({
           }
         }
         if(req.method!=='POST' || !['/api/visual/plan','/api/visual/image'].includes(path))return respond(res,404,'Not found');
+        if(visualIssue)return json(res,400,{error:visualIssue.message,code:visualIssue.code,model:visualIssue.model});
         if(!grant.visualsAllowed)return json(res,403,{error:'Visual scenes were not enabled for this session.'});
         if(!String(req.headers['content-type'] || '').startsWith('application/json'))return json(res,415,{error:'JSON required.'});
         let body;

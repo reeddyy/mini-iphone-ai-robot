@@ -1,12 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateVisualPlan} from '../visual-provider.mjs';
+import {validateVisualPlan,visualModelIssue,planVisual} from '../visual-provider.mjs';
 
 const duel={version:1,action:'activity',activity:{type:'hand_game',rounds:3,moves:[
   {id:'rock',label:'Stone',symbol:'✊',beats:['scissors']},
   {id:'paper',label:'Paper',symbol:'✋',beats:['rock']},
   {id:'scissors',label:'Scissors',symbol:'✌️',beats:['paper']},
 ]}};
+test('Image-generation variants cannot be used as the chat-based visual planner',async()=>{
+  for(const model of ['qwen-image','qwen-image-plus','qwen-image-2.0-pro','qwen-image-edit-plus']){
+    assert.equal(visualModelIssue(model).code,'VISUAL_MODEL_CONFIGURATION');
+    await assert.rejects(planVisual({model,fetchFn:()=>{throw Error('Must not call the provider');}}),error=>error.code==='VISUAL_MODEL_CONFIGURATION');
+  }
+  for(const model of ['qwen-plus','qwen-flash','qwen-vl-plus'])assert.equal(visualModelIssue(model),null,'accept other chat models without claiming their account access');
+});
 test('Novel scenes and character faces use generic drawing primitives, not a subject enum',()=>{
   for(const title of ['A cat with starry whiskers','A jellyfish astronaut','Three purple submarines']) {
     const scene=validateVisualPlan({version:1,action:'character',title,nodes:[

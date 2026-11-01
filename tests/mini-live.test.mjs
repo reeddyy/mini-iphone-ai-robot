@@ -864,6 +864,17 @@ test('Picture permission explains each unavailable state and enables only for a 
   assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/need live AI/);
 });
 
+test('Wrong visual-model setup is explained before a session while ordinary voice startup remains enabled',async()=>{
+  const env=mockEnvironment();
+  vm.runInContext('current=null;loading=false',env.ctx);
+  env.ctx.fetch=async()=>({ok:true,json:async()=>({mode:'realtime',visuals:{available:false,imagesAvailable:false,model:'qwen-image-plus',configurationError:'Set ALIBABA_VISUAL_MODEL=qwen-plus; use ALIBABA_IMAGE_MODEL=qwen-image-plus for artwork.'}})});
+  await vm.runInContext('loadConfig()',env.ctx);
+  const get=id=>env.ctx.document.getElementById(id);
+  assert.equal(get('startBtn').disabled,false);assert.equal(get('visualResponses').disabled,true);assert.equal(get('generatedPictures').disabled,true);
+  assert.match(get('visualCapabilityInfo').textContent,/ALIBABA_VISUAL_MODEL=qwen-plus/);
+  assert.match(get('generatedPicturesInfo').textContent,/Fix the visual planner/);
+});
+
 test('Awareness eligibility respects camera, mute, conversation, playback, page visibility and activities',()=>{
   const env=mockEnvironment();Object.assign(env.s,{awarenessEnabled:true,visualGrant:'grant',wantVideo:true,videoOutTrack:{readyState:'live'}});
   const eligible=()=>vm.runInContext('Boolean(awarenessCanRun(testSession))',env.ctx);

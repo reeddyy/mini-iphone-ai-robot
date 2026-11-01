@@ -16,7 +16,7 @@ async function withApp(options,task) {
     if(String(url).includes('/webrtc/'))return new Response(OFFER);
     return options.provider(url,init);
   };
-  const app=createApp({apiKey:'sk-test-payg',workspaceId:'ws-test',accessCode:CODE,fetchFn,imageModel:options.imageModel || ''});
+  const app=createApp({apiKey:'sk-test-payg',workspaceId:'ws-test',accessCode:CODE,fetchFn,imageModel:options.imageModel || '',...(options.visualModel?{visualModel:options.visualModel}:{})});
   app.listen(0,'127.0.0.1');await once(app,'listening');
   const base='http://127.0.0.1:'+app.address().port;
   const start=async(images=false,visuals=true)=>{
@@ -46,6 +46,21 @@ test('The planner receives arbitrary requests and validated scene context throug
   }},async({start,post})=>{
     const token=await start();const response=await post('/api/visual/plan',token,{request:'Become a jellyfish astronaut',language:'en'});
     assert.equal(response.status,200);assert.equal((await response.json()).plan.activity.count,3);
+  });
+});
+test('An image model in the planner setting produces actionable setup guidance without any planning charges',async()=>{
+  await withApp({visualModel:'qwen-image-plus',imageModel:'qwen-image-plus',provider:()=>{throw Error('Wrong model must be rejected before provider access');}},async({base,start,post,calls})=>{
+    const config=await (await fetch(base+'/api/config')).json();
+    assert.equal(config.mode,'realtime','voice must stay available');assert.equal(config.awareness.available,true);
+    assert.equal(config.visuals.available,false);assert.equal(config.visuals.imagesAvailable,false);
+    assert.match(config.visuals.configurationError,/ALIBABA_VISUAL_MODEL=qwen-plus/);
+    assert.match(config.visuals.configurationError,/ALIBABA_IMAGE_MODEL=qwen-image-plus/);
+    const token=await start();
+    for(let i=0;i<3;i++){
+      const response=await post('/api/visual/plan',token,{request:'Hello Mini'});assert.equal(response.status,400);
+      const error=await response.json();assert.equal(error.code,'VISUAL_MODEL_CONFIGURATION');assert.match(error.error,/chat model/);
+    }
+    assert.equal(calls.filter(call=>!call.url.includes('/webrtc/')).length,0);
   });
 });
 test('Malformed provider data is rejected without leaking its body or interrupting the voice server',async()=>{

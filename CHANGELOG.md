@@ -2,6 +2,7 @@
 
 ## Unreleased — Child controls and gentler conversation
 
+- Detect Qwen image-generation models mistakenly assigned to `ALIBABA_VISUAL_MODEL`. Explain the separate chat-planner and artwork settings before a session, block invalid planning calls without provider charges, and preserve voice/camera-awareness availability. Add regression coverage for the reported per-turn visual failure.
 - Fix repeated ngrok Basic Auth password prompts during visual chat and camera awareness. Send Mini grants in a dedicated header while preserving browser-managed tunnel credentials for planning, pictures, observations and revocation. Add HTTP gateway regression coverage and a browser check with one initial password challenge across all visual routes.
 - Explain why generated-picture consent is disabled (server setup, visual-scenes preference or an active session), and add inline Windows image-model configuration steps. Keep picture consent off by default and do not make paid calls to check configuration.
 - Add separately consented camera awareness: local motion/native face-presence gates, bounded two-frame Qwen vision observations, and quiet-time face reactions to presence, visible smiles and waves. No face enrollment, identity matching, emotion labels or recordings.

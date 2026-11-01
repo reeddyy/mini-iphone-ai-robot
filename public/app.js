@@ -69,6 +69,8 @@ function render() {
     ? 'Waiting for server configuration. Check that the Windows Mini server is running, then refresh this page.'
     : mode!=='realtime'
     ? 'Generated pictures need live AI. Configure the Alibaba key and Singapore workspace on your Windows server first.'
+    : visualCapabilities.configurationError
+    ? 'Fix the visual planner setup first. '+visualCapabilities.configurationError
     : !visualCapabilities.imagesAvailable
     ? 'Picture generation is not configured on the Windows server. Set ALIBABA_IMAGE_MODEL in its private .env, restart Mini and refresh this page. See picture setup below.'
     : !els.visualToggle.checked
@@ -124,9 +126,9 @@ async function loadConfig() {
     const data = await response.json();
     visualCapabilities=data.visuals || {available:data.mode==='realtime',imagesAvailable:false};
     awarenessAvailable=Boolean(data.awareness?.available);
-    els.visualInfo.textContent=visualCapabilities.imagesAvailable
+    els.visualInfo.textContent=visualCapabilities.configurationError || (visualCapabilities.imagesAvailable
       ? 'Visual scenes use extra paid Qwen requests. Pictures are separate paid calls. Limits: 60 plans and 4 pictures per session.'
-      : 'Visual scenes use extra paid Qwen requests. Newly generated artwork is not configured; Mini can still compose drawings with shapes, text and emoji.';
+      : 'Visual scenes use extra paid Qwen requests. Newly generated artwork is not configured; Mini can still compose drawings with shapes, text and emoji.');
     mode = data.mode;
     els.mode.textContent = mode === 'realtime' ? 'QWEN REALTIME' : 'LOCAL PREVIEW ONLY';
     els.mode.classList.toggle('is-demo', mode !== 'realtime');

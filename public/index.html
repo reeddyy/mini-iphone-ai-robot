@@ -128,6 +128,7 @@
         <ol class="help">
           <li>Stop Mini and its Windows server. Open the existing private <code>.env</code> in your project folder.</li>
           <li>Set <code>ALIBABA_IMAGE_MODEL</code> to a compatible image model enabled in your Singapore Model Studio workspace. For example: <code>ALIBABA_IMAGE_MODEL=qwen-image-plus</code> if that model is available to your account. The voice model alone does not generate artwork.</li>
+          <li>Keep the drawing-instruction planner separate: <code>ALIBABA_VISUAL_MODEL=qwen-plus</code>. An image-generation model cannot return the planner's chat instructions.</li>
           <li>Save the file, run <code>npm start</code> again and refresh this Safari page. Pulling code does not update your private <code>.env</code>.</li>
           <li>Before starting a new session, turn on <strong>Let Qwen create visual scenes</strong>, then tick <strong>Allow newly generated pictures</strong>.</li>
         </ol>

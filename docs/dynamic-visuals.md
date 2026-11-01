@@ -30,6 +30,17 @@ ALIBABA_IMAGE_MODEL=qwen-image-plus
 
 Replace an existing blank `ALIBABA_IMAGE_MODEL=` line rather than adding a duplicate. Keep your current API key and workspace settings. Stop the Windows server with Ctrl+C, save `.env`, run `npm start`, and refresh Safari. You can then tick picture permission before starting a new session. A configured name enables the checkbox; actual account access is checked only when a picture is requested. This adapter requires the synchronous multimodal generation API, so a model using asynchronous task polling will need a different adapter.
 
+### Visual error after every spoken turn
+
+The planner runs on completed spoken turns, including ordinary chat, to decide whether the screen should change. `ALIBABA_VISUAL_MODEL` must therefore be a chat model returning JSON drawing instructions. Putting `qwen-image-plus` there sends an image-generation model a chat-planning request and causes repeated visual errors. Keep these settings separate:
+
+```dotenv
+ALIBABA_VISUAL_MODEL=qwen-plus
+ALIBABA_IMAGE_MODEL=qwen-image-plus
+```
+
+After editing the existing private Windows `.env`, restart the Mini server and refresh Safari. The updated app detects Qwen image-generation models in the planner setting, displays the correction in Parent setup and disables those visual calls until corrected. Voice and separately configured camera awareness remain available. This setup check does not call a provider, automatically change your model selection or verify model access in your account.
+
 Each completed child turn can add a paid planning call even if the result is “keep this screen”. Existing board positions are handled locally. Story buttons request another plan; a spoken story-choice interpretation can require one bounded continuation call. Counting and hand-game buttons calculate results locally. Artwork adds an image-model call and download. There are no automatic provider retries. Per grant, the server allows 60 planning attempts, at most eight per minute, and four image attempts. Cancellation can still incur charges. Configure provider quotas and billing alerts independently.
 
 Without live AI credentials, the existing free preview, tap game and tic-tac-toe remain available; they do not simulate a successful Qwen connection.
