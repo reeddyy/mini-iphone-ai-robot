@@ -1,5 +1,11 @@
 # Changelog
 
+## 2 November 2026 — Authenticated live review
+
+- Verify saved/ready environment credentials, live page/configuration/free diagnostics, protected model metadata and deployed mobile layouts/startup validation.
+- Verify one real `qwen-plus` artwork plan and one `qwen-image-3.0` 1024×1024 PNG; revoke the test grant. Preserve a sanitized receipt and synthetic test image without credentials or private media.
+- Record successful signaling separately from unverified voice transport: the cloud browser gathered zero ICE candidates. Physical iPhone Safari remains to be tested.
+
 ## 2 November 2026 — Visible parent startup errors
 
 - Show access-code, secure-context and startup failures inside the main grown-up sheet. Focus/mark an invalid code and clear stale feedback on edit or retry.

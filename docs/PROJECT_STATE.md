@@ -8,7 +8,7 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 - Published branch: `main`. The previous cloud checkout used a local branch named `work` and pushed with `git push origin HEAD:main`.
 - Application version: **6.6.0**. No package-version bump accompanied the settings/template changes.
 - Current application behavior includes the parent startup-feedback fix described below; model/configuration selections remain as established in **`6c07960`**. Use `git log -5 --oneline` and the current remote for the latest code/documentation commit.
-- The user subsequently requested browser review with realistic scenarios/simulations and supplied a protected live deployment URL. Local review is complete; live access is blocked by ngrok Basic Auth. The parent-error-visibility issue discovered in that review is now fixed and locally verified. Live Qwen/iPhone checks still require authenticated access; no new feature is in progress.
+- The user subsequently requested browser review with realistic scenarios/simulations and supplied a protected live deployment URL. Local review and the startup-error fix are complete. Authenticated live HTTP/UI checks, one real `qwen-plus` plan and one `qwen-image-3.0` generation now pass. End-to-end voice and physical iPhone checks remain; no new feature is in progress.
 
 | Commit | Shipped change |
 | --- | --- |
@@ -18,6 +18,7 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 | `63db2d2` | Published project memory, recovery guide, agent entry point and refreshed documentation. |
 | `a8e05e5` | Published the browser scenario review, screenshots and manual failure/recovery checks. |
 | `0ed14b1` | Published secure credential setup instructions for pending live-deployment checks. |
+| `1788409` | Fixed visible parent startup errors; verified 197 Node tests and all 9 exploratory browser scenarios. |
 
 These commits were pushed to GitHub `main`. See [CHANGELOG.md](../CHANGELOG.md) for release history and [RECOVERY.md](RECOVERY.md) for a fresh checkout. The subsequent browser review is recorded in [TEST_REVIEW_2026-11-02.md](TEST_REVIEW_2026-11-02.md).
 
@@ -70,9 +71,9 @@ The backend retains a legacy cloud observation endpoint and a `qwen-vl-plus` fal
 
 On **2 November 2026**, public Alibaba documentation was retrieved successfully: the [Qwen API reference](https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-dashscope), updated 27 October, still names `qwen-plus` for Singapore text requests. The [Qwen-Image API reference](https://www.alibabacloud.com/help/en/model-studio/qwen-image-api), updated 22 October, also uses `qwen-plus` as an orchestrating chat model. This supports retaining the planner setting.
 
-The `qwen-image-3.0` recommendation originally came from the published integration evidence recorded in [image-model-research.md](image-model-research.md). Public pages and model-ID metadata do **not** prove this user's Singapore entitlement, successful image generation, quality or latency. No paid call with the user's key was made during this session.
+The `qwen-image-3.0` recommendation originally came from the published integration evidence recorded in [image-model-research.md](image-model-research.md). Public pages and model-ID metadata alone do **not** prove account-specific generation access. The subsequent [authenticated live review](LIVE_REVIEW_2026-11-02.md) did verify one real `qwen-plus` plan and one `qwen-image-3.0` generation through the user's configured backend; broad quality, latency and other-model guarantees remain unsupported.
 
-Earlier repository notes report `qwen-image-plus` HTTP 404 on Windows. That is not a verified `qwen-image-3.0` failure and has not been proven resolved by changing the template. Persistent image model/auth/access/quota failures suppress artwork until the server restarts; voice can continue. Keep safe stage/model/HTTP/provider diagnostics for a real account check instead of guessing or retrying across models.
+Earlier repository notes report `qwen-image-plus` HTTP 404 on Windows. That was an older-model failure. The subsequent real `qwen-image-3.0` request succeeded; `qwen-image-plus` itself was not retested. Persistent image model/auth/access/quota failures suppress artwork until the server restarts; voice can continue. Keep safe stage/model/HTTP/provider diagnostics for a real account check instead of guessing or retrying across models.
 
 ## Source map
 
@@ -111,7 +112,7 @@ All 194 Node tests and all three existing Chromium suites passed, including real
 
 Real HTTPS GETs to the user's live tunnel returned **401 Basic Auth** for both the page and `/api/config`. This is expected gateway protection, not an application defect. The app behind it and live Qwen were not reached. Live work requires secure, host-restricted credentials for the ngrok Authorization header and Mini parent code; do not request or record their values in chat/public docs. The user's backend can retain its Alibaba key. Preserve the review before any environment reconfiguration/restart.
 
-A configuration draft was subsequently confirmed saved for personal secrets `MINI_TUNNEL_AUTH_HEADER` and `MINI_PARENT_ACCESS_CODE`, restricted to the provided tunnel hostname. The tool returned `requires_publish: true`; no values were supplied or activated. [LIVE_TESTING.md](LIVE_TESTING.md) explains preparing the full Basic header locally, entering both values in secure environment settings and publishing before live checks resume. Recheck readiness after publication; do not reuse the old draft as evidence of active credentials.
+Initially, a configuration draft was confirmed saved for personal secrets `MINI_TUNNEL_AUTH_HEADER` and `MINI_PARENT_ACCESS_CODE`, restricted to the provided tunnel hostname. At that initial stage the tool returned `requires_publish: true` and no values were supplied or activated; the later active Environment bindings are recorded below. [LIVE_TESTING.md](LIVE_TESTING.md) explains preparing the full Basic header locally, entering both values in secure environment settings and following applicable save/publish/apply steps. Recheck readiness after publication; do not reuse the old draft as evidence of active credentials.
 
 ### Startup-feedback fix verified on 2 November 2026
 
@@ -119,10 +120,18 @@ The user asked about fixes after the review. Startup validation and failures now
 
 `npm test` now passes **197/197** tests, including three new regressions. The exploratory browser script now passes **9/9** scenarios, including both formerly failing cases and a real synthetic-microphone retry after a simulated denial. The parent-settings browser suite also passes. Fixed-state screenshots and verification are in [the review report](TEST_REVIEW_2026-11-02.md). The other two full browser suites passed in the immediately preceding review and were not rerun for this focused UI fix. No paid Qwen calls were made. The fix ships in the same Git commit as this memory update; use the latest remote log to identify it.
 
-Next work is the following validation once authenticated live access is available:
+### Authenticated live review on 2 November 2026
+
+The user saved both fields as **Environment** secrets, scoped to the supplied ngrok host. The service confirmed saved bindings and then `ready` state; both runtime variables became available. Authentication now works. Do not ask the user to re-enter or republish these values while readiness remains valid. Recheck active readiness if this environment is replaced.
+
+The live page, `/api/config`, free POST diagnostic and protected model metadata all returned HTTP 200. The actual deployed UI has the startup-feedback fix. Remote Chromium passed all four mobile home-layout views and inline empty-code validation with HTTPS verification enabled. The browser completed ICE gathering with zero candidates, so no end-to-end voice/media success is claimed.
+
+A bounded API integration check then made one authorized SDP exchange (200, valid answer), **one real `qwen-plus` plan** (200, 1.73 s) and **one real `qwen-image-3.0` generation** (200, 6.57 s, 1024×1024 PNG). The purple kitten/yellow-ball test image matched the synthetic subject. The test grant was revoked (200) and the peer closed. No microphone/camera stream or child recording was sent. These are single observations, not a benchmark or billing-total guarantee. See [the live report, evidence image and safe result receipt](LIVE_REVIEW_2026-11-02.md).
+
+The prior draft/401 paragraphs above describe the setup history and are superseded by this confirmed active state. No new application defect was found in this live pass. Next work is the following physical-device validation:
 
 1. Physical iPhone Safari microphone/audio playback, local landmark support, interruptions, Stop capture indicators and portrait/landscape behavior.
-2. The user's Singapore model access, including one deliberately parent-authorized image request and the exact safe diagnostic if it fails. Current cloud credentials/device access do not establish this result.
+2. The actual spoken WebRTC conversation on iPhone. HTTP signaling passed, and planner/image access is verified for one live request each; cloud ICE produced no candidates, so audible voice and media transport remain unverified.
 3. Live English/Mandarin conversation quality, educational accuracy and actual image quality/latency. Automated prompts and fixtures cannot prove these.
 
 Do not mark these as passed, claim an account-specific 404 is fixed, or launch paid tests merely to recreate lost context. Restore the repository first, read the current user request, and continue from these recorded facts.

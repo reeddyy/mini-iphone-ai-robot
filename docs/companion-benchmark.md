@@ -26,6 +26,8 @@ Report the median and slowest observed audible delay and interruption time, plus
 
 ## Mini validation available here
 
+A subsequent [authenticated live review](LIVE_REVIEW_2026-11-02.md) passed the deployed mobile layouts, free diagnostics, one real `qwen-plus` plan and one real `qwen-image-3.0` generation. Those single request timings are recorded separately from simulated regression tests. Physical iPhone voice/media and competitor measurements remain unrun.
+
 The later [browser scenario review](TEST_REVIEW_2026-11-02.md) reran all 194 Node tests and all three existing browser suites successfully, including real local inference. Its original visible-control exploratory checks recorded 6 passes and 2 failed expectations corresponding to one startup-error-visibility issue. The subsequent fix passes all 197 Node tests and all 9 updated exploratory scenarios, including retry after a denied permission request. The parent-settings suite also passes after the fix. The supplied live deployment remained behind ngrok Basic Auth.
 
 ### Recorded checkpoint: 2 November 2026
@@ -38,13 +40,13 @@ The later [browser scenario review](TEST_REVIEW_2026-11-02.md) reran all 194 Nod
 | `.env.example` parsing and `git diff --check` | Passed | Template update published as `6c07960`; public model defaults present and API credential fields blank. |
 | Fresh-checkout recovery procedure | Passed | Clean local clone of `6c07960`, generated ignored preview configuration, blank API credentials, no npm installation, all 194 tests passed. |
 
-The [committed settings screenshot](images/parent-settings-2026-11-02.png) uses saved Mandarin/5-minute test preferences; fresh defaults are Auto/15 minutes. The full real-landmark fixture smoke check described below was not rerun during that earlier settings/documentation checkpoint; it passed in the subsequent review linked above. Physical iPhone, live Qwen access/quality and competitor measurements remain unrun. See [PROJECT_STATE.md](PROJECT_STATE.md) for the durable handoff.
+The [committed settings screenshot](images/parent-settings-2026-11-02.png) uses saved Mandarin/5-minute test preferences; fresh defaults are Auto/15 minutes. The full real-landmark fixture smoke check described below was not rerun during that earlier settings/documentation checkpoint; it passed in the subsequent review linked above. Those earlier results did not establish live access. The later live report above verifies planner/image calls; physical iPhone voice/media, broad quality comparisons and competitor measurements remain unrun. See [PROJECT_STATE.md](PROJECT_STATE.md) for the durable handoff.
 
 `npm test` exercises simulated provider events, media teardown, delayed audio completion, stale responses after interruption, bilingual fixed story choices, three riddle rounds, settings persistence, parent authorization, local tap play, the visual protocol, planner grants and image tickets. Local Chromium checks also exercised novel image prompts and allowlisted animation, story-choice continuation, exact counting, precommitted hand-game moves, artwork decoding, cancellation and phone widths through the real HTTP endpoints with simulated provider responses. These do not establish live Qwen speech/visual quality, actual image-model access or iPhone Safari timing.
 
 The parent diagnostic “First audible reply” uses the local remote-stream audio meter, gated on playback being unmuted and unpaused. It measures from the provider's end-of-speech event, not from the physical moment the child stopped talking. It is unavailable if the audio meter cannot run. A blocked speaker, failed audio route or OS volume setting still needs a human listening check.
 
-Live Qwen and physical competitor trials require the user's configured devices and credentials and remain unrun until performed explicitly. Instruction checkpoint updates do not create extra model responses, but their context can still affect provider token usage.
+The limited live planner/image trials are recorded in the live report. Live voice/device and physical competitor trials still require their configured devices and remain unrun. Instruction checkpoint updates do not create extra model responses, but their context can still affect provider token usage.
 
 Awareness tests validate strict cue output, consent/scopes, observation budgets, cooldowns, late-result cancellation and teardown. Local Chromium uses synthetic canvas frames and simulated observations to exercise capture, HTTP and expression rendering; it does not measure face, smile or wave recognition accuracy. Spoken greetings in those checks use mocked speech synthesis, not iPhone audio hardware.
 

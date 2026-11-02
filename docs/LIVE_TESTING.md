@@ -1,10 +1,10 @@
 # Authenticate a protected live test deployment
 
-The 2 November review reached the user's HTTPS tunnel, which correctly required ngrok Basic Auth. Local simulations and the [review report](TEST_REVIEW_2026-11-02.md) are complete; live application/model checks remain pending.
+The [authenticated live review](LIVE_REVIEW_2026-11-02.md) now passes HTTP/UI checks, one real planner request and one real generated image. Both credentials are confirmed saved and active as Environment secrets. Physical Safari/end-to-end voice remain pending; the cloud browser gathered no ICE candidates.
 
 ## Secure requirements prepared
 
-A cloud environment configuration **draft** was saved with two personal secret requirements, each restricted to the user-provided ngrok hostname. No secret values were supplied, and saving the draft does not activate them. Review/save the changes in **environment settings**, enter the values securely, then **publish the environment**, as required by the configuration tool.
+The original cloud configuration draft introduced the two requirements below. The user subsequently saved their values using the **Environment** source in Manage secrets. Both saved bindings and active readiness were verified before live requests. No further activation action is needed for this run. For future changes, save values in environment settings and follow any review/publish/apply prompt shown by the UI; runtime readiness and a successful authenticated request are the final checks.
 
 | Secret field | Value to enter privately |
 | --- | --- |
@@ -25,9 +25,9 @@ Set-Clipboard -Value ('Basic ' + [Convert]::ToBase64String($miniNgrokBytes))
 
 Paste the clipboard into the secure `MINI_TUNNEL_AUTH_HEADER` field in environment settings. Enter the Mini code into its separate secure field. Do not paste either value into chat or repository files.
 
-## Continue after publishing
+## Continue after saving or applying changes
 
-Recheck current environment readiness; a saved draft is not proof that credentials are active. Use the configured proxy and CA trust. Runtime secret variables may contain proxy placeholders: pass the full header value unchanged to the allowed HTTPS host instead of decoding, re-encoding or trying to reveal it.
+Recheck current environment readiness; a saved draft or filled-but-unsaved dialog alone is not proof that credentials are active. Activation can take a short time; check the saved binding and ready state before asking the user to repeat the entry. Use the configured proxy and CA trust. Runtime secret variables may contain proxy placeholders: pass the full header value unchanged to the allowed HTTPS host instead of decoding, re-encoding or trying to reveal it.
 
 1. Read the live page and `/api/config`, authenticate only to the exact permitted host, and confirm the deployed UI/model configuration.
 2. Use the separate parent code for read-only `/api/parent/models` diagnostics. A listed model is not a successful generation test or proof of entitlement.

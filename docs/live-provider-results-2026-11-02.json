@@ -1,0 +1,33 @@
+{
+  "scope": "one SDP handshake, one planner attempt, at most one image attempt; no microphone/camera frames",
+  "steps": [
+    {
+      "step": "realtime_signaling",
+      "status": 200,
+      "seconds": 0.97,
+      "valid_sdp_answer": true,
+      "visual_grant_issued": true
+    },
+    {
+      "step": "qwen_plus_planning",
+      "status": 200,
+      "seconds": 1.73,
+      "action": "artwork",
+      "has_image_prompt": true,
+      "image_ticket_issued": true
+    },
+    {
+      "step": "qwen_image_3_generation",
+      "status": 200,
+      "seconds": 6.57,
+      "content_type": "image/png",
+      "bytes": 1665193,
+      "valid_image_signature": true
+    },
+    {
+      "step": "revoke_test_grant",
+      "status": 200,
+      "seconds": 0.38
+    }
+  ]
+}

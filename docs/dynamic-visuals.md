@@ -40,4 +40,8 @@ The protocol accepts only `keep`, `clear`, `artwork`, `activity` and `interact`.
 
 There are at most 60 visual requests (8 per minute) and 4 image attempts per session. Failed or cancelled requests may still incur provider charges. These are application limits, not a provider billing guarantee. One invalid coordinator response can recover on the next child turn; repeated invalid responses pause coordination. Safe diagnostics include stage/model, HTTP/provider code and a canonical validation field, never raw child/model output. Voice continues through visual failures.
 
-Unit/API tests cover arbitrary picture routing, consent, budgets, animation, canonical game results, rejected drawing payloads, image-download restrictions and live-session preservation on close. Browser tests use actual synthetic camera/microphone capture and mocked Qwen/image responses. Physical iPhone/Qwen accuracy, latency, account permissions and generated-image quality remain unverified here.
+Unit/API tests cover arbitrary picture routing, consent, budgets, animation, canonical game results, rejected drawing payloads, image-download restrictions and live-session preservation on close. Browser tests use actual synthetic camera/microphone capture and mocked Qwen/image responses. Those regression tests do not establish physical iPhone behavior, provider accuracy or representative latency/quality. The separate live checkpoint below now confirms one planner/image request through the configured account.
+
+## Live integration checkpoint
+
+On 2 November 2026, authenticated requests to the real deployment passed one `qwen-plus` plan and one `qwen-image-3.0` generation (1024×1024 PNG). The grant was revoked afterwards. This confirms the planner/image backend for that test, independently of the mocked browser regressions; physical iPhone voice/media behavior remains unverified. See [the live review](LIVE_REVIEW_2026-11-02.md).

@@ -11,7 +11,7 @@ Startup errors now appear in an alert directly below the parent access-code fiel
 - The **parent-settings browser suite passes** after the fix. The other two existing browser suites passed in the preceding review; they were not rerun for this focused UI change.
 - Fixed screenshots: [access-code validation](images/startup-code-fixed-2026-11-02.png), [permission guidance](images/startup-permission-fixed-2026-11-02.png).
 
-Physical Safari behavior and actual Qwen/API access remain unverified. The fix adds visible feedback without starting capture or retrying provider requests automatically.
+At the fix-verification stage, physical Safari and Qwen/API access were unverified. The subsequent [live review](LIVE_REVIEW_2026-11-02.md) now verifies authenticated UI/planner/image checks; physical Safari voice/media remain unverified. The fix adds visible feedback without starting capture or retrying provider requests automatically.
 
 ## Original finding: startup errors hidden from the parent — resolved
 
@@ -80,10 +80,8 @@ node scripts/scenario-review-browser.mjs
 
 Download the public-domain adult fixture as documented in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md); never substitute a private child's photo. The full browser suite deliberately triggers persistent artwork suppression, so restart its fixture before other suites. Run scripts sequentially: they control the same browser tab. The exploratory script exits **1** if any expectation fails and writes JSON/screenshots under `/tmp`. The original failed expectations are preserved in the historical observations/screenshots above; the updated script adds an explicit retry check and passes all nine scenarios after the fix. It is a manual diagnostic, separate from `npm test`.
 
-## Live validation still needed
+## Original live-access blocker — now resolved
 
-The provided HTTPS tunnel needs its ngrok Basic Authorization header before the app can be reviewed remotely. Mini's parent code is separately required for protected diagnostics and session startup. These credentials should be supplied through the environment's secure secret settings, restricted to that host, rather than chat or repository files. The existing server keeps its own Alibaba key; testing its deployment does not require copying that API key here.
+The initial review received ngrok Basic Auth HTTP 401 responses. The user's subsequent Environment secret bindings became saved and ready, and the [authenticated live review](LIVE_REVIEW_2026-11-02.md) passed HTTP/UI checks, real planning and one real picture. No private hostname or credential values are retained here. The existing Windows server kept its Alibaba key.
 
-A draft containing the two secure credential requirements was saved successfully; it requires environment publication before use. Follow [LIVE_TESTING.md](LIVE_TESTING.md) to prepare the tunnel header privately and supply the separate Mini code. No secret values were entered or activated during this review.
-
-After authenticated access is available, check the deployed version/configuration and read-only diagnostics first. Actual speech recognition, audible Qwen replies, image generation/account entitlement, real provider latency and physical iPhone behavior remain unverified. Simulated transcripts, a 1-pixel fixture image or a successful JSON response cannot demonstrate those outcomes. Cloud browser/WebRTC network limitations may require completing the voice portion directly on the iPhone.
+For future access setup, follow [LIVE_TESTING.md](LIVE_TESTING.md) and verify current runtime readiness rather than relying on an old draft. End-to-end voice and physical Safari remain pending because this cloud browser configuration gathered zero ICE candidates; successful signaling or a generated image does not establish audible voice playback.
