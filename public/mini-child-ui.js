@@ -94,7 +94,10 @@
       };
       const done = () => { if (activeNarration === item) releaseSpeech(); };
       item.guard = setTimeout(done, 12000);
-      utterance.onend = () => { done(); pendingStarter = null; };
+      utterance.onend = () => {
+        if(activeNarration!==item)return;
+        done();pendingStarter=null;options.onLocalSpeechEnd?.(message,spokenLanguage);
+      };
       utterance.onerror = () => { done(); micHelp.textContent='Tap Mini’s face to try hearing the question again.'; };
       try { window.speechSynthesis.speak(utterance); }
       catch { done(); }
@@ -354,8 +357,8 @@
       const session=options.getSession();
       if(!['hello','wave','smile','wink','motion'].includes(cue) || !session?.ready || !session.awarenessEnabled || !session.wantVideo || session.videoPaused || session.stopped || speechActive || session.childSpeaking)return false;
       cancelReactions();mood(['wave','wink'].includes(cue)?'wink':cue==='smile'?'happy':'curious',1100);
-      if(cue==='wave')sparkle('✨');
-      if(spoken && session.spokenGreetings && cue==='hello' && !session.muted && !activeNarration && !session.responseActive && !session.turnPending && !session.playbackActive)sayFallback('chat',language()==='zh'?'你好呀！':'Hello there!',language());
+      if(['wave','smile','wink'].includes(cue))sparkle(cue==='smile'?'✨':'⭐');
+      // Camera speech is coordinated by app.js with conversation/lesson speech.
       return true;
     }
     function onMicLevel(value) {

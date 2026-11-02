@@ -1,5 +1,12 @@
 # Changelog
 
+## 2 November 2026 — Proactive bilingual play and checked learning
+
+- Respond more clearly to visible smiles, winks and head movement; defer fresh spoken cues until quiet, coordinate camera/play invitations and retain cooldowns. The user confirmed face detection was already working on iPhone.
+- Add topic-aware conversation invitations without requiring Pictures or a planner, plus one gentle quiet-time check-in. Respect speech, touch, games, mute, explicit declines, distress and Stop.
+- Add session-only checked English/Mandarin maths/science turns: teach, ask, check, hint, explain and return to play. Adapt small arithmetic gently, preserve a challenge across language changes, allow skipping and share local invitation context with voice instructions.
+- Verify 223 Node tests, 13 new proactive browser scenarios, the nine-checkpoint child replay and all existing browser suites, including real local landmark inference. All new checks use local fixtures; no paid live model calls. Preserve evidence and recovery memory; physical Safari audio/voice validation remains.
+
 ## 2 November 2026 — Child-style play-through and conversation fixes
 
 - Review 23 child-style checkpoints with scripted speech, real synthetic capture, five live planner calls and two real story images. Record the original 22 passes/one failed counting exit and the separately identified empty story narration.

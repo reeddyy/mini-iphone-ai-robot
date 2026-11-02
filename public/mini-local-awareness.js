@@ -14,22 +14,27 @@
       rightEye:distance(points[386],points[374])/distance(points[362],points[263])};
   }
   function createPolicy() {
-    let previous=null,motionAnchor=null,streak=0,lastCue=-Infinity,lastSeen=-Infinity,lastHello=-Infinity,hellos=0,smiling=false;
+    let motionAnchor=null,streak=0,lastCue=-Infinity,lastSeen=-Infinity,lastSpoken=-Infinity,spokenCount=0,smiling=false,pending=null;
     return {accept(points,now,spoken=false){
       const g=geometry(points);
-      if(!g){streak=0;previous=null;motionAnchor=null;smiling=false;return {face:false};}
+      if(!g){streak=0;motionAnchor=null;smiling=false;pending=null;return {face:false};}
       const arriving=now-lastSeen>10000;lastSeen=now;
       streak=g.smile?streak+1:0;
       const wink=Math.min(g.leftEye,g.rightEye)<.11 && Math.max(g.leftEye,g.rightEye)>.23;
       const moving=motionAnchor && (Math.hypot(g.x-motionAnchor.x,g.y-motionAnchor.y)>.035 || Math.abs(g.tilt-motionAnchor.tilt)>.12);
       let cue=streak>=2 && !smiling?'smile':wink?'wink':moving?'motion':arriving?'hello':null;
       if(!g.smile)smiling=false;
-      previous=g;motionAnchor ||= g;
+      motionAnchor ||= g;
       if(now-lastCue<1500)cue=null;
       if(cue){if(cue==='motion')motionAnchor=g;if(cue!=='hello')lastCue=now;if(cue==='smile')smiling=true;}
-      const speak=Boolean(cue==='hello' && spoken && hellos<2 && now-lastHello>=60000);
-      if(speak){hellos++;lastHello=now;}
-      return {face:true,smiling:g.smile,lookX:Math.max(-8,Math.min(8,(.5-g.x)*22)),lookY:Math.max(-5,Math.min(5,(g.y-.5)*14)),tilt:Math.max(-5,Math.min(5,-g.tilt*30)),cue,spoken:speak};
+      if(cue)pending={cue,at:now};
+      if(pending && now-pending.at>15000)pending=null;
+      // Keep a fresh cue until a quiet moment; first detection often coincides
+      // with the opening voice. Holding a smile does not make a speech loop.
+      const speak=Boolean(pending && spoken && spokenCount<8 && now-lastSpoken>=20000);
+      const spokenCue=speak?pending.cue:null;
+      if(speak){spokenCount++;lastSpoken=now;pending=null;}
+      return {face:true,smiling:g.smile,lookX:Math.max(-12,Math.min(12,(.5-g.x)*30)),lookY:Math.max(-6,Math.min(6,(g.y-.5)*18)),tilt:Math.max(-8,Math.min(8,-g.tilt*40)),cue,spoken:speak,spokenCue};
     }};
   }
   function start(options) {
@@ -61,7 +66,7 @@
         if(data.type!=='landmarks' || jobEpoch!==epoch || paused || !options.allowed())return;
         const cue=policy.accept(data.points,now(),options.spoken && options.canSpeak?.());
         options.onLook?.(cue.face?cue:null);
-        if(cue.cue)options.onCue?.(cue);
+        if(cue.cue || cue.spokenCue)options.onCue?.(cue);
         status(cue.face?'face':'searching',cue.face?'Local reactions on · face in view.':'Local reactions on · looking for a face.');
       };
       loadingTimer=setTimeout(failed,45000);worker.postMessage({type:'start'});

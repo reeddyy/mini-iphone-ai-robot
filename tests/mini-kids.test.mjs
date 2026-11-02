@@ -165,7 +165,7 @@ test('Everyday maths and science guide teaching and gentle understanding checks 
     assert.match(prompt,/球和方块/);
     assert.match(prompt,/check understanding within this session/);
     assert.match(prompt,/concrete counting hint/);
-    assert.match(prompt,/not a test after every remark/);
+    assert.match(prompt,/Do not quiz after every remark/);
     assert.match(prompt,/generated artwork is not reliable evidence of an exact count/);
     assert.match(prompt,/without grades, timed pressure or comparisons/);
     const off=kid.instructions('Family safety rules',mode,false,{keepConversationGoing:false});
@@ -226,7 +226,7 @@ test('Openings vary in both languages and the model receives the exact local que
   assert.equal(kid.getOpening('unknown',-1),kid.getOpening('en',0));
 });
 
-test('Story choices have consequences and finished stories and ordinary chat stay quiet',()=>{
+test('Story endings stay complete while substantive chat can receive an invitation',()=>{
   const kid=kidsContent();
   const prompt=kid.instructions('Safety','story',false);
   assert.match(prompt,/Make each choice change what happens next/);
@@ -234,7 +234,7 @@ test('Story choices have consequences and finished stories and ordinary chat sta
   for(const reply of ['You are welcome!','Thanks for playing.','They lived happily ever after. The end.','小猫回家了，故事结束啦！']) {
     assert.equal(kid.needsFollowUp(reply,'forest','completed','story'),false,reply);
   }
-  assert.equal(kid.needsFollowUp('I like blue too.','blue','completed','chat'),false);
+  assert.equal(kid.needsFollowUp('I like blue too.','blue','completed','chat'),true);
   assert.equal(kid.needsFollowUp('Correct! Well done!','giraffe','completed','guess'),false);
   assert.equal(kid.needsFollowUp('答对了，真棒！','长颈鹿','completed','guess'),false);
   assert.equal(kid.needsFollowUp('The dragon reaches the forest.','forest','completed','story'),true);

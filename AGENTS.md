@@ -11,6 +11,7 @@ Repository files and Git history provide continuity; an earlier ChatGPT local-ch
 - Keep grown-up settings minimal: access code, language, session length, camera and pictures. Put technical controls under Troubleshooting.
 - Available features default on, including camera and pictures. Preserve parent Start confirmation before media capture or paid usage; nothing starts on page load.
 - Use a playful personality and follow the child. Removed personality, topic, preference-note and separate feature switches should not return without a new requirement.
+- Keep Mini bilingual, proactive, positive, fun and educational. Preserve topic-aware invitations and checked maths/science mini-lessons in English/Mandarin, while respecting quiet, skipping and child-led topic changes. Local prompts must not depend on the paid image planner or create extra generated voice turns.
 - Project memory is documentation for developers. It does not mean saving a child's conversations, recordings or identity information.
 
 ## Development

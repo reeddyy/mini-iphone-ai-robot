@@ -10,11 +10,12 @@ The first use downloads about 11 MB of pinned assets from your own Mini server; 
 
 ## Observable reactions
 
-- A single face's position guides Mini's eyes and head tilt.
+- A single face's position guides Mini's eyes and head tilt, with a clearer gaze/head response. A held smile changes the eyes/cheeks while listening.
 - A visible smile held across two samples can make Mini smile; a separate visible-smile cue can remain on the face while Mini listens. A one-eye wink or sufficient head movement can produce a wink or curious expression.
 - Samples run in a dedicated worker, paced at least 160 ms apart (about six per second before slower-device adaptation). One expression cue can appear every 1.5 seconds; there is no eight-reaction exhaustion limit. Holding a smile does not repeatedly trigger it.
 - Gaze and visible expression reactions can continue during Mini's audio and games. Detected child speech keeps listening priority. No camera reaction interrupts existing audio. Frames are reduced to at most 320×240 inside the worker before landmark inference. Troubleshooting reports local reaction FPS and processing time, without uploading those frames.
-- Occasional spoken hellos are enabled with camera reactions. They wait for a quiet moment, do not overlap narration or a game, have at least 60 seconds between greetings, and are limited to two per session. They use Safari narration without starting an extra paid AI turn.
+- Short spoken play invitations can follow a visible smile, wink, head movement or arrival. A fresh cue can wait up to 15 seconds for a quiet opportunity rather than being lost during Mini's reply. Speech waits for six quiet seconds, has at least 20 seconds between camera invitations and is limited to eight per session. A held smile never creates a speech loop. These use Safari narration without a new cloud-vision call or extra generated AI voice turn.
+- Camera speech also waits while a checked learning question is active, the grown-up sheet is open or visual planning is busy. Child speech, existing audio, games, mute and backgrounding retain priority. Requests for quiet, explicit declines and distress expressed in words suppress new invitations; no feeling is inferred from the face. See [the proactive companion review](PROACTIVE_REVIEW_2026-11-02.md).
 
 These are approximate geometry checks, not an emotion classifier. A smile does not establish happiness; no face result is used to infer distress, identity or intent. Hand waves and full-body gestures are not tracked by this face model. Lighting, glasses, camera angle, distance and face variation can cause misses or false reactions. Ask what the child says they need rather than diagnosing feelings from appearance.
 

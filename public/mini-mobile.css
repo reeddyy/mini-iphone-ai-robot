@@ -72,5 +72,7 @@ button:focus-visible,summary:focus-visible{outline:3px solid #fbd89d;outline-off
 .robot-stage #robotFace[data-camera-tracking] .eye :is(.pupil,.glint){transition:transform .1s linear}
 .robot-stage #robotFace[data-camera-smile="true"]:not(.speaking):not([data-local-voice="true"]) .mouth{width:46px;height:25px;border-bottom-width:6px}
 .robot-stage #robotFace[data-camera-smile="true"] .mini-cheek{opacity:.9}
+.robot-stage #robotFace[data-camera-smile="true"]:not([data-expression]) .eye{height:54px;border-radius:48% 48% 42% 42%}
+.robot-stage #robotFace[data-camera-smile="true"] .mini-cheek{transform:scale(1.12)}
 .visual-canvas>img{will-change:transform}
 @media(prefers-reduced-motion:reduce){.visual-canvas>img{will-change:auto}}

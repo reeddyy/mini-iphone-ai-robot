@@ -99,6 +99,7 @@ function mockEnvironment() {
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-visual-schema.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-camera.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-language.js',import.meta.url)),'utf8'),ctx);
+  vm.runInContext(readFileSync(new URL('../public/mini-learning.js',import.meta.url),'utf8'),ctx);
   vm.runInContext(app,ctx);
   const s={
     mode:'realtime',stopped:false,ready:true,mediaReady:true,language:'en',
@@ -124,6 +125,118 @@ const request=(env,m)=>{
   env.ctx.which=m;
   return vm.runInContext('requestActivity(which)',env.ctx);
 };
+const childTurn=(env,text,{responseFirst=false}={})=>{
+  emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
+  if(responseFirst)emit(env,'response.created',{response:{id:'current-reply'}});
+  emit(env,'conversation.item.input_audio_transcription.completed',{transcript:text});
+};
+
+test('Ordinary chat offers a topic-aware next idea without any visual planner',()=>{
+  const env=mockEnvironment();
+  childTurn(env,'cat');emit(env,'response.created');
+  emit(env,'response.audio_transcript.done',{transcript:'A cat has whiskers.'});
+  vm.runInContext('onRemoteAudio(testSession,true);onRemoteAudio(testSession,false)',env.ctx);
+  emit(env,'response.done',{response:{status:'completed'}});env.flushTimeouts(6000);
+  const invitation=env.calls.find(call=>call[0]==='followup');
+  assert.match(invitation[2],/animal|moon cat|garden dinosaur/);
+  assert.equal(env.s.localPrompt.kind,'conversation');
+  assert.equal(env.sent.some(event=>event.type==='response.create'),false);
+});
+
+test('A checked maths invitation appears after early chat turns and accepts a short answer without a planner call',()=>{
+  const env=mockEnvironment();let requests=0;env.ctx.fetch=async()=>{requests++;throw Error('No paid planning for a local lesson');};
+  vm.runInContext('ensureLearning(testSession).observe("cat");ensureLearning(testSession).observe("cat")',env.ctx);
+  env.s.hadAudibleReply=true;
+  vm.runInContext('scheduleCompanionFollowUp(testSession,"The cat has whiskers.","cat","completed")',env.ctx);env.flushTimeouts(6000);
+  assert.equal(env.s.learning.hasQuestion(),true);assert.equal(env.s.localPrompt.kind,'learning');
+  childTurn(env,'three',{responseFirst:true});
+  assert.equal(env.s.learning.checkpoint('en').lastResult,'correct');assert.equal(env.s.localLearningTurn,true);
+  assert.match(env.calls.filter(call=>call[0]==='fallback').at(-1)[2],/2 plus 1 makes 3/);
+  assert.equal(env.ctx.document.getElementById('remoteAudio').muted,true);
+  assert.equal(env.s.audioInputTrack.enabled,true);assert.equal(requests,0);
+});
+
+test('Requested science in Mandarin teaches, checks an answer and keeps contradictory remote speech muted',()=>{
+  const env=mockEnvironment();env.s.language='auto';
+  childTurn(env,'教我关于小车的科学');
+  assert.equal(env.s.learning.checkpoint('zh').pending.id,'rolling');
+  assert.match(env.calls.filter(call=>call[0]==='fallback').at(-1)[2],/球和方块/);
+  childTurn(env,'球');
+  emit(env,'response.created');emit(env,'response.audio_transcript.done',{transcript:'The cube wins!'});
+  emit(env,'response.done',{response:{status:'completed'}});
+  assert.match(env.ctx.document.getElementById('assistantTranscript').textContent,/球的表面是圆的/);
+  assert.doesNotMatch(env.ctx.document.getElementById('assistantTranscript').textContent,/cube wins/);
+  assert.equal(env.ctx.document.getElementById('remoteAudio').muted,true);
+  assert.equal(env.s.learning.checkpoint('zh').lastResult,'correct');
+  assert.equal(env.sent.some(event=>event.type==='response.create'),false);
+});
+
+test('An active lesson follows an explicit language switch and short learned words do not reset it',()=>{
+  const env=mockEnvironment();env.s.language='auto';childTurn(env,'Teach me maths');
+  childTurn(env,'请用中文回答');
+  assert.equal(env.s.learning.checkpoint('zh').pending.attempts,0);
+  assert.equal(env.calls.filter(call=>call[0]==='fallback').at(-1)[3],'zh');
+  childTurn(env,'three');assert.equal(env.s.learning.checkpoint('zh').lastResult,'correct');
+  assert.equal(env.calls.filter(call=>call[0]==='fallback').at(-1)[3],'zh');
+});
+
+test('A request to change topic exits a mini-lesson and releases only the current voice response',()=>{
+  const env=mockEnvironment();childTurn(env,'Teach me maths');
+  childTurn(env,'Tell me a story about three cats',{responseFirst:true});
+  assert.equal(env.s.learning.hasQuestion(),false);assert.equal(env.s.localLearningTurn,false);
+  assert.equal(env.ctx.document.getElementById('remoteAudio').muted,false);
+  assert.equal(env.s.stopped,false);
+});
+
+test('One quiet-time lesson hint is offered without treating silence as a wrong answer',()=>{
+  const env=mockEnvironment();childTurn(env,'Teach me maths');
+  vm.runInContext('scheduleQuietSupport(testSession,"How many altogether?")',env.ctx);env.flushTimeouts(14000);
+  assert.equal(env.calls.filter(call=>call[0]==='followup').length,1);
+  assert.equal(env.s.learning.checkpoint('en').pending.attempts,0);
+  vm.runInContext('scheduleQuietSupport(testSession,"How many altogether?")',env.ctx);env.flushTimeouts(14000);
+  assert.equal(env.calls.filter(call=>call[0]==='followup').length,1,'silence does not loop');
+});
+
+test('Quiet support is cancelled by speech, mute, parent interaction and Stop',()=>{
+  for(const action of ['speech','mute','touch','stop']){
+    const env=mockEnvironment();childTurn(env,'Teach me maths');
+    vm.runInContext('scheduleQuietSupport(testSession,"How many altogether?")',env.ctx);
+    if(action==='speech')emit(env,'input_audio_buffer.speech_started');
+    if(action==='mute')vm.runInContext('toggleMute()',env.ctx);
+    if(action==='touch')vm.runInContext('cancelCompanionFollowUp(testSession)',env.ctx);
+    if(action==='stop')vm.runInContext('stopMini()',env.ctx);
+    env.flushTimeouts(14000);
+    assert.equal(env.calls.filter(call=>call[0]==='followup').length,0,action);
+    if(action==='stop'){assert.equal(env.s.learning,null);assert.equal(env.s.localPrompt,null);}
+  }
+});
+
+test('A child asking for quiet or expressing distress gets no new quiz, invitation or camera speech',()=>{
+  for(const text of ['I feel sad','I am scared','No thanks','Not now','我很难过','请安静']){
+    const env=mockEnvironment();let camera;
+    Object.assign(env.s,{lastChildTranscript:text,hadAudibleReply:true,awarenessEnabled:true,wantVideo:true,awarenessLastActivity:Date.now()-10000});
+    env.ctx.document.getElementById('preview').srcObject={};
+    env.ctx.window.MiniLocalAwareness={start:options=>{camera=options;return {stop(){},isPaused:()=>false};}};
+    vm.runInContext('scheduleCompanionFollowUp(testSession,"I am here with you.",testSession.lastChildTranscript,"completed");scheduleQuietSupport(testSession,"Can we play?");startAwareness(testSession)',env.ctx);
+    env.flushTimeouts(14000);assert.equal(env.calls.some(call=>call[0]==='followup'),false,text);
+    assert.equal(Boolean(camera.canSpeak()),false,text);assert.equal(env.s.stopped,false);
+  }
+});
+
+test('Spoken smile and head-motion invitations use the active language and share their context with Qwen',()=>{
+  for(const cue of ['smile','motion']){
+    const env=mockEnvironment();let options;
+    Object.assign(env.s,{awarenessEnabled:true,spokenGreetings:true,wantVideo:true,conversationLanguage:'zh'});
+    env.ctx.document.getElementById('preview').srcObject={};
+    env.ctx.window.MiniLocalAwareness={start:value=>{options=value;return {stop(){},isPaused:()=>false};}};
+    vm.runInContext('startAwareness(testSession)',env.ctx);
+    options.onCue({cue,spokenCue:cue,spoken:true});env.flushTimeouts(0);
+    const spoken=env.calls.find(call=>call[0]==='followup');assert.equal(spoken[3],'zh');assert.match(spoken[2],cue==='smile'?/微笑/:/头动/);
+    assert.equal(env.s.localPrompt.kind,'camera');assert.equal(env.s.cameraInvitations,1);
+    assert.match(env.sent.at(-1).session.instructions,/App-spoken invitation data/);
+    assert.equal(env.sent.some(event=>event.type==='response.create'),false);
+  }
+});
 
 test('Guess game updates Qwen instructions but relies on VAD, not unsolicited response.create',()=>{
   const env=mockEnvironment();
@@ -314,7 +427,8 @@ test('After a short Qwen verdict, Mini asks ONE local follow-up, no added AI req
   assert.match(followups[0][2],/\?/);
   env.flushTimeouts();
   assert.equal(env.calls.filter(x=>x[0]==='followup').length,1,'do not nag in a loop');
-  assert.equal(env.sent.length,before,'must not send new Qwen request');
+  assert.equal(env.sent.some(event=>event.type==='response.create'),false,'no extra paid model turn');
+  assert.match(env.sent.at(-1).session.instructions,/App-spoken invitation data/);
 });
 
 test('A Qwen answer that already asks a question is left alone',()=>{
@@ -404,7 +518,7 @@ test('Local question waits for Qwen audio to finish before talking',()=>{
 test('A Mandarin model reply gets a Mandarin follow-up in Auto language mode',()=>{
   const env=mockEnvironment();
   env.s.activity='guess';
-  env.s.language='auto';
+  env.s.language='auto';env.s.conversationLanguage='zh';
   emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created');
   emit(env,'response.audio_transcript.done',{transcript:'答对了，是长颈鹿！'});

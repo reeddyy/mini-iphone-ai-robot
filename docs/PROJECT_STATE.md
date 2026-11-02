@@ -7,8 +7,8 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 - Public repository: https://github.com/reeddyy/mini-iphone-ai-robot
 - Published branch: `main`. The previous cloud checkout used a local branch named `work` and pushed with `git push origin HEAD:main`.
 - Application version: **6.6.0**. No package-version bump accompanied the settings/template changes.
-- Current application behavior includes the parent startup-feedback fix described below; model/configuration selections remain as established in **`6c07960`**. Use `git log -5 --oneline` and the current remote for the latest code/documentation commit.
-- The latest request was a full child-style play-through. It used scripted voice events, actual synthetic capture and five real planner/two real image calls. The original run passed 22/23 checkpoints and exposed a counting-to-chat failure; the actual story response also exposed missing continuation narration. Both are fixed and verified locally, with **201 Node tests and nine replay checkpoints passing**. End-to-end voice and physical iPhone checks remain. See [the child-style report](CHILD_REVIEW_2026-11-02.md) before repeating any paid tests.
+- Current application behavior includes the startup/game-exit/story-narration fixes and the proactive learning update below; model/configuration selections remain as established in **`6c07960`**. Use `git log -5 --oneline` and the current remote for the latest code/documentation commit.
+- Latest feedback: Mini was weak at camera reactions, conversation initiative and maths/science teaching. The user confirmed **“Local reactions on · face in view”** on iPhone. The update adds deferred camera invitations, planner-independent play ideas, one quiet-time check-in and checked bilingual mini-lessons. **223 Node tests, 13 new proactive browser scenarios, the nine-checkpoint child replay and all existing browser suites pass**, including real local landmark inference. Physical iPhone voice/audio and the updated experience still need device checks. See [the proactive review](PROACTIVE_REVIEW_2026-11-02.md).
 
 | Commit | Shipped change |
 | --- | --- |
@@ -20,6 +20,7 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 | `0ed14b1` | Published secure credential setup instructions for pending live-deployment checks. |
 | `1788409` | Fixed visible parent startup errors; verified 197 Node tests and all 9 exploratory browser scenarios. |
 | `f257153` | Recorded authenticated live HTTP/UI, one planner request and one real image, separately from unverified voice transport. |
+| `414a10d` | Fixed local game-to-chat exits and empty story-choice narration after the 23-checkpoint child review. |
 
 These commits were pushed to GitHub `main`. See [CHANGELOG.md](../CHANGELOG.md) for release history and [RECOVERY.md](RECOVERY.md) for a fresh checkout. The subsequent browser review is recorded in [TEST_REVIEW_2026-11-02.md](TEST_REVIEW_2026-11-02.md).
 
@@ -43,6 +44,7 @@ The user asked for the grown-up settings to be easy, minimal and default on. The
 - Stop, hiding Safari and page departure release microphone/camera capture, cancel pending work and stop local inference. Another session requires a fresh Start confirmation. There is no automatic paid reconnect.
 - Keep English/Mandarin continuity, speech interruption, short age-appropriate turns, gentle learning and a visible Stop control.
 - Explicit English/Mandarin chat requests leave counting, hand games and tic-tac-toe locally without another planner request. Preserve capture and restore ordinary voice playback for the current response, including late transcript ordering. A story continuation with no message uses its displayed title for local narration.
+- Latest product direction: bilingual, proactive, positive, fun and educational. Mini supplies short topic-aware invitations without depending on Pictures/planner access, and checked local maths/science turns inside the conversation. Keep the child's ability to skip/change topics, use kind hints, leave time for answers and suppress new invitations after explicit declines, distress or requests for quiet.
 
 This development-memory file is separate from Mini's child-session state. The removed preference-note feature remains removed. Do not add transcript/media storage to satisfy a request to preserve development context.
 
@@ -84,6 +86,7 @@ Earlier repository notes report `qwen-image-plus` HTTP 404 on Windows. That was 
 | `server.mjs` | Static serving, parent authentication, SDP exchange, grants, budgets, visual APIs and diagnostics. |
 | `public/index.html`, `public/app.js` | Screens, controls, session orchestration, WebRTC, capture, startup confirmation and teardown. |
 | `public/mini-child-ui.js`, `mini-kids.js`, `mini-extras.js` | Expressions, narration, conversation instructions and browser helpers; some legacy helpers remain without UI controls. |
+| `public/mini-learning.js` | Bounded topic-aware invitations, bilingual checked maths/science mini-lessons, hints and session-only progress; no child-profile storage. |
 | `public/mini-language.js`, `mini-camera.js` | Session language continuity and separate preview/outbound camera pacing. |
 | `public/mini-board.js`, `mini-activities.js`, `mini-visuals.js`, `mini-visual-schema.js` | Local game rules, activity state, visual rendering and bounded scene protocol. |
 | `public/mini-local-awareness.js`, `mini-face-worker.js`, `public/vendor/mediapipe/` | On-device landmarks and observable geometry reactions. |
@@ -146,7 +149,23 @@ Verification: **201/201 Node tests**, **9/9 new local child-journey replay check
 
 See [CHILD_REVIEW_2026-11-02.md](CHILD_REVIEW_2026-11-02.md), its sanitized original observations/local replay receipt and four screenshots. `scripts/child-journey-browser.mjs` reproduces the fixes against loopback fixtures without credentials; `tests/fixtures/child-journey-plans.json` preserves the exact synthetic plans. No private URL, auth header, grant, SDP or child recording is committed. The live Windows app still needs the normal pull/restart/Safari refresh to get these code changes. Next work is supervised physical Safari voice, camera, interruption, backgrounding and full-duration-expiry validation; do not repeat paid calls merely to reconstruct this review.
 
-Do not mark these physical checks as passed or launch paid tests merely to recreate lost context. Restore the repository first, read the current user request, and continue from these recorded facts.
+### Proactive bilingual play and checked learning on 2 November 2026
+
+The user reported three weak areas: proactive facial/motion reactions, engagement/continuation and science/maths education. They confirmed the iPhone was already finding a face, so the work targets response policy and behavior rather than adding another vision service.
+
+Local camera cues can now wait up to 15 seconds for quiet, including visible smiles, winks and head movement. Stronger gaze/head movement and a persistent smile response make reactions clearer. Spoken camera invitations wait for six quiet seconds, have a 20-second cooldown and an eight-per-session limit; continuous visual tracking remains available. Speech waits through AI/child audio, local narration, games, planning, a learning question, parent setup, mute and backgrounding. No feeling is inferred and no hand/full-body tracking was added.
+
+Ordinary chat now has topic-aware local invitations even with Pictures/planner access off. Substantive statements can receive one after six seconds; an unanswered question can receive one check-in after 14 seconds. At most one scheduled invitation per child turn, 24 per session; never loop on silence. Child speech, touch, mute and Stop cancel pending work. Explicit declines, distress and requests for quiet suppress new conversation/camera invitations without necessarily ending capture.
+
+`mini-learning.js` adds actual checked turns beyond prompt guidance: small addition/subtraction within ten, triangle sides, plants/light, the Sun as a star, insect legs, rolling predictions and melting ice. Mini teaches, asks, checks English/Mandarin words/digits/choices, gives one concrete hint, then explains and returns to play. It spaces automatic offers through conversation, alternates maths/science, raises arithmetic gently after successful checks, allows skipping/topic changes and restates the same challenge on a language switch. A science mistake does not lower maths readiness. Qwen remains responsible for broader conversation/teaching.
+
+Locally spoken invitation/lesson context enters optional session checkpoints without an extra `response.create`. Checked local feedback stays authoritative for display/speech; the browser review caught and fixed the old `response.done` fallback otherwise narrating a conflicting Qwen answer when visuals were off. The new frontend module is registered in the server's explicit static allowlist, and the asset test now checks every script/stylesheet referenced by the page. Stop clears the helper/local prompt. No transcript history or child learning profile is stored.
+
+Validation: **223/223 Node tests**, **13/13 proactive browser scenarios**, **9/9 child replay**, parent-settings, companion-close, **9/9 exploratory scenarios** and the full companion browser smoke all pass. The full smoke ran real MediaPipe inference on the documented public-domain adult image; the proactive suite used synthetic landmark output, actual synthetic capture, scripted voice and real six-/14-second waits. It checked wrong-answer hints, Mandarin switching, science answers, skipping, one quiet hint without scoring silence, same-track capture, context and Stop. No paid model calls were made for this update. [The report, receipt and screenshots](PROACTIVE_REVIEW_2026-11-02.md) and `scripts/proactive-companion-browser.mjs` preserve reproduction evidence.
+
+The physical iPhone's face-in-view status is user-confirmed; the updated interactions, ASR/Qwen audio and speech synthesis have not been exercised on that device. Normal Windows pull/restart/Safari refresh is still required. The current cloud runtime status returned `unknown` for the two existing secret bindings; these local checks did not use them. Recheck current readiness if live work is requested rather than assuming the historical ready state or asking the user to re-enter values prematurely.
+
+Do not mark the remaining physical checks as passed or launch paid tests merely to recreate lost context. Restore the repository first, read the current user request, and continue from these recorded facts.
 
 ## Keeping this memory useful
 

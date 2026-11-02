@@ -43,3 +43,21 @@ test('Gentle cumulative head motion is noticed instead of requiring a single-fra
   for(let i=1;i<=4;i++){const points=face().map(p=>({...p,x:p.x+i*.01}));latest=policy.accept(points,i*250);}
   assert.equal(latest.cue,'motion');
 });
+
+test('A fresh camera cue waits for silence, then speaks once rather than disappearing during an answer',()=>{
+  const policy=api().createPolicy();
+  assert.equal(policy.accept(face(),0,false).spoken,false);
+  const hello=policy.accept(face(),7000,true);assert.equal(hello.spokenCue,'hello');assert.equal(hello.spoken,true);
+  assert.equal(policy.accept(face(),8000,true).spoken,false,'a held face does not start a greeting loop');
+  policy.accept(face(true),28000,false);policy.accept(face(true),28300,false);
+  const smile=policy.accept(face(true),31000,true);assert.equal(smile.spokenCue,'smile');
+  assert.equal(policy.accept(face(true),32000,true).spoken,false,'a held smile is not repeated');
+});
+
+test('Spoken camera reactions have a cooldown and discard faces that left the view',()=>{
+  const policy=api().createPolicy();assert.equal(policy.accept(face(),0,true).spoken,true);
+  policy.accept(face(true),3000,false);assert.equal(policy.accept(face(true),3300,true).spoken,false,'20 second speech cooldown');
+  policy.accept([],5000,true);assert.equal(policy.accept(face(),7000,false).spoken,false);
+  for(const now of [12000,17000,22000,27000])policy.accept(face(),now,false);
+  assert.equal(policy.accept(face(),30000,true).spoken,false,'expired pending cue cannot speak');
+});
