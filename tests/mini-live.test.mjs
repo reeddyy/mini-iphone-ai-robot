@@ -343,7 +343,7 @@ test('Joining a live session starts a local question and never sends response.cr
 });
 
 
-test('Blocked Safari fallback speech does not mute the child microphone',()=>{
+test('Blocked Safari fallback speech does not mute the child microphone',async()=>{
   const childScript=readFileSync(fileURLToPath(new URL('../public/mini-child-ui.js',import.meta.url)),'utf8');
   const elements=new Map();
   const element=()=>({
@@ -377,6 +377,7 @@ test('Blocked Safari fallback speech does not mute the child microphone',()=>{
   });
   child.sayFallback('guess');
   assert.equal(mic.enabled,true,'a blocked Safari TTS start must not mute the microphone');
+  await new Promise(resolve=>setTimeout(resolve,100));
   assert.ok(utterance);
   utterance.onstart();
   assert.equal(mic.enabled,false,'temporarily mute only while local TTS actually plays');
@@ -1005,7 +1006,7 @@ test('Game moves speak the actual board position while a contradictory remote ga
   emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'top left',item_id:'move'});
   emit(env,'response.created',{response:{id:'game'}});assert.equal(env.ctx.document.getElementById('remoteAudio').muted,true);
   env.flushTimeouts(550);
-  const spoken=env.calls.filter(value=>value[0]==='fallback').at(-1)[2];assert.match(spoken,/Mini placed O at center/);
+  const spoken=env.calls.filter(value=>value[0]==='fallback').at(-1)[2];assert.match(spoken,/Mini put a circle in the center square/);
   assert.equal(env.s.boardCheckpoint.board[4],'O');
   emit(env,'response.audio_transcript.done',{response_id:'game',transcript:'I placed a circle at bottom right and won!'});
   emit(env,'response.done',{response:{id:'game',status:'completed'}});
@@ -1219,7 +1220,7 @@ test('An explicit tic-tac-toe request opens and narrates the local board without
   env.ctx.fetch=async()=>{plans++;throw Error('Must not plan a known board');};
   emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'Play tic tac toe'});
   assert.equal(vm.runInContext('visualActivity.isActive()',env.ctx),true);assert.equal(plans,0);assert.equal(env.s.localVisualTurn,true);
-  assert.match(env.calls.find(c=>c[0]==='fallback')[2],/You are X/);
+  assert.match(env.calls.find(c=>c[0]==='fallback')[2],/You play crosses\. Mini plays circles/);
 });
 
 test('One invalid drawing can recover; repeated invalid instructions pause paid plans',async()=>{

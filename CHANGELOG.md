@@ -1,5 +1,12 @@
 # Changelog
 
+## 2 November 2026 — Opening/game/lesson narration voice
+
+- Fix region-first device voice selection that could choose a deep voice; prefer familiar installed female voices in English/Mandarin and retain one local voice per language.
+- Warm/wait briefly for Safari's voice catalog, use natural rate/pitch, separate cancel/start and discard superseded/stale speech callbacks. Preserve microphone/Stop behavior.
+- Speak tic-tac-toe marks as cross/circle and expose the selected local voice in existing Troubleshooting. Normal Qwen Tina conversation remains separate.
+- Verify 233 Node tests and eight dedicated browser voice/game scenarios with scripted synthesis and actual synthetic capture; preserve receipt and recovery notes. Actual iPhone sound remains to be checked.
+
 ## 2 November 2026 — Proactive bilingual play and checked learning
 
 - Respond more clearly to visible smiles, winks and head movement; defer fresh spoken cues until quiet, coordinate camera/play invitations and retain cooldowns. The user confirmed face detection was already working on iPhone.

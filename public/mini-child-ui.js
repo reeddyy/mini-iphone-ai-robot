@@ -32,6 +32,10 @@
     let localGame=null;
     let chimeContext=null;
     const canSpeak = Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance);
+    const voicePicker=window.MiniLanguage?.createVoicePicker?.();
+    let waitedForVoices=false;
+    const availableVoices=()=>{try{return window.speechSynthesis?.getVoices?.() || [];}catch{return [];}};
+    availableVoices(); // Warm Safari's asynchronous voice catalog before Start.
     const language = () => options.getLanguage() === 'zh' ? 'zh' : 'en';
     const words = () => content.getLabels(language());
     function setHint(message) { hint.textContent = message; }
@@ -53,6 +57,8 @@
       delete face.dataset.localVoice;
       if (!value) return;
       clearTimeout(value.guard);
+      clearTimeout(value.startTimer);clearTimeout(value.voiceTimer);
+      if(value.voicesListener)window.speechSynthesis?.removeEventListener?.('voiceschanged',value.voicesListener);
       if (value.mic && value.restore && !value.session?.stopped && !value.session?.muted) {
         value.mic.enabled = true;
       }
@@ -75,12 +81,8 @@
       if (!session?.ready || session.stopped) return;
       const mic = session.audioInputTrack;
       const utterance = new window.SpeechSynthesisUtterance(message);
-      const voice=window.MiniLanguage?.voiceFor(spokenLanguage,window.speechSynthesis.getVoices?.() || []);
-      if(voice)utterance.voice=voice;
-      utterance.lang=voice?.lang || (spokenLanguage==='zh'?'zh-CN':'en-US');
-      utterance.rate = 0.9;
-      utterance.pitch = 1.05;
-      const item = {mic,session,restore:false,guard:null};
+      utterance.rate=1;utterance.pitch=1;
+      const item = {mic,session,restore:false,started:false,guard:null,startTimer:null,voiceTimer:null,voicesListener:null};
       activeNarration = item;
       // Do NOT disable the child's microphone before Safari actually speaks.
       // If Safari blocks speech synthesis, their answer must still reach Qwen.
@@ -93,14 +95,43 @@
         }
       };
       const done = () => { if (activeNarration === item) releaseSpeech(); };
-      item.guard = setTimeout(done, 12000);
       utterance.onend = () => {
         if(activeNarration!==item)return;
         done();pendingStarter=null;options.onLocalSpeechEnd?.(message,spokenLanguage);
       };
-      utterance.onerror = () => { done(); micHelp.textContent='Tap Mini’s face to try hearing the question again.'; };
-      try { window.speechSynthesis.speak(utterance); }
-      catch { done(); }
+      utterance.onerror = () => { if(activeNarration!==item)return;done();micHelp.textContent='Tap Mini’s face to try hearing the question again.'; };
+      const speak=()=>{
+        if(activeNarration!==item || item.started || session.stopped || session.muted)return;
+        item.started=true;if(item.awaitingVoices)waitedForVoices=true;
+        clearTimeout(item.voiceTimer);
+        if(item.voicesListener)window.speechSynthesis.removeEventListener?.('voiceschanged',item.voicesListener);
+        const voices=availableVoices(),voice=voicePicker?.select(spokenLanguage,voices) || window.MiniLanguage?.voiceFor(spokenLanguage,voices);
+        if(voice)utterance.voice=voice;
+        utterance.lang=voice?.lang || (spokenLanguage==='zh'?'zh-CN':'en-US');
+        const info=$('narrationVoiceStatus');
+        if(info)info.textContent='Game and lesson voice: '+(voice?.name || 'device default')+' · '+utterance.lang+'.';
+        const units=spokenLanguage==='zh'?message.replace(/\s/g,'').length:message.split(/\s+/).length;
+        const guardMs=Math.max(12000,Math.min(30000,units*(spokenLanguage==='zh'?300:550)+4000));
+        item.guard=setTimeout(()=>{
+          if(activeNarration!==item)return;
+          // Never restore the microphone while timed-out device speech is
+          // still running: cancel its output first, including missing onend.
+          try{window.speechSynthesis.cancel();}catch{}
+          done();
+        },guardMs);
+        try {window.speechSynthesis.speak(utterance);}catch{done();}
+      };
+      // Safari can clip a new utterance if cancel() and speak() share the same
+      // task. Keep the latest narration, and allow its voice list to arrive.
+      item.startTimer=setTimeout(()=>{
+        if(activeNarration!==item)return;
+        if(!availableVoices().length && typeof window.speechSynthesis.getVoices==='function' && !waitedForVoices){
+          item.awaitingVoices=true;
+          item.voicesListener=()=>{if(availableVoices().length)speak();};
+          window.speechSynthesis.addEventListener?.('voiceschanged',item.voicesListener);
+          item.voiceTimer=setTimeout(speak,700);
+        }else speak();
+      },80);
     }
     function sayFollowUp(mode, phrase, replyLanguage) {
       const session=options.getSession();

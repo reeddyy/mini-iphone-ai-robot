@@ -1,0 +1,83 @@
+{
+  "scope": "local fixture; real synthetic capture, scripted ASR and speech engine/voice catalog; actual sound unverified",
+  "results": [
+    "An empty voice list waits while the microphone remains live, then selects Samantha over Daniel",
+    "The tic-tik-toe request keeps that voice and speaks cross/circle words with remote audio muted",
+    "A real board tap narrates the exact circle move in the same voice",
+    "Rapid New round taps cancel superseded narration without clipping the final sentence",
+    "Mandarin game narration uses Tingting and retains the same capture",
+    "Leaving the board restores the regular live-audio path",
+    "English maths uses the original pinned English voice after the game and a language switch",
+    "Stop cancels queued narration, releases all tracks and makes no paid requests"
+  ],
+  "utterances": [
+    {
+      "text": "Hello! Which animal do you like?",
+      "name": "Samantha",
+      "language": "en-US",
+      "rate": 1,
+      "pitch": 1,
+      "sinceCancel": 188.10000000149012
+    },
+    {
+      "text": "You play crosses. Mini plays circles. Your turn! Choose an empty square.",
+      "name": "Samantha",
+      "language": "en-US",
+      "rate": 1,
+      "pitch": 1,
+      "sinceCancel": 80.30000000447035
+    },
+    {
+      "text": "Mini put a circle in the center square. Your turn! Choose an empty square.",
+      "name": "Samantha",
+      "language": "en-US",
+      "rate": 1,
+      "pitch": 1,
+      "sinceCancel": 80.20000000298023
+    },
+    {
+      "text": "You play crosses. Mini plays circles. Your turn! Choose an empty square.",
+      "name": "Samantha",
+      "language": "en-US",
+      "rate": 1,
+      "pitch": 1,
+      "sinceCancel": 80.19999999552965
+    },
+    {
+      "text": "好呀。",
+      "name": "Tingting",
+      "language": "zh-CN",
+      "rate": 1,
+      "pitch": 1,
+      "sinceCancel": 80.5
+    },
+    {
+      "text": "你是叉，Mini 是圆。轮到你啦！选一个空格。",
+      "name": "Tingting",
+      "language": "zh-CN",
+      "rate": 1,
+      "pitch": 1,
+      "sinceCancel": 80.30000000447035
+    },
+    {
+      "text": "Let’s count our pretend explorers. There are 2, and 1 more join. How many altogether?",
+      "name": "Samantha",
+      "language": "en-US",
+      "rate": 1,
+      "pitch": 1,
+      "sinceCancel": 80.29999999701977
+    },
+    {
+      "text": "You worked it out! 2 plus 1 makes 3. Let’s invent a robot pet. Should it hop or roll?",
+      "name": "Samantha",
+      "language": "en-US",
+      "rate": 1,
+      "pitch": 1,
+      "sinceCancel": 80.20000000298023
+    }
+  ],
+  "clipped": 0,
+  "errors": [],
+  "providerPlans": 0,
+  "providerImages": 0
+}

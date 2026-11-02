@@ -86,6 +86,8 @@ For quiet voices, the default speech detector is acoustic `server_vad`, with **Q
 
 **Troubleshooting audio:** Open **Parent setup → Troubleshooting → Camera and microphone** to see the local sound bar and Qwen speech-detection status. A moving bar means the iPhone is hearing sound; an AI speech-detected event means Qwen registered speech. If Qwen reports an error, its sanitized structured code becomes visible on the main Mini screen.
 
+Openings, game moves and checked lessons use a device voice alongside Qwen's live conversation voice. Local narration now prefers a suitable installed female voice, keeps that choice per language and speaks tic-tac-toe marks as “cross”/“circle”. **Troubleshooting → What Mini hears and says → Game and lesson voice** shows the chosen name. See [the voice fix and device check](docs/NARRATION_REVIEW_2026-11-02.md); it does not make a device voice identical to Qwen Tina.
+
 ## Short iPhone check
 
 1. Stop the Windows Mini server; `git pull`, `npm test`, then `npm start` in `D:\Ai-projects\mini-iphone-ai-robot`. Keep your existing **password-protected ngrok tunnel** on port 3001.

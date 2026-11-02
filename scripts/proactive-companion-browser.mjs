@@ -39,6 +39,7 @@ async function click(selector){
 }
 async function turn(text,reply='A cat has whiskers.'){
   await evaluate(`(()=>{const s=current;receiveEvent(s,{type:'input_audio_buffer.speech_started'});receiveEvent(s,{type:'input_audio_buffer.speech_stopped'});receiveEvent(s,{type:'conversation.item.input_audio_transcription.completed',transcript:${JSON.stringify(text)}});receiveEvent(s,{type:'response.created',response:{id:'reply-'+s.turnNumber}});receiveEvent(s,{type:'response.audio_transcript.done',transcript:${JSON.stringify(reply)}});onRemoteAudio(s,true);receiveEvent(s,{type:'response.done',response:{status:'completed'}});onRemoteAudio(s,false);return true;})()`);
+  await waitFor(`!childUI.isSpeakingLocally()`);
 }
 async function checkpoint(name,fn){await fn();results.push(name);console.log('PASS: '+name);}
 async function screenshot(name){
@@ -76,11 +77,13 @@ try{
   });
   await checkpoint('Chat offers an animal play idea with Pictures and visual planning off',async()=>{
     await turn('cat');await waitFor(`current.localPrompt.kind==='conversation' && current.localPrompt.turn===current.turnNumber`);
+    await waitFor(`!childUI.isSpeakingLocally()`);
     assert.match(await evaluate(`current.localPrompt.text`),/animal|moon cat|garden dinosaur/);
   });
   await checkpoint('Early chat naturally produces a checked maths question without a provider request',async()=>{
     await turn('I like cats','We can imagine an animal adventure.');
     await waitFor(`current.learning.hasQuestion()`);
+    await waitFor(`!childUI.isSpeakingLocally()`);
     assert.equal(await evaluate(`current.learning.checkpoint('en').pending.domain`),'math');
     assert.match(await evaluate(`current.localPrompt.text`),/2, and 1 more join/);await screenshot('maths');
   });

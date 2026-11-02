@@ -18,10 +18,31 @@
   }
   function voiceFor(language,voices=[]){
     const preferred=language==='zh'?['zh-sg','zh-cn','zh-hans','zh-tw','zh']:['en-sg','en-gb','en-us','en'];
-    return voices.filter(voice=>language==='zh'?/^zh(?:-|_|$)/i.test(voice.lang) && !/^zh[-_]hk/i.test(voice.lang):/^en(?:-|_|$)/i.test(voice.lang)).map(voice=>{
+    // Web Speech exposes no gender field. Prefer familiar installed female
+    // voices over region/default; the old region-first order could pick Daniel.
+    const friendly=language==='zh'?/ting[\s-]?ting|mei[\s-]?jia|tian[\s-]?tian|yu[\s-]?shu|xiaoxiao|xiaoyi|xiaoxuan|female/i:/samantha|karen|moira|tessa|serena|fiona|veena|victoria|zira|aria|jenny|hazel|joanna|salli|susan|allison|\bfemale\b/i;
+    const deep=/\b(?:daniel|alex|fred|ralph|bruce|albert|junior|thomas|aaron|david|george|gordon|oliver|arthur|rishi|ryan|guy|yunxi|yunyang|male)\b/i;
+    return voices.filter(voice=>{
+      const tag=String(voice.lang || '').toLowerCase().replaceAll('_','-');
+      return language==='zh'?/^zh(?:-|$)/.test(tag) && !/(?:^|-)(?:hk|mo|yue)(?:-|$)/.test(tag):/^en(?:-|$)/.test(tag);
+    }).map(voice=>{
       const tag=voice.lang.toLowerCase().replaceAll('_','-'),index=preferred.findIndex(value=>tag===value);
-      return {voice,score:(index<0?0:50-index*8)+(voice.localService?3:0)+(voice.default?2:0)};
+      const name=String(voice.name || '');
+      return {voice,score:(friendly.test(name)?160:deep.test(name)?-160:0)+(index<0?0:50-index*8)+
+        (/enhanced|premium|natural|neural/i.test(name)?12:0)+(voice.localService?3:0)+(voice.default?2:0)};
     }).sort((a,b)=>b.score-a.score)[0]?.voice || null;
   }
-  window.MiniLanguage=Object.freeze({requested,resolve,voiceFor});
+  function createVoicePicker(){
+    const selected=new Map();
+    return Object.freeze({select(language,voices=[]){
+      const previous=selected.get(language);
+      if(previous){
+        const current=voices.find(voice=>previous.voiceURI && voice.voiceURI?voice.voiceURI===previous.voiceURI:voice.name===previous.name && voice.lang===previous.lang);
+        if(current || !voices.length)return current || previous;
+      }
+      const voice=voiceFor(language,voices);if(voice)selected.set(language,voice);
+      return voice;
+    }});
+  }
+  window.MiniLanguage=Object.freeze({requested,resolve,voiceFor,createVoicePicker});
 })();

@@ -16,3 +16,22 @@ test('Local narration chooses an installed voice in the right language and avoid
   assert.equal(language.voiceFor('en',voices).lang,'en-SG');assert.equal(language.voiceFor('zh',voices).lang,'zh-SG');
   assert.equal(language.voiceFor('zh',[{lang:'zh-HK'}]),null);
 });
+
+test('A familiar female voice takes priority over a deep regional/default voice',()=>{
+  const voices=[{name:'Daniel',lang:'en-GB',default:true,localService:true},{name:'Samantha',lang:'en-US'},
+    {name:'Yunxi',lang:'zh-CN',default:true},{name:'Tingting',lang:'zh-CN'}];
+  assert.equal(language.voiceFor('en',voices).name,'Samantha');
+  assert.equal(language.voiceFor('zh',voices).name,'Tingting');
+  assert.equal(language.voiceFor('zh',[{name:'Sin-ji',lang:'zh-Hant-HK'}]),null);
+});
+
+test('Local voice identity stays stable when the catalog order or regional choices change',()=>{
+  const picker=language.createVoicePicker();
+  const samantha={name:'Samantha',lang:'en-US',voiceURI:'samantha'};
+  const tingting={name:'Tingting',lang:'zh-CN',voiceURI:'tingting'};
+  assert.equal(picker.select('en',[samantha,tingting]).name,'Samantha');
+  assert.equal(picker.select('en',[{name:'Serena',lang:'en-GB',voiceURI:'serena'},{...samantha}]).voiceURI,'samantha');
+  assert.equal(picker.select('zh',[samantha,tingting]).voiceURI,'tingting');
+  assert.equal(picker.select('en',[]).voiceURI,'samantha');
+  assert.equal(picker.select('en',[{name:'Karen',lang:'en-AU',voiceURI:'karen'}]).name,'Karen','replace a voice that was removed');
+});

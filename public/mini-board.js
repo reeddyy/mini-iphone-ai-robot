@@ -159,7 +159,7 @@
     return Object.freeze({open,close,move,handleTranscript,isActive:()=>Boolean(game),state:()=>game,roundId:()=>round,context:()=>checkpoint(game),speech:()=>{
       if(!game)return '';
       const last=game.lastMove,zh=lang()==='zh';
-      return (last?(zh?(last.mark==='O'?'Mini 把圆放在':'你把叉放在')+positions.zh[last.index]+'。':(last.mark==='O'?'Mini placed O at ':'You placed X at ')+positions.en[last.index]+'. '):(zh?'你是叉，Mini 是圆。':'You are X. Mini is O. '))+statusText();
+      return (last?(zh?(last.mark==='O'?'Mini 把圆放在':'你把叉放在')+positions.zh[last.index]+'。':(last.mark==='O'?'Mini put a circle in the ':'You put a cross in the ')+positions.en[last.index]+' square. '):(zh?'你是叉，Mini 是圆。':'You play crosses. Mini plays circles. '))+statusText();
     }});
   }
   window.MiniBoard=Object.freeze({create,result,place,chooseMove,miniMove,wantsGame,wantsExit,parsePosition,checkpoint,init});
