@@ -73,4 +73,6 @@ Download the public-domain adult fixture as documented in [THIRD_PARTY_NOTICES.m
 
 The provided HTTPS tunnel needs its ngrok Basic Authorization header before the app can be reviewed remotely. Mini's parent code is separately required for protected diagnostics and session startup. These credentials should be supplied through the environment's secure secret settings, restricted to that host, rather than chat or repository files. The existing server keeps its own Alibaba key; testing its deployment does not require copying that API key here.
 
+A draft containing the two secure credential requirements was saved successfully; it requires environment publication before use. Follow [LIVE_TESTING.md](LIVE_TESTING.md) to prepare the tunnel header privately and supply the separate Mini code. No secret values were entered or activated during this review.
+
 After authenticated access is available, check the deployed version/configuration and read-only diagnostics first. Actual speech recognition, audible Qwen replies, image generation/account entitlement, real provider latency and physical iPhone behavior remain unverified. Simulated transcripts, a 1-pixel fixture image or a successful JSON response cannot demonstrate those outcomes. Cloud browser/WebRTC network limitations may require completing the voice portion directly on the iPhone.

@@ -16,6 +16,7 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 | `bf98c0e` | Simplified grown-up settings, enabled feature defaults, explicit startup confirmation, automatic safe preference storage and regression coverage. |
 | `6c07960` | Updated `.env.example`: image-model default, current setup instructions and removal of the unnecessary legacy awareness setting from the template. |
 | `63db2d2` | Published project memory, recovery guide, agent entry point and refreshed documentation. |
+| `a8e05e5` | Published the browser scenario review, screenshots and manual failure/recovery checks. |
 
 These commits were pushed to GitHub `main`. See [CHANGELOG.md](../CHANGELOG.md) for release history and [RECOVERY.md](RECOVERY.md) for a fresh checkout. The subsequent browser review is recorded in [TEST_REVIEW_2026-11-02.md](TEST_REVIEW_2026-11-02.md).
 
@@ -108,6 +109,8 @@ A [settings reference screenshot](images/parent-settings-2026-11-02.png) is comm
 All 194 Node tests and all three existing Chromium suites passed, including real local MediaPipe inference with the public-domain adult fixture. A new visible-control exploratory check (`scripts/scenario-review-browser.mjs`) recorded **6 passes and 2 failed usability expectations**, with no harness errors. Both failures have the same cause: missing-code and permission-denied startup errors are not visible inside the open parent dialog. The review did not change application behavior to fix it. See the [report, screenshots and reproduction steps](TEST_REVIEW_2026-11-02.md).
 
 Real HTTPS GETs to the user's live tunnel returned **401 Basic Auth** for both the page and `/api/config`. This is expected gateway protection, not an application defect. The app behind it and live Qwen were not reached. Live work requires secure, host-restricted credentials for the ngrok Authorization header and Mini parent code; do not request or record their values in chat/public docs. The user's backend can retain its Alibaba key. Preserve the review before any environment reconfiguration/restart.
+
+A configuration draft was subsequently confirmed saved for personal secrets `MINI_TUNNEL_AUTH_HEADER` and `MINI_PARENT_ACCESS_CODE`, restricted to the provided tunnel hostname. The tool returned `requires_publish: true`; no values were supplied or activated. [LIVE_TESTING.md](LIVE_TESTING.md) explains preparing the full Basic header locally, entering both values in secure environment settings and publishing before live checks resume. Recheck readiness after publication; do not reuse the old draft as evidence of active credentials.
 
 Next work should address the recorded parent-error-visibility issue and, once authenticated live access is available, the following checks:
 
