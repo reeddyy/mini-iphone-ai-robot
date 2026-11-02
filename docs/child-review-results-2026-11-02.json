@@ -1,0 +1,640 @@
+{
+  "responses": [
+    {
+      "path": "/",
+      "status": 200
+    },
+    {
+      "path": "/style.css",
+      "status": 200
+    },
+    {
+      "path": "/mini-face.css",
+      "status": 200
+    },
+    {
+      "path": "/mini-mobile.css",
+      "status": 200
+    },
+    {
+      "path": "/mini-extras.js",
+      "status": 200
+    },
+    {
+      "path": "/mini-language.js",
+      "status": 200
+    },
+    {
+      "path": "/mini-board.js",
+      "status": 200
+    },
+    {
+      "path": "/mini-kids.js",
+      "status": 200
+    },
+    {
+      "path": "/mini-visual-schema.js",
+      "status": 200
+    },
+    {
+      "path": "/mini-local-awareness.js",
+      "status": 200
+    },
+    {
+      "path": "/mini-visuals.js",
+      "status": 200
+    },
+    {
+      "path": "/mini-activities.js",
+      "status": 200
+    },
+    {
+      "path": "/mini-child-ui.js",
+      "status": 200
+    },
+    {
+      "path": "/mini-camera.js",
+      "status": 200
+    },
+    {
+      "path": "/app.js",
+      "status": 200
+    },
+    {
+      "path": "/api/config",
+      "status": 200
+    },
+    {
+      "path": "/favicon.ico",
+      "status": 204
+    },
+    {
+      "path": "/api/realtime/sdp",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/favicon.ico",
+      "status": 204
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/vendor/mediapipe/face-mesh-0.4.1633559619-mini1/face_mesh.js",
+      "status": 200
+    },
+    {
+      "path": "/vendor/mediapipe/face-mesh-0.4.1633559619-mini1/face_mesh_solution_packed_assets_loader.js",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/vendor/mediapipe/face-mesh-0.4.1633559619-mini1/face_mesh_solution_simd_wasm_bin.js",
+      "status": 200
+    },
+    {
+      "path": "/vendor/mediapipe/face-mesh-0.4.1633559619-mini1/face_mesh_solution_packed_assets.data",
+      "status": 200
+    },
+    {
+      "path": "/vendor/mediapipe/face-mesh-0.4.1633559619-mini1/face_mesh_solution_simd_wasm_bin.wasm",
+      "status": 200
+    },
+    {
+      "path": "/vendor/mediapipe/face-mesh-0.4.1633559619-mini1/face_mesh.binarypb",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/image",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/image",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/plan",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/session",
+      "status": 200
+    },
+    {
+      "path": "/api/visual/session",
+      "status": 401
+    }
+  ],
+  "date": "2026-11-02",
+  "scope": "hybrid child-style browser journey: scripted ASR/voice replies, actual synthetic media and real planner/image backend",
+  "counters": {
+    "sessions": 1,
+    "realPlans": 5,
+    "realImages": 2,
+    "mockedPlans": 11,
+    "revocations": 1
+  },
+  "results": [
+    {
+      "name": "One authorized live visual grant; voice transport remains simulated",
+      "kind": "live signaling",
+      "status": "PASS",
+      "seconds": 0.61,
+      "detail": {
+        "status": 200,
+        "validAnswer": true,
+        "grantIssued": true
+      }
+    },
+    {
+      "name": "Grown-up starts five-minute synthetic capture with default-on options",
+      "kind": "browser/media with test adapter",
+      "status": "PASS",
+      "seconds": 0.22,
+      "detail": {
+        "camera": true,
+        "pictures": true,
+        "audioTracks": 1,
+        "videoTracks": 1
+      }
+    },
+    {
+      "name": "Child says hello, then a one-word animal answer",
+      "kind": "scripted speech/client state",
+      "status": "PASS",
+      "seconds": 0.11,
+      "detail": {
+        "oneWordAccepted": true,
+        "paidPlannerCalls": 0
+      }
+    },
+    {
+      "name": "Child says I do not know during a riddle",
+      "kind": "scripted speech/client state",
+      "status": "PASS",
+      "seconds": 0.2,
+      "detail": {
+        "shortAndUncertainAnswersAccepted": true,
+        "answerQuality": "scripted, not a live voice-model evaluation"
+      }
+    },
+    {
+      "name": "Negated stop does not end capture",
+      "kind": "scripted speech/client state",
+      "status": "PASS",
+      "seconds": 0.06,
+      "detail": {}
+    },
+    {
+      "name": "Child interrupts an answer without losing the microphone",
+      "kind": "scripted speech/client state",
+      "status": "PASS",
+      "seconds": 0.09,
+      "detail": {
+        "oldPlaybackSuppressed": true,
+        "microphonePreserved": true
+      }
+    },
+    {
+      "name": "Child requests an imaginative story with two choices",
+      "kind": "real planner and first real image",
+      "status": "PASS",
+      "seconds": 9.12,
+      "detail": {
+        "title": "Lumi the Blue Dinosaur",
+        "message": "",
+        "choices": [
+          {
+            "id": "bridge",
+            "label": "Cross the rainbow bridge"
+          },
+          {
+            "id": "tree",
+            "label": "Look inside the hollow tree"
+          }
+        ],
+        "prompt": "A gentle storybook illustration of a friendly small blue dinosaur named Lumi, wearing a cheerful yellow backpack, standing in a sunny, dappled forest with soft moss, ferns, and glowing fireflies. Warm light filters through tall green trees.",
+        "decoded": 1024
+      }
+    },
+    {
+      "name": "Child taps a story path and the next illustration appears",
+      "kind": "real planner and second real image",
+      "status": "PASS",
+      "seconds": 9.5,
+      "detail": {
+        "chosen": "Cross the rainbow bridge",
+        "title": "Lumi Crosses the Rainbow Bridge",
+        "message": "",
+        "prompt": "A gentle storybook illustration of Lumi the friendly small blue dinosaur, wearing her cheerful yellow backpack, stepping happily onto a shimmering rainbow bridge arching over a clear sparkling stream in the sunny dappled forest. Soft moss, ferns, and glowing fireflies surround her; warm light filters through tall green trees.",
+        "imagesAttempted": 2
+      }
+    },
+    {
+      "name": "Back to Mini preserves the same microphone and camera",
+      "kind": "real UI/media",
+      "status": "PASS",
+      "seconds": 0.01,
+      "detail": {}
+    },
+    {
+      "name": "Child switches to Mandarin",
+      "kind": "scripted speech/language routing",
+      "status": "PASS",
+      "seconds": 0.07,
+      "detail": {}
+    },
+    {
+      "name": "Child asks to count three tappable apples",
+      "kind": "real planner and local rules",
+      "status": "PASS",
+      "seconds": 2.63,
+      "detail": {
+        "title": "数三个苹果",
+        "message": "好呀，我们来数三个苹果。每个苹果点一下，只数一次。",
+        "label": "苹果",
+        "count": 3
+      }
+    },
+    {
+      "name": "Child leaves counting by voice rather than finding a menu",
+      "kind": "real planner and spoken transition",
+      "status": "FAIL",
+      "seconds": 1.31,
+      "error": "Leaving the game returns to Mini\n+ actual - expected\n\n+ {\n+   action: 'activity',\n+   activity: {\n+     count: 3,\n+     label: '苹果',\n+     symbol: '🍎',\n+     type: 'count'\n+   },\n+   choices: [],\n+   message: '好呀，我们来数三个苹果。每个苹果点一下，只数一次。',\n+   title: '数三个苹果'\n+ }\n- null\n",
+      "snapshot": {
+        "active": true,
+        "language": "zh",
+        "scene": {
+          "action": "activity",
+          "title": "数三个苹果",
+          "message": "好呀，我们来数三个苹果。每个苹果点一下，只数一次。",
+          "activity": {
+            "type": "count",
+            "count": 3,
+            "symbol": "🍎",
+            "label": "苹果"
+          },
+          "choices": []
+        },
+        "board": null,
+        "visualIssue": "",
+        "status": "Mini is thinking…"
+      }
+    },
+    {
+      "name": "A single learned English word does not reset Mandarin",
+      "kind": "scripted speech/language routing",
+      "status": "PASS",
+      "seconds": 0.08,
+      "detail": {}
+    },
+    {
+      "name": "Child explicitly switches back to English",
+      "kind": "scripted speech/language routing",
+      "status": "PASS",
+      "seconds": 0.07,
+      "detail": {}
+    },
+    {
+      "name": "Child plays one round of rock paper scissors",
+      "kind": "real planner and local rules",
+      "status": "PASS",
+      "seconds": 3.04,
+      "detail": {
+        "rounds": 1,
+        "result": "child",
+        "score": {
+          "child": 1,
+          "mini": 0
+        }
+      }
+    },
+    {
+      "name": "Child opens tic-tac-toe directly and makes a move",
+      "kind": "local rules with simulated transcripts",
+      "status": "PASS",
+      "seconds": 0.66,
+      "detail": {
+        "moves": 2,
+        "extraPlannerCalls": 0
+      }
+    },
+    {
+      "name": "Occupied or ambiguous spoken squares cannot overwrite the board",
+      "kind": "local rules with simulated transcripts",
+      "status": "PASS",
+      "seconds": 0.01,
+      "detail": {
+        "boardPreserved": true,
+        "feedback": "Choose one square, or tap it on the board."
+      }
+    },
+    {
+      "name": "Impatient new-round taps do not leave ghost moves",
+      "kind": "real pointer/local rules",
+      "status": "PASS",
+      "seconds": 0.88,
+      "detail": {}
+    },
+    {
+      "name": "Child returns to chatting without ending capture",
+      "kind": "scripted speech/local transition",
+      "status": "PASS",
+      "seconds": 0.01,
+      "detail": {}
+    },
+    {
+      "name": "Parent mute and camera pause/resume keep the original capture",
+      "kind": "real UI/media; sender transport simulated",
+      "status": "PASS",
+      "seconds": 0.06,
+      "detail": {}
+    },
+    {
+      "name": "A new child turn cancels a delayed scene without another live call",
+      "kind": "injected network delay/client cancellation",
+      "status": "PASS",
+      "seconds": 0.08,
+      "detail": {}
+    },
+    {
+      "name": "Goodbye ends capture and clears the displayed conversation",
+      "kind": "scripted stop transcript; real cleanup",
+      "status": "PASS",
+      "seconds": 0.39,
+      "detail": {
+        "captureEnded": true,
+        "testGrantRevoked": true
+      }
+    },
+    {
+      "name": "No paid reconnect or secret/session storage after the child leaves",
+      "kind": "network/storage observation",
+      "status": "PASS",
+      "seconds": 0.35,
+      "detail": {
+        "sessions": 1,
+        "livePlannerAttempts": 5,
+        "imagesAttempted": 2,
+        "mockedPlannerResponses": 11
+      }
+    }
+  ],
+  "plans": [
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "artwork",
+        "title": "Lumi the Blue Dinosaur",
+        "message": "",
+        "choices": [
+          {
+            "id": "bridge",
+            "label": "Cross the rainbow bridge"
+          },
+          {
+            "id": "tree",
+            "label": "Look inside the hollow tree"
+          }
+        ],
+        "prompt": "A gentle storybook illustration of a friendly small blue dinosaur named Lumi, wearing a cheerful yellow backpack, standing in a sunny, dappled forest with soft moss, ferns, and glowing fireflies. Warm light filters through tall green trees.",
+        "motion": "float"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "artwork",
+        "title": "Lumi Crosses the Rainbow Bridge",
+        "message": "",
+        "choices": [
+          {
+            "id": "tree",
+            "label": "Look inside the hollow tree"
+          }
+        ],
+        "prompt": "A gentle storybook illustration of Lumi the friendly small blue dinosaur, wearing her cheerful yellow backpack, stepping happily onto a shimmering rainbow bridge arching over a clear sparkling stream in the sunny dappled forest. Soft moss, ferns, and glowing fireflies surround her; warm light filters through tall green trees.",
+        "motion": "float"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "activity",
+        "title": "数三个苹果",
+        "message": "好呀，我们来数三个苹果。每个苹果点一下，只数一次。",
+        "choices": [],
+        "activity": {
+          "type": "count",
+          "count": 3,
+          "symbol": "🍎",
+          "label": "苹果"
+        }
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep",
+        "title": "",
+        "message": "好呀，我们聊聊天吧！你今天最喜欢做的事情是什么？"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "activity",
+        "title": "Rock Paper Scissors",
+        "message": "Choose rock, paper or scissors for one round!",
+        "followUp": "I'll pick at the same time as you!",
+        "choices": [],
+        "activity": {
+          "type": "hand_game",
+          "moves": [
+            {
+              "id": "rock",
+              "label": "Rock",
+              "symbol": "✊",
+              "beats": [
+                "scissors"
+              ]
+            },
+            {
+              "id": "paper",
+              "label": "Paper",
+              "symbol": "✋",
+              "beats": [
+                "rock"
+              ]
+            },
+            {
+              "id": "scissors",
+              "label": "Scissors",
+              "symbol": "✌️",
+              "beats": [
+                "paper"
+              ]
+            }
+          ],
+          "rounds": 1
+        }
+      },
+      "diagnostic": null
+    },
+    {
+      "status": 200,
+      "plan": {
+        "version": 1,
+        "action": "keep"
+      },
+      "diagnostic": null
+    }
+  ],
+  "errors": []
+}

@@ -18,6 +18,12 @@ function kidsContent() {
   return window.MiniKidsContent;
 }
 
+test('Explicit requests to leave a game for chat work in English and Mandarin without matching incidental speech',()=>{
+  const kids=kidsContent();
+  for(const phrase of ["Let's chat",'Can we just talk?',"Mini, please let's talk instead.",'Back to Mini','我不想数了，我们聊聊天吧。','我想聊天','我们说说话吧'])assert.equal(kids.wantsChat(phrase),true,phrase);
+  for(const phrase of ['cat','three','rock',"Don't chat",'Can we not talk?',"The dragon said let's chat",'The dragon said, “let’s chat!”','不要聊天','我们不想聊天',null])assert.equal(kids.wantsChat(phrase),false,String(phrase));
+});
+
 test('Child scripts and WebRTC app are syntactically valid',()=>{
   for (const file of [kidsFile,uiFile,appFile,extrasFile]) {
     assert.doesNotThrow(()=>execFileSync(process.execPath,['--check',file]),file);

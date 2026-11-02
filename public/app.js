@@ -704,7 +704,16 @@ function receiveEvent(s, ev, channel) {
         const dynamic=Boolean(s.visualsEnabled && s.visualGrant);
         const openingBoard=!visualActivity?.isActive() && window.MiniBoard.wantsGame(ev.transcript) && !/\b(?:not|don['’]?t|do not)\b|不要|不想/i.test(ev.transcript);
         if(openingBoard){s.localVisualTurn=true;s.playbackSuppressed=true;els.remoteAudio.muted=true;}
-        const handled=visualActivity?.handleTranscript(ev.transcript,s.boardVoiceRound ?? null);
+        const leavingGame=hasLocalVisualGame() && kids.wantsChat(ev.transcript);
+        let handled;
+        if(leavingGame){
+          visualActivity?.close(false);generatedVisuals?.clear();returnToMini();
+          s.contextRefreshDeferred=false;s.localVisualTurn=false;s.localNarrationForTurn=false;
+          if(s.responseActive && s.responseTurn===s.turnNumber && !s.childSpeaking){
+            s.playbackSuppressed=false;els.remoteAudio.muted=false;childUI?.onResponseStarted();
+          }
+          handled=true;
+        }else handled=visualActivity?.handleTranscript(ev.transcript,s.boardVoiceRound ?? null);
         if(!handled) {
           const next=kids.detectRequestedActivity?.(ev.transcript, s.activity) || s.activity;
           if(visualActivity?.isActive() && next!=='tictactoe'){visualActivity.close(false);s.boardCheckpoint=null;}
@@ -714,7 +723,7 @@ function receiveEvent(s, ev, channel) {
         renderActivity(s);
         clearTimeout(s.contextTimer);
         s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
-        if(handled){s.localMoveHandled=true;if(s.localVisualTurn && !hasLocalVisualGame())narrateVisual(sessionLanguage(s)==='zh'?'我们继续聊天吧。':'Let’s keep chatting.');}
+        if(handled){s.localMoveHandled=true;if(!leavingGame && s.localVisualTurn && !hasLocalVisualGame())narrateVisual(sessionLanguage(s)==='zh'?'我们继续聊天吧。':'Let’s keep chatting.');}
         else if(dynamic) {
           if(s.localVisualTurn)requestGeneratedVisual(s,ev.transcript,false,{narrate:true});
           else{s.pendingVisualTurn={request:ev.transcript.slice(0,500),turn:s.turnNumber || 0};flushSpokenVisual(s);}

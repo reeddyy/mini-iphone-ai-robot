@@ -1,5 +1,12 @@
 # Changelog
 
+## 2 November 2026 — Child-style play-through and conversation fixes
+
+- Review 23 child-style checkpoints with scripted speech, real synthetic capture, five live planner calls and two real story images. Record the original 22 passes/one failed counting exit and the separately identified empty story narration.
+- Handle explicit English/Mandarin game-to-chat exits locally, preserve capture and restore the next voice reply even when its response event precedes the transcript. Avoid a paid planner call for these exits.
+- Narrate the visible scene title when a story plan omits its message; strengthen button-continuation narration instructions.
+- Verify 201 Node tests, nine local replay checkpoints and existing settings/media-cleanup browser suites. Preserve receipts, screenshots and recovery memory; audible Qwen/iPhone testing remains unverified because cloud ICE yielded no candidates.
+
 ## 2 November 2026 — Authenticated live review
 
 - Verify saved/ready environment credentials, live page/configuration/free diagnostics, protected model metadata and deployed mobile layouts/startup validation.

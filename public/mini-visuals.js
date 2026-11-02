@@ -124,7 +124,7 @@
       cancelPending:()=>{if(imageAbort){epoch++;imageAbort.abort();imageAbort=null;if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null;}
         artworkStatus='paused';result.textContent=lang()==='zh'?'图片已暂停。':'Picture paused.';options.onStateChange?.(describe());}},
       setBusy:busy=>{for(const el of choices.querySelectorAll('button'))el.disabled=busy;},describe,
-      speech:()=>game?.lastNarration || (plan?[plan.message,result.textContent].filter(Boolean).join(' '):'')});
+      speech:()=>game?.lastNarration || (plan?[plan.message || plan.title,result.textContent].filter(Boolean).join(' '):'')});
   }
   window.MiniVisuals=Object.freeze({init,handResult});
 })();

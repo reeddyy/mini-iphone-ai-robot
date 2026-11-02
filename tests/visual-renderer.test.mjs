@@ -92,3 +92,12 @@ test('Generated pictures animate with an allowlisted motion and retain their sto
   assert.equal(env.states.at(-1).status,'visible');env.get('visualChoices').children[0].click();assert.equal(env.interactions[0].id,'moon');
   env.get('visualExit').click();assert.equal(env.renderer.isActive(),false);assert.deepEqual(env.revoked,['blob:fixture']);
 });
+
+test('A story continuation with an empty planner message speaks the displayed title',async()=>{
+  const env=environment({requestArtwork:async()=>({type:'image/png',size:10})});
+  await env.renderer.apply({version:1,action:'artwork',title:'Lumi Crosses the Rainbow Bridge',message:'',prompt:'A small blue dinosaur with a yellow backpack on a rainbow bridge.'},{imageTicket:'fixture'});
+  assert.equal(env.states.at(-1).status,'visible');
+  assert.equal(env.renderer.speech(),'Lumi Crosses the Rainbow Bridge');
+  await env.renderer.apply({version:1,action:'artwork',title:'Lumi',message:'Lumi finds a new friend.',prompt:'A blue dinosaur meets a friend.'},{imageTicket:'fixture'});
+  assert.equal(env.renderer.speech(),'Lumi finds a new friend.','prefer supplied narration over the title');
+});

@@ -1,0 +1,91 @@
+{
+  "story": {
+    "version": 1,
+    "action": "artwork",
+    "title": "Lumi the Blue Dinosaur",
+    "message": "",
+    "choices": [
+      {
+        "id": "bridge",
+        "label": "Cross the rainbow bridge"
+      },
+      {
+        "id": "tree",
+        "label": "Look inside the hollow tree"
+      }
+    ],
+    "prompt": "A gentle storybook illustration of a friendly small blue dinosaur named Lumi, wearing a cheerful yellow backpack, standing in a sunny, dappled forest with soft moss, ferns, and glowing fireflies. Warm light filters through tall green trees.",
+    "motion": "float"
+  },
+  "continuation": {
+    "version": 1,
+    "action": "artwork",
+    "title": "Lumi Crosses the Rainbow Bridge",
+    "message": "",
+    "choices": [
+      {
+        "id": "tree",
+        "label": "Look inside the hollow tree"
+      }
+    ],
+    "prompt": "A gentle storybook illustration of Lumi the friendly small blue dinosaur, wearing her cheerful yellow backpack, stepping happily onto a shimmering rainbow bridge arching over a clear sparkling stream in the sunny dappled forest. Soft moss, ferns, and glowing fireflies surround her; warm light filters through tall green trees.",
+    "motion": "float"
+  },
+  "count": {
+    "version": 1,
+    "action": "activity",
+    "title": "数三个苹果",
+    "message": "好呀，我们来数三个苹果。每个苹果点一下，只数一次。",
+    "choices": [],
+    "activity": {
+      "type": "count",
+      "count": 3,
+      "symbol": "🍎",
+      "label": "苹果"
+    }
+  },
+  "chatExit": {
+    "version": 1,
+    "action": "keep",
+    "title": "",
+    "message": "好呀，我们聊聊天吧！你今天最喜欢做的事情是什么？"
+  },
+  "hands": {
+    "version": 1,
+    "action": "activity",
+    "title": "Rock Paper Scissors",
+    "message": "Choose rock, paper or scissors for one round!",
+    "followUp": "I'll pick at the same time as you!",
+    "choices": [],
+    "activity": {
+      "type": "hand_game",
+      "moves": [
+        {
+          "id": "rock",
+          "label": "Rock",
+          "symbol": "✊",
+          "beats": [
+            "scissors"
+          ]
+        },
+        {
+          "id": "paper",
+          "label": "Paper",
+          "symbol": "✋",
+          "beats": [
+            "rock"
+          ]
+        },
+        {
+          "id": "scissors",
+          "label": "Scissors",
+          "symbol": "✌️",
+          "beats": [
+            "paper"
+          ]
+        }
+      ],
+      "rounds": 1
+    }
+  }
+}

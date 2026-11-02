@@ -52,6 +52,8 @@ Awareness tests validate strict cue output, consent/scopes, observation budgets,
 
 ## Reproduce the V6.6 cloud browser smoke check
 
+For the captured child-style story/counting regression journey, use the same fixture and fresh Chromium setup below, then run `node scripts/child-journey-browser.mjs`. It replays synthetic plans captured from the live review and checks nine scenarios with mocked providers/speech and actual synthetic capture. It never contacts a live service. See [the review and evidence](CHILD_REVIEW_2026-11-02.md).
+
 This uses test doubles for every Qwen call and real local face-landmark inference. It never uses `.env` or sends frames to Alibaba. Download scikit-image's public-domain NASA `astronaut.png` to a temporary path; source and license context are in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
 
 Start `node tests/fixtures/companion-smoke-server.mjs` in a terminal. In another, launch Chromium with a fresh temporary profile, `--headless --disable-dev-shm-usage --disable-background-networking --disable-component-update --disable-sync --no-first-run --use-fake-device-for-media-stream --use-fake-ui-for-media-stream --remote-debugging-port=9228 about:blank` (a sandboxed container may need `--no-sandbox`; do not use that flag for normal browsing). Then run:

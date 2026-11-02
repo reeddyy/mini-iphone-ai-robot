@@ -899,6 +899,39 @@ test('Game moves speak the actual board position while a contradictory remote ga
   vm.runInContext('visualActivity.close(false)',env.ctx);emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
   emit(env,'response.created',{response:{id:'chat'}});assert.equal(env.ctx.document.getElementById('remoteAudio').muted,false,'ordinary Qwen voice returns after leaving the game');
 });
+test('Leaving counting, a hand game or the board by voice clears the scene locally and restores the next voice reply',()=>{
+  for(const game of ['count','hand_game','tictactoe'])for(const phrase of ['我不想数了，我们聊聊天吧.','Can we just talk?']){
+    const env=mockEnvironment(),track=env.s.audioInputTrack;
+    Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});
+    if(game==='tictactoe')vm.runInContext('visualActivity.open()',env.ctx);
+    else env.visualRenderer.plan={version:1,action:'activity',title:'Game',activity:{type:game}};
+    let requests=0;env.ctx.fetch=async()=>{requests++;return {ok:true,json:async()=>({plan:{version:1,action:'keep',message:'好呀，我们聊聊天吧！'}})};};
+    emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
+    assert.equal(env.s.localVisualTurn,true);
+    emit(env,'conversation.item.input_audio_transcription.completed',{transcript:phrase});
+    assert.equal(env.visualRenderer.current(),null);assert.equal(vm.runInContext('visualActivity.isActive()',env.ctx),false);
+    assert.equal(env.s.generatedVisualContext,null);assert.equal(env.s.boardCheckpoint,null);
+    assert.equal(env.s.localVisualTurn,false);assert.equal(env.s.pendingLocalNarration,null);
+    assert.equal(env.s.audioInputTrack,track);assert.equal(track.enabled,true);assert.equal(env.s.stopped,false);
+    assert.equal(requests,0,'a chat exit needs no paid planner decision');
+    assert.equal(env.ctx.document.getElementById('remoteAudio').muted,true,'old interrupted audio remains muted');
+    emit(env,'response.created',{response:{id:'chat'}});
+    assert.equal(env.ctx.document.getElementById('remoteAudio').muted,false,'new chat reply can play');
+    assert.equal(env.sent.some(event=>event.type==='response.create'),false);
+  }
+});
+test('A late chat-exit transcript releases this turn’s voice but never an interrupted older response',()=>{
+  for(const responseFirst of [true,false]){
+    const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});
+    env.visualRenderer.plan={version:1,action:'activity',activity:{type:'count',count:3,symbol:'🍎',label:'苹果'}};
+    if(!responseFirst)emit(env,'response.created',{response:{id:'old-game'}});
+    emit(env,'input_audio_buffer.speech_started');emit(env,'input_audio_buffer.speech_stopped');
+    if(responseFirst)emit(env,'response.created',{response:{id:'new-chat'}});
+    emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'我们聊聊天吧。'});
+    assert.equal(env.ctx.document.getElementById('remoteAudio').muted,!responseFirst);
+    assert.equal(env.s.playbackSuppressed,!responseFirst);
+  }
+});
 test('A visual button continuation narrates the same returned scene message without another model response',async()=>{
   const env=mockEnvironment();Object.assign(env.s,{visualsEnabled:true,visualGrant:'grant'});
   env.ctx.fetch=async()=>({ok:true,json:async()=>({plan:{version:1,action:'artwork',title:'Moon rabbit',message:'The rabbit waves beside its rocket.',prompt:'A rabbit waves beside its rocket.'}})});

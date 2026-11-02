@@ -57,6 +57,16 @@
     const zh = /^(?:mini\s*)?(?:请\s*)?(?:停|停下|停下来|停止聊天|停止对话|别说了|不要说了|我不想聊了|不聊了|不玩了|我不想玩了|再见|拜拜|我想休息|我累了)(?:吧)?(?:\s*mini)?$/;
     return en.test(text) || zh.test(text);
   }
+  // A game exit must work even when the visual planner returns "keep".
+  // Match a request clause, rather than incidental/quoted mentions of chatting.
+  function wantsChat(value) {
+    if (typeof value !== 'string') return false;
+    return value.toLowerCase().slice(0,400).split(/[,.!?，。！？;；]/).some(clause=>{
+      const text=clause.trim().replace(/^(?:hey\s+)?mini[\s:：]+/, '').replace(/^please\s+/, '');
+      return /^(?:(?:let['’]?s|let us|can we|could we|i (?:want|would like) to)\s+(?:just\s+)?(?:chat|talk)\b|(?:go\s+)?back to (?:mini|chat)\b|(?:just\s+)?(?:chat|talk)(?:\s+(?:please|instead|now))?$)/.test(text) ||
+        /^(?:请)?(?:我们|我想(?:要)?|我要|一起|可以(?:一起)?|能不能)?(?:继续|就)?(?:聊聊天|聊天|说说话)/.test(text) || /^(?:回到|返回)(?:聊天|mini)/.test(text);
+    });
+  }
   // Locally classify explicit voice requests to choose a relevant Safari-only
   // follow-up. This NEVER sends session.update or response.create to Qwen.
   // The model uses the conversational instructions to handle the actual game.
@@ -167,6 +177,7 @@
     mode,
     getOpening,
     isStopCommand,
+    wantsChat,
     detectRequestedActivity,
     instructions,
     getFallback,

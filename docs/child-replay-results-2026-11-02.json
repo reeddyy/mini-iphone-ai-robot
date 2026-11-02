@@ -1,0 +1,15 @@
+{
+  "scope": "local fixture; synthetic capture and scripted voice",
+  "results": [
+    "Replayed live story plan renders a decoded fixture image and two choices",
+    "Tapping the captured empty-message continuation narrates its visible title",
+    "Exactly three apples count once per tap",
+    "An ordinary one-word answer preserves the game and Mandarin",
+    "Mandarin chat exit bypasses the captured keep response and preserves capture",
+    "One-round hand game reports its locally computed winner",
+    "A chat-exit transcript arriving after response.created unmutes the current reply",
+    "Mandarin also exits the local board without a new capture or planner call",
+    "Goodbye releases all tracks without another paid response or automatic restart"
+  ],
+  "errors": []
+}

@@ -8,7 +8,7 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 - Published branch: `main`. The previous cloud checkout used a local branch named `work` and pushed with `git push origin HEAD:main`.
 - Application version: **6.6.0**. No package-version bump accompanied the settings/template changes.
 - Current application behavior includes the parent startup-feedback fix described below; model/configuration selections remain as established in **`6c07960`**. Use `git log -5 --oneline` and the current remote for the latest code/documentation commit.
-- The user subsequently requested browser review with realistic scenarios/simulations and supplied a protected live deployment URL. Local review and the startup-error fix are complete. Authenticated live HTTP/UI checks, one real `qwen-plus` plan and one `qwen-image-3.0` generation now pass. End-to-end voice and physical iPhone checks remain; no new feature is in progress.
+- The latest request was a full child-style play-through. It used scripted voice events, actual synthetic capture and five real planner/two real image calls. The original run passed 22/23 checkpoints and exposed a counting-to-chat failure; the actual story response also exposed missing continuation narration. Both are fixed and verified locally, with **201 Node tests and nine replay checkpoints passing**. End-to-end voice and physical iPhone checks remain. See [the child-style report](CHILD_REVIEW_2026-11-02.md) before repeating any paid tests.
 
 | Commit | Shipped change |
 | --- | --- |
@@ -19,6 +19,7 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 | `a8e05e5` | Published the browser scenario review, screenshots and manual failure/recovery checks. |
 | `0ed14b1` | Published secure credential setup instructions for pending live-deployment checks. |
 | `1788409` | Fixed visible parent startup errors; verified 197 Node tests and all 9 exploratory browser scenarios. |
+| `f257153` | Recorded authenticated live HTTP/UI, one planner request and one real image, separately from unverified voice transport. |
 
 These commits were pushed to GitHub `main`. See [CHANGELOG.md](../CHANGELOG.md) for release history and [RECOVERY.md](RECOVERY.md) for a fresh checkout. The subsequent browser review is recorded in [TEST_REVIEW_2026-11-02.md](TEST_REVIEW_2026-11-02.md).
 
@@ -41,6 +42,7 @@ The user asked for the grown-up settings to be easy, minimal and default on. The
 - Language, duration and the four remaining camera/microphone troubleshooting choices are remembered automatically. Camera/Pictures choices last for the visit, survive Stop, and default on again after refresh. They are not saved to storage. Old feature-off flags and preference notes do not enter new sessions; Reset settings clears old stored preferences/notes.
 - Stop, hiding Safari and page departure release microphone/camera capture, cancel pending work and stop local inference. Another session requires a fresh Start confirmation. There is no automatic paid reconnect.
 - Keep English/Mandarin continuity, speech interruption, short age-appropriate turns, gentle learning and a visible Stop control.
+- Explicit English/Mandarin chat requests leave counting, hand games and tic-tac-toe locally without another planner request. Preserve capture and restore ordinary voice playback for the current response, including late transcript ordering. A story continuation with no message uses its displayed title for local narration.
 
 This development-memory file is separate from Mini's child-session state. The removed preference-note feature remains removed. Do not add transcript/media storage to satisfy a request to preserve development context.
 
@@ -131,10 +133,20 @@ A bounded API integration check then made one authorized SDP exchange (200, vali
 The prior draft/401 paragraphs above describe the setup history and are superseded by this confirmed active state. No new application defect was found in this live pass. Next work is the following physical-device validation:
 
 1. Physical iPhone Safari microphone/audio playback, local landmark support, interruptions, Stop capture indicators and portrait/landscape behavior.
-2. The actual spoken WebRTC conversation on iPhone. HTTP signaling passed, and planner/image access is verified for one live request each; cloud ICE produced no candidates, so audible voice and media transport remain unverified.
+2. The actual spoken WebRTC conversation on iPhone. HTTP signaling passed, and planner/image access is verified; cloud ICE produced no candidates, so audible voice and media transport remain unverified.
 3. Live English/Mandarin conversation quality, educational accuracy and actual image quality/latency. Automated prompts and fixtures cannot prove these.
 
-Do not mark these as passed, claim an account-specific 404 is fixed, or launch paid tests merely to recreate lost context. Restore the repository first, read the current user request, and continue from these recorded facts.
+### Child-style play-through and fixes on 2 November 2026
+
+The user asked to use the companion like a child. A bounded protected live run exercised 23 checkpoints, using **one real signaling grant, five real `qwen-plus` planner requests and two real `qwen-image-3.0` pictures**. Eleven other planner replies, ASR and voice replies were scripted; microphone/camera capture used synthetic tracks. These counts are additional to the earlier single-plan/single-image check. The grant was revoked and all tracks ended. Rechecking ICE after obtaining actual synthetic capture still produced zero candidates, so actual Qwen speech/audio and physical Safari were not validated.
+
+The initial 22 passes/one failure are preserved. After counting three apples, “我不想数了，我们聊聊天吧。” received a real planner `keep` and left the counting screen active. Explicit chat exits now close all three local games without planning, clear game/narration state and restore voice handling while retaining capture. Tests cover transcript-before-response and response-before-transcript ordering without replaying interrupted old audio. Both real story plans also omitted their message; a story-choice continuation could therefore supply no narration. The renderer now uses its displayed title as fallback, and the planner is explicitly instructed to supply a short branch narration.
+
+Verification: **201/201 Node tests**, **9/9 new local child-journey replay checkpoints**, parent-settings and companion-close browser suites pass. The exploratory browser scenarios also passed again. Fix verification used local providers only; no further paid calls were made. The full landmark suite was not rerun for these changes; its earlier result stands separately. The original two real images visually preserved the blue dinosaur/yellow backpack/forest, and the continuation added the selected rainbow bridge. This does not establish general story quality or latency.
+
+See [CHILD_REVIEW_2026-11-02.md](CHILD_REVIEW_2026-11-02.md), its sanitized original observations/local replay receipt and four screenshots. `scripts/child-journey-browser.mjs` reproduces the fixes against loopback fixtures without credentials; `tests/fixtures/child-journey-plans.json` preserves the exact synthetic plans. No private URL, auth header, grant, SDP or child recording is committed. The live Windows app still needs the normal pull/restart/Safari refresh to get these code changes. Next work is supervised physical Safari voice, camera, interruption, backgrounding and full-duration-expiry validation; do not repeat paid calls merely to reconstruct this review.
+
+Do not mark these physical checks as passed or launch paid tests merely to recreate lost context. Restore the repository first, read the current user request, and continue from these recorded facts.
 
 ## Keeping this memory useful
 

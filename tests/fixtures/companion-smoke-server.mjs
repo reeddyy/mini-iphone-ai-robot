@@ -1,5 +1,8 @@
 // Local test doubles only. Run separately; never uses Alibaba credentials.
 import {createApp} from '../../server.mjs';
+import {readFileSync} from 'node:fs';
+// Synthetic plans captured during the authorized 2 November child-style review.
+const journey=JSON.parse(readFileSync(new URL('./child-journey-plans.json',import.meta.url),'utf8'));
 const SDP='v=0\r\no=- 123 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=mid:0\r\na=sendrecv\r\n';
 const json=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
 let imageCalls=0,imageSuccess=false;const plans=[];
@@ -18,6 +21,11 @@ const app=createApp({apiKey:'sk-fixture-only',workspaceId:'ws-fixture',accessCod
   if(user.request==='Play scissors paper stone')plan=hands;
   if(user.request==='stone')plan={version:1,action:'interact',choiceId:'rock'};
   if(user.request==='Play tic tac toe')plan={version:1,action:'activity',activity:{type:'tictactoe'}};
+  if(user.request==='Replay Lumi story')plan=journey.story;
+  if(user.request.startsWith('Button interaction:') && user.scene?.title==='Lumi the Blue Dinosaur')plan=journey.continuation;
+  if(user.request==='我想数三个苹果，给我三个可以点击计数的苹果。')plan=journey.count;
+  if(user.request==='Replay one-round hand game')plan=journey.hands;
+  if(['我不想数了，我们聊聊天吧。','Can we just talk?','cat','three'].includes(user.request))plan=journey.chatExit;
   return json({choices:[{message:{content:JSON.stringify(plan)}}]});
  }
  if(String(url).includes('.oss-')){if(init.headers)throw Error('Storage must not receive API credentials');return new Response(PNG,{headers:{'Content-Type':'image/png'}});}
