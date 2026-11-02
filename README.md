@@ -88,6 +88,8 @@ For quiet voices, the default speech detector is acoustic `server_vad`, with **Q
 
 Openings, game moves and checked lessons use a device voice alongside Qwen's live conversation voice. Local narration now prefers a suitable installed female voice, keeps that choice per language and speaks tic-tac-toe marks as “cross”/“circle”. **Troubleshooting → What Mini hears and says → Game and lesson voice** shows the chosen name. See [the voice fix and device check](docs/NARRATION_REVIEW_2026-11-02.md); it does not make a device voice identical to Qwen Tina.
 
+**Voice stopping around pictures in Auto:** An unknown `invalid_request_error` could previously end a working session after an optional picture/language update. The [stability fix](docs/IMAGE_VOICE_STABILITY_2026-11-02.md) now pauses those updates while keeping the session open, paces completed-image context and waits for remote speech/provider turns. Auto and Pictures can remain on. Real setup/auth/quota/network failures still need their own diagnosis; update Windows and refresh Safari before the device check.
+
 ## Short iPhone check
 
 1. Stop the Windows Mini server; `git pull`, `npm test`, then `npm start` in `D:\Ai-projects\mini-iphone-ai-robot`. Keep your existing **password-protected ngrok tunnel** on port 3001.

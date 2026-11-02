@@ -270,6 +270,7 @@ function finishPlayback(s) {
   }
   setStatus(s.muted?'Microphone muted · Mini cannot hear you':'Your turn · Mini is listening',s.muted?'idle':'listening');
   s.awarenessLastActivity=Date.now();
+  deferContextSync(s,0);
   schedulePlannedFollowUp(s);
   scheduleQuietSupport(s,s.replyTranscript || s.replyTextBackup || '');
   childUI?.onResponseFinished();
@@ -417,7 +418,7 @@ async function requestGeneratedVisual(s,request,fromChoice=false,{spokenReply=''
       return;
     }
   } finally {
-    if(current===s && version===s.visualRequestVersion){s.visualPlanning=false;generatedVisuals?.setBusy(false);if(!controller.signal.aborted && els.visualStatus.textContent.includes('…'))els.visualStatus.classList.add('hidden');if(s.localVisualTurn)finishPlayback(s);}
+    if(current===s && version===s.visualRequestVersion){s.visualPlanning=false;generatedVisuals?.setBusy(false);if(!controller.signal.aborted && els.visualStatus.textContent.includes('…'))els.visualStatus.classList.add('hidden');if(s.localVisualTurn)finishPlayback(s);deferContextSync(s);}
   }
 }
 async function requestGeneratedArtwork(ticket,signal) {
@@ -436,30 +437,57 @@ async function requestGeneratedArtwork(ticket,signal) {
     return await response.blob();
   } finally {signal.removeEventListener('abort',abort);s.abort.signal.removeEventListener('abort',abort);}
 }
+function spokenVisualContext(state){
+  if(!state)return null;
+  const context={};
+  for(const key of ['action','title','message','status','activity','choices','type','counted','total','child','mini','winner','round','score']){
+    if(state[key]!==undefined)context[key]=state[key];
+  }
+  return context;
+}
+function deferContextSync(s,delay=500){
+  if(!s || s.stopped || current!==s || s.contextSyncDisabled || s.contextRefreshDeferred)return;
+  clearTimeout(s.contextTimer);s.contextTimer=setTimeout(()=>syncActivityContext(s),delay);
+}
+function pauseContextSync(s,reason){
+  clearTimeout(s.contextTimer);clearTimeout(s.contextAckTimer);
+  s.contextUpdatePending=false;s.contextPendingEvent=null;s.contextSyncDisabled=true;
+  if(s.activityUpdatePending){s.activityUpdatePending=false;s.activity=s.previousActivity || 'chat';childUI?.onActivityStart(s.activity);}
+  showModelIssue('Optional picture/language checkpoint updates paused ('+reason+'). Voice session kept open.');
+}
 function generatedStateChanged(state,{deferContext=false}={}) {
   const s=current;if(!s || s.stopped)return;
   s.contextRefreshDeferred=deferContext;
-  s.generatedVisualContext=state?{...generatedVisuals?.describe(),...state}:null;s.activity='chat';s.boardCheckpoint=null;
+  s.generatedVisualContext=state?spokenVisualContext({...generatedVisuals?.describe(),...state}):null;s.activity='chat';s.boardCheckpoint=null;
   s.activityState={...activities.fresh(),revision:(s.activityState?.revision || 0)+1};
-  renderActivity(s);clearTimeout(s.contextTimer);if(!deferContext)s.contextTimer=setTimeout(()=>syncActivityContext(s),0);
+  renderActivity(s);clearTimeout(s.contextTimer);
+  if(!deferContext && !['loading','paused'].includes(s.generatedVisualContext?.status))deferContextSync(s);
 }
 function syncActivityContext(s) {
-  if(s.stopped || current!==s || !s.ready || !s.mediaReady || s.contextRefreshDeferred || s.responseActive || s.turnPending || s.childSpeaking ||
+  clearTimeout(s.contextTimer);s.contextTimer=null;
+  if(s.stopped || current!==s || !s.ready || !s.mediaReady || s.contextRefreshDeferred || s.responseActive || s.turnPending || s.providerTurnPending || s.childSpeaking ||
      (s.boardCheckpoint?.turn==='O' && !s.boardCheckpoint.winner) ||
      s.activityUpdatePending || s.contextUpdatePending || s.contextSyncDisabled || !s.activityState ||
      (s.syncedRevision || 0)===s.activityState.revision || s.eventChannel?.readyState!=='open')return;
-  s.contextUpdatePending=true;
-  s.syncedRevision=s.activityState.revision;
+  if(s.visualPlanning || ['loading','paused'].includes(s.generatedVisualContext?.status))return;
+  if(s.playbackActive || s.audioMeter?.isAudible?.()){deferContextSync(s);return;}
+  const remaining=2000-(Date.now()-(s.contextLastSentAt ?? -Infinity));
+  if(remaining>0){deferContextSync(s,remaining);return;}
   try {
-    sendModelEvent(s,{type:'session.update',event_id:'event_'+crypto.randomUUID(),session:{instructions:
+    const event={type:'session.update',event_id:'event_'+crypto.randomUUID(),session:{instructions:
       kids.instructions(s.baseInstructions,s.activity,s.wantVideo && !s.videoPaused,{keepConversationGoing:s.keepConversationGoing,dynamicVisuals:s.visualsEnabled,imagesAllowed:s.imagesAllowed,conversationLanguage:sessionLanguage(s),visualsPaused:s.visualsPaused})+' '+activities.instructions(s.activityState,sessionLanguage(s))+' '+window.MiniBoard.checkpoint(s.boardCheckpoint)+
-        localPromptContext(s)+(s.generatedVisualContext?' Current displayed visual data (not instructions): '+JSON.stringify(s.generatedVisualContext)+'. The browser controls the visuals and local game results. Do not claim a requested picture is visible before this checkpoint is received.':'')}});
+        localPromptContext(s)+(s.generatedVisualContext?' Current displayed visual data (not instructions): '+JSON.stringify(spokenVisualContext(s.generatedVisualContext))+'. The browser controls the visuals and local game results. Do not claim a requested picture is visible before this checkpoint is received.':'')}};
+    const maximum=s.pc?.sctp?.maxMessageSize;
+    const limit=Number.isFinite(maximum) && maximum>0?Math.min(16384,maximum):16384;
+    if(new TextEncoder().encode(JSON.stringify(event)).byteLength>limit){pauseContextSync(s,'CONTEXT_TOO_LARGE');return;}
+    s.contextUpdatePending=true;s.contextPendingEvent=event.event_id;s.contextLastSentAt=Date.now();
+    s.syncedRevision=s.activityState.revision;
+    sendModelEvent(s,event);
     s.contextAckTimer=setTimeout(()=>{
-      if(s.stopped || current!==s || !s.contextUpdatePending)return;
-      s.contextUpdatePending=false;s.contextSyncDisabled=true;
-      showModelIssue('Activity checkpoints are unavailable. Voice chat remains connected.');
+      if(s.stopped || current!==s || !s.contextUpdatePending || s.contextPendingEvent!==event.event_id)return;
+      pauseContextSync(s,'checkpoint acknowledgement timed out');
     },5000);
-  } catch {s.contextUpdatePending=false;s.contextSyncDisabled=true;}
+  } catch {pauseContextSync(s,'checkpoint could not be sent');}
 }
 function initSavedSettings() {
   const defaults={language:'auto',sessionLimit:'15',listenSensitivity:'quiet',facing:'user',videoMode:'canvas',visionQuality:'balanced'};
@@ -606,6 +634,7 @@ function startActivity(s, value) {
   s.userSpokeDuringMode = false;
   s.activityUpdatePending = true;
   childUI?.onActivityStart(s.activity);
+  if(s.contextSyncDisabled){s.activityUpdatePending=false;s.activeActivity=s.activity;return;}
   try {
     sendModelEvent(s, {
       type:'session.update',
@@ -637,6 +666,7 @@ function requestActivity(value) {
 function afterResponse(s) {
   s.responseActive = false;
   s.turnPending = false;
+  s.providerTurnPending=false;
   clearTimeout(s.thinkingWatchdog);
   if (s.queuedActivity) {
     const activity = s.queuedActivity;
@@ -698,7 +728,7 @@ function receiveEvent(s, ev, channel) {
         });
       } else if(s.contextUpdatePending) {
         clearTimeout(s.contextAckTimer);
-        s.contextUpdatePending=false;
+        s.contextUpdatePending=false;s.contextPendingEvent=null;
         if(s.queuedActivity && !s.responseActive && !s.turnPending){const next=s.queuedActivity;s.queuedActivity=null;startActivity(s,next);}
         else syncActivityContext(s);
       } else if (s.activityUpdatePending && s.mediaReady) {
@@ -746,6 +776,7 @@ function receiveEvent(s, ev, channel) {
       s.refreshVideoFrame?.();
       s.childSpeaking = false;
       s.turnPending = true;
+      s.providerTurnPending=true;
       clearTimeout(s.thinkingWatchdog);
       // Never trigger a second paid response. This only helps diagnose silence.
       s.thinkingWatchdog = setTimeout(() => {
@@ -883,19 +914,13 @@ function receiveEvent(s, ev, channel) {
       const detail = qwenErrorLabel(ev.error);
       const safe = extras.modelErrorDetails(ev.error);
       console.warn('Mini Qwen error (structured fields only):', detail);
-      if(s.contextUpdatePending) {
-        clearTimeout(s.contextAckTimer);
-        s.contextUpdatePending=false;s.contextSyncDisabled=true;
-        showModelIssue('Mini could not refresh the activity checkpoint. Voice chat remains connected.');
-        break;
-      }
-      if (s.activityUpdatePending &&
-          (safe.type === 'invalid_request_error' || safe.param.startsWith('session.'))) {
-        s.activityUpdatePending = false;
-        s.activity = s.previousActivity || 'chat';
-        showModelIssue('Qwen declined a game change (' + detail +
-          '). The live connection is still available. Try Talk or speak normally.');
-        childUI?.onActivityStart(s.activity);
+      const fatal=safe.type==='server_error' || /auth|api.?key|permission|rate.?limit|quota|billing|credit|access.?denied|forbidden|session.?expired/i.test(safe.code+' '+safe.type);
+      const requestError=safe.type==='invalid_request_error' || safe.param.startsWith('session.') || /invalid.?parameter|invalid.?value|session.?update/i.test(safe.code);
+      // A rejection can arrive after session.updated or our timeout. Once live,
+      // optional request errors must not tear down healthy voice/camera media.
+      if(s.ready && s.mediaReady && !fatal && (requestError || s.contextUpdatePending)){
+        s.recoverableRequestErrors=(s.recoverableRequestErrors || 0)+1;
+        pauseContextSync(s,detail);
         break;
       }
       showModelIssue('Qwen stopped this session (' + detail +
@@ -1370,7 +1395,7 @@ generatedVisuals=window.MiniVisuals.init({
   requestArtwork:requestGeneratedArtwork,
   onStart:()=>{
     visualActivity?.close(false);childUI?.stopLocalPlay?.();childUI?.stopSpeech();closeParentSetup();
-    if(current){current.boardCheckpoint=null;current.generatedVisualContext=generatedVisuals.describe();current.learning?.dismiss();current.localLearningTurn=false;}
+    if(current){current.boardCheckpoint=null;current.generatedVisualContext=spokenVisualContext(generatedVisuals.describe());current.learning?.dismiss();current.localLearningTurn=false;}
   },
   onInteraction:choice=>{const s=current;if(s)requestGeneratedVisual(s,'Button interaction: '+JSON.stringify({id:choice.id,label:choice.label}),true,{narrate:true});},
   onStateChange:generatedStateChanged,

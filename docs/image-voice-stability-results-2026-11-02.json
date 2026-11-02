@@ -1,0 +1,38 @@
+{
+  "scope": "local fixture; actual synthetic capture, active local tracking worker and decoded 1024px fixture PNGs; scripted ASR/voice/transport and provider rejection",
+  "results": [
+    "A ready image and camera frames continue while control updates wait for the audible reply to finish",
+    "Auto language switches to Mandarin and the next completed picture shares paced, bounded context",
+    "The exact reported invalid_request_error after acknowledgement pauses context instead of ending the session",
+    "Twenty mixed English/Mandarin conversation turns keep the same voice/media session without settings retries",
+    "A temporary image-service failure changes the picture status while voice and capture continue",
+    "More pictures still decode after optional context is paused",
+    "The normal four-picture limit declines another picture while voice remains live",
+    "Another delayed rejection and returning to Mini do not revive context updates or reconnect",
+    "Stop releases tracks, revokes the fixture grant and cancels queued work"
+  ],
+  "stats": {
+    "controls": [
+      {
+        "bytes": 13453,
+        "whileAudio": false,
+        "visualStatus": "visible"
+      },
+      {
+        "bytes": 13455,
+        "whileAudio": false,
+        "visualStatus": "visible"
+      }
+    ],
+    "childTurns": 29,
+    "recoveredErrors": 2,
+    "mockedChatPlans": 23,
+    "imageWidth": 1024,
+    "trackingMetrics": {
+      "fps": 6.7,
+      "processingMs": 51
+    }
+  },
+  "errors": [],
+  "paidCalls": 0
+}

@@ -11,6 +11,8 @@ function mockEnvironment() {
   const elements=new Map();
   const timeouts=new Map();
   let timeoutId=0;
+  let clockOffset=0;
+  class ClockDate extends Date {static now(){return Date.now()+clockOffset;}}
   const setFakeTimeout=(fn,ms)=>{const id=++timeoutId;timeouts.set(id,{fn,ms});return id;};
   const clearFakeTimeout=id=>{timeouts.delete(id);};
   const flushTimeouts=(maxDelay=Infinity)=>{
@@ -90,8 +92,8 @@ function mockEnvironment() {
     fetch:async()=>({ok:true,json:async()=>({mode:'realtime',model:'test',maxSessionMinutes:60})}),
     crypto:{randomUUID:()=>String(++eventId)},
     performance:{now:()=>1000},
-    console,clearTimeout:clearFakeTimeout,setTimeout:setFakeTimeout,setInterval,clearInterval,Date,
-    AbortController,Uint8Array,
+    console,clearTimeout:clearFakeTimeout,setTimeout:setFakeTimeout,setInterval,clearInterval,Date:ClockDate,
+    AbortController,Uint8Array,TextEncoder,
   });
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-kids.js',import.meta.url)),'utf8'),ctx);
   vm.runInContext(readFileSync(fileURLToPath(new URL('../public/mini-activities.js',import.meta.url)),'utf8'),ctx);
@@ -115,7 +117,7 @@ function mockEnvironment() {
   };
   ctx.testSession=s;
   vm.runInContext('current = testSession',ctx);
-  return {ctx,s,sent,calls,flushTimeouts,timeouts,visualRenderer};
+  return {ctx,s,sent,calls,flushTimeouts,timeouts,visualRenderer,advanceClock:ms=>{clockOffset+=ms;}};
 }
 const emit=(env,type,extra={})=>{
   env.ctx.ev={type,...extra};
@@ -843,6 +845,7 @@ test('Story checkpoints synchronize only between turns without another response 
   emit(env,'conversation.item.input_audio_transcription.completed',{transcript:'cat'});
   emit(env,'response.created');emit(env,'response.done',{response:{status:'completed'}});
   env.flushTimeouts(0);
+  env.advanceClock(2000);env.flushTimeouts(2000);
   assert.equal(env.sent.length,2);
   assert.match(env.sent[1].session.instructions,/"hero":"cat"/);
   assert.match(env.sent[1].session.instructions,/"stage":"place"/);
@@ -858,6 +861,101 @@ test('A rejected optional checkpoint leaves the microphone and voice session ava
   assert.equal(env.s.stopped,false);
   assert.equal(env.s.contextSyncDisabled,true);
   assert.equal(env.s.audioInputTrack.enabled,true);
+});
+
+test('A delayed unknown invalid-request rejection after a picture checkpoint acknowledgement does not end capture',()=>{
+  const env=mockEnvironment();env.s.language='auto';env.s.pc={connectionState:'connected',close(){this.connectionState='closed';}};
+  vm.runInContext('generatedStateChanged({action:"artwork",title:"A moon cat",status:"visible"});syncActivityContext(testSession)',env.ctx);
+  emit(env,'session.updated');assert.equal(env.s.contextUpdatePending,false);
+  emit(env,'error',{error:{type:'invalid_request_error',message:'private child phrase in provider text'}});
+  assert.equal(env.s.stopped,false,'a late optional rejection must not trigger the reported Qwen error shutdown');
+  assert.equal(env.s.pc.connectionState,'connected');assert.equal(env.s.audioInputTrack.enabled,true);
+  assert.equal(env.s.contextSyncDisabled,true);
+  assert.doesNotMatch(env.ctx.document.getElementById('modelDiagnostic').textContent,/private child phrase/);
+});
+
+test('The same invalid-request rejection after a checkpoint timeout is recoverable',()=>{
+  const env=mockEnvironment();
+  vm.runInContext('generatedStateChanged({action:"artwork",title:"小猫",status:"visible"});syncActivityContext(testSession)',env.ctx);
+  env.flushTimeouts(5000);assert.equal(env.s.contextUpdatePending,false);
+  emit(env,'error',{error:{type:'invalid_request_error'}});
+  assert.equal(env.s.stopped,false);assert.equal(env.s.audioInputTrack.enabled,true);
+});
+
+test('A fatal rate limit is not mistaken for an optional checkpoint rejection',()=>{
+  const env=mockEnvironment();env.s.contextUpdatePending=true;
+  emit(env,'error',{error:{type:'server_error',code:'rate_limit'}});
+  assert.equal(env.s.stopped,true);
+});
+
+test('Image loading/paused states do not send settings, and rapid completed scenes share only the newest context',()=>{
+  const env=mockEnvironment();env.s.language='auto';
+  vm.runInContext('generatedStateChanged({action:"artwork",title:"小猫",status:"loading",prompt:"Image model instructions only"})',env.ctx);
+  env.flushTimeouts(500);assert.equal(env.sent.length,0);
+  vm.runInContext('generatedStateChanged({action:"artwork",title:"小猫",status:"paused"})',env.ctx);
+  env.flushTimeouts(500);assert.equal(env.sent.length,0);
+  vm.runInContext('generatedStateChanged({action:"artwork",title:"小猫",status:"visible",prompt:"Image model instructions only"})',env.ctx);
+  env.flushTimeouts(500);assert.equal(env.sent.length,1);assert.doesNotMatch(env.sent[0].session.instructions,/Image model instructions only/);
+  emit(env,'session.updated');
+  vm.runInContext('generatedStateChanged({action:"artwork",title:"Intermediate",status:"visible"});generatedStateChanged({action:"artwork",title:"Newest",status:"visible"})',env.ctx);
+  env.flushTimeouts(500);assert.equal(env.sent.length,1);
+  env.advanceClock(2000);env.flushTimeouts(2000);assert.equal(env.sent.length,2);
+  assert.match(env.sent[1].session.instructions,/Newest/);assert.doesNotMatch(env.sent[1].session.instructions,/Intermediate/);
+  assert.equal(env.sent.some(event=>event.type==='response.create'),false);
+});
+
+test('A completed image waits for actual remote playback to end before changing context',()=>{
+  for(const meterOnly of [false,true]){
+    const env=mockEnvironment();let audible=true;
+    env.s.playbackActive=!meterOnly;env.s.audioMeter={isAudible:()=>audible,stop(){}};
+    vm.runInContext('generatedStateChanged({action:"artwork",title:"Moon cat",status:"visible"});syncActivityContext(testSession)',env.ctx);
+    assert.equal(env.sent.length,0);
+    audible=false;env.s.playbackActive=false;env.flushTimeouts(500);
+    assert.equal(env.sent.length,1);assert.equal(env.s.stopped,false);
+  }
+});
+
+test('Local lesson feedback cannot send settings while Qwen is still preparing its automatic response',()=>{
+  const env=mockEnvironment();childTurn(env,'Teach me maths');
+  assert.equal(env.s.turnPending,false,'local feedback is already ready');assert.equal(env.s.providerTurnPending,true);
+  env.flushTimeouts(0);assert.equal(env.sent.length,0,'do not race the provider before response.created arrives');
+  emit(env,'response.created');emit(env,'response.done',{response:{status:'completed'}});
+  env.flushTimeouts(0);assert.equal(env.sent.length,1);assert.equal(env.s.providerTurnPending,false);
+});
+
+test('An oversized optional control message is skipped without closing voice or capture',()=>{
+  const env=mockEnvironment();env.s.localPrompt={text:'图'.repeat(10000)};
+  vm.runInContext('generatedStateChanged({action:"artwork",title:"Moon cat",status:"visible"});syncActivityContext(testSession)',env.ctx);
+  assert.equal(env.sent.length,0);assert.equal(env.s.contextSyncDisabled,true);
+  assert.equal(env.s.stopped,false);assert.equal(env.s.audioInputTrack.enabled,true);
+  assert.match(env.ctx.document.getElementById('modelDiagnostic').textContent,/CONTEXT_TOO_LARGE/);
+});
+
+test('Initial invalid-request failures and coded authentication/quota errors remain fatal',()=>{
+  for(const code of ['invalid_api_key','insufficient_quota','rate_limit_exceeded','session_expired']){
+    const env=mockEnvironment();env.s.contextUpdatePending=true;
+    emit(env,'error',{error:{type:'invalid_request_error',code}});assert.equal(env.s.stopped,true,code);
+  }
+  const env=mockEnvironment();env.s.ready=false;env.s.mediaReady=false;
+  emit(env,'error',{error:{type:'invalid_request_error'}});assert.equal(env.s.stopped,true);
+});
+
+test('After the reported rejection, repeated Auto-language turns and scene changes retain voice without retrying settings',()=>{
+  const env=mockEnvironment();env.s.language='auto';env.s.pc={connectionState:'connected',close(){this.connectionState='closed';}};
+  vm.runInContext('generatedStateChanged({action:"artwork",title:"First",status:"visible"});syncActivityContext(testSession)',env.ctx);
+  emit(env,'session.updated');emit(env,'error',{error:{type:'invalid_request_error'}});
+  const updates=env.sent.length;
+  for(let i=0;i<12;i++){
+    childTurn(env,i%2?'English please':'请用中文回答');
+    emit(env,'response.created');emit(env,'response.audio_transcript.done',{transcript:i%2?'Let us keep chatting.':'我们继续聊天。'});
+    emit(env,'response.done',{response:{status:'completed'}});
+    vm.runInContext('generatedStateChanged({action:"artwork",title:"Next picture",status:"visible"})',env.ctx);
+    env.advanceClock(3000);env.flushTimeouts(500);
+    assert.equal(env.s.stopped,false);assert.equal(env.s.pc.connectionState,'connected');
+    assert.equal(env.s.audioInputTrack.enabled,true);assert.equal(env.ctx.document.getElementById('remoteAudio').muted,false);
+  }
+  assert.equal(env.sent.length,updates,'unsupported settings do not form a retry loop');
+  assert.equal(env.s.abort.signal.aborted,false);
 });
 
 test('Unheard generated text cannot invite a turn or trigger a spoken fallback',()=>{
@@ -1124,7 +1222,7 @@ test('A failed planner pauses repeated chat requests, retains safe diagnostics a
   assert.equal(requests,1);assert.equal(env.s.visualsPaused,true);assert.equal(env.s.audioInputTrack.enabled,true);assert.equal(env.s.stopped,false);
   assert.match(env.ctx.document.getElementById('visualServiceStatus').textContent,/VISUAL_ACCESS.*qwen-plus.*HTTP 403/);
   assert.doesNotMatch(env.ctx.document.getElementById('visualRequestStatus').textContent,/HTTP|qwen-plus|AccessDenied/);
-  env.flushTimeouts(0);assert.match(env.sent.at(-1).session.instructions,/Visual responses are currently paused/);assert.ok(env.sent.every(event=>event.type!=='response.create'));
+  env.flushTimeouts(500);assert.match(env.sent.at(-1).session.instructions,/Visual responses are currently paused/);assert.ok(env.sent.every(event=>event.type!=='response.create'));
   vm.runInContext('toggleVisualResponses()',env.ctx);assert.equal(requests,1,'Resume must not itself make a paid request');assert.equal(env.s.visualsPaused,false);
   await vm.runInContext('requestGeneratedVisual(testSession,"Show a cat")',env.ctx);assert.equal(requests,2);
   vm.runInContext('stopMini()',env.ctx);assert.match(env.ctx.document.getElementById('visualServiceStatus').textContent,/VISUAL_ACCESS.*HTTP 403/);
@@ -1264,7 +1362,7 @@ test('An unclassified error from a pending optional context update cannot stop t
   emit(env,'error',{error:{code:'InvalidParameter',type:'unknown',param:''}});
   assert.equal(env.s.stopped,false);assert.equal(env.s.contextUpdatePending,false);assert.equal(env.s.contextSyncDisabled,true);
   assert.equal(env.s.audioInputTrack.enabled,true);assert.equal(env.s.abort.signal.aborted,false);
-  assert.match(env.ctx.document.getElementById('modelDiagnostic').textContent,/checkpoint.*Voice chat remains connected/);
+  assert.match(env.ctx.document.getElementById('modelDiagnostic').textContent,/checkpoint.*Voice session kept open/);
 });
 
 test('Direct camera mode never throttles the source preview track',()=>{

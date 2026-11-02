@@ -58,6 +58,8 @@ For proactive camera/conversation/learning behavior, run `node scripts/proactive
 
 For opening/game/lesson voice continuity, run `node scripts/narration-browser-smoke.mjs`. Its eight scenarios exercise a late/reordered voice catalog, stable English/Mandarin selections, clear board words, cancel/start timing, rapid resets, same-track capture and Stop. Voice catalogs/engines are scripted; actual physical Safari sound is unverified. See [the narration review](NARRATION_REVIEW_2026-11-02.md).
 
+For repeated pictures with Auto language, run `node scripts/image-voice-stability-browser.mjs`. It checks nine scenarios/29 scripted child turns with four real 1024-pixel fixture decodes, actual synthetic capture/local processing, delayed request errors, an image HTTP failure and the normal image limit. Transport/ASR/provider replies are simulated; no live paid call is made. See [the stability report and receipt](IMAGE_VOICE_STABILITY_2026-11-02.md).
+
 This uses test doubles for every Qwen call and real local face-landmark inference. It never uses `.env` or sends frames to Alibaba. Download scikit-image's public-domain NASA `astronaut.png` to a temporary path; source and license context are in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
 
 Start `node tests/fixtures/companion-smoke-server.mjs` in a terminal. In another, launch Chromium with a fresh temporary profile, `--headless --disable-dev-shm-usage --disable-background-networking --disable-component-update --disable-sync --no-first-run --use-fake-device-for-media-stream --use-fake-ui-for-media-stream --remote-debugging-port=9228 about:blank` (a sandboxed container may need `--no-sandbox`; do not use that flag for normal browsing). Then run:

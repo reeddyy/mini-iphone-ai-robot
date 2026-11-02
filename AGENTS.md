@@ -12,6 +12,7 @@ Repository files and Git history provide continuity; an earlier ChatGPT local-ch
 - Available features default on, including camera and pictures. Preserve parent Start confirmation before media capture or paid usage; nothing starts on page load.
 - Use a playful personality and follow the child. Removed personality, topic, preference-note and separate feature switches should not return without a new requirement.
 - Keep Mini bilingual, proactive, positive, fun and educational. Preserve topic-aware invitations and checked maths/science mini-lessons in English/Mandarin, while respecting quiet, skipping and child-led topic changes. Local prompts must not depend on the paid image planner or create extra generated voice turns.
+- Optional picture/language checkpoint rejections after voice startup must not end the established media session. Pace/coalesce completed scene updates, wait for provider turns and remote playback, and retain fatal setup/auth/quota handling. See the image/voice stability report in project memory before changing this path.
 - Project memory is documentation for developers. It does not mean saving a child's conversations, recordings or identity information.
 
 ## Development

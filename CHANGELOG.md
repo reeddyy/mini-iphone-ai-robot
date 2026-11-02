@@ -1,5 +1,11 @@
 # Changelog
 
+## 2 November 2026 — Image/Auto-language voice stability
+
+- Fix the reported unknown `invalid_request_error` ending an established voice session after a picture/context acknowledgement or timeout. Pause optional updates instead; keep genuine setup/auth/quota/server failures fatal.
+- Coalesce final image context, wait for remote playback/provider turns, bound/pause oversized control messages and stop retrying rejected settings. Keep Auto, Pictures and existing session limits.
+- Verify 242 Node tests, a nine-scenario/29-turn stress check with four decoded 1024-pixel PNGs, local tracking, delayed errors, image failure and budget handling; rerun all existing browser suites. Preserve receipt/recovery notes. Physical Safari stability and the provider's underlying rejection reason remain unverified.
+
 ## 2 November 2026 — Opening/game/lesson narration voice
 
 - Fix region-first device voice selection that could choose a deep voice; prefer familiar installed female voices in English/Mandarin and retain one local voice per language.
