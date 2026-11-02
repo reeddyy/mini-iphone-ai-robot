@@ -1,5 +1,11 @@
 # Changelog
 
+## 2 November 2026 — Visible parent startup errors
+
+- Show access-code, secure-context and startup failures inside the main grown-up sheet. Focus/mark an invalid code and clear stale feedback on edit or retry.
+- Explain permission denial with browser-settings and voice-only recovery actions, while retaining safe Stop/late-result handling and parent confirmation.
+- Verify 197 Node tests, all 9 exploratory browser scenarios and the parent-settings browser suite. Preserve fixed-state screenshots and update development memory; live Qwen/iPhone validation remains pending authenticated access.
+
 ## 2 November 2026 — Browser scenario review
 
 - Rerun all 194 Node tests and all three existing browser suites, including real local face-landmark inference; all pass with mocked Qwen providers.

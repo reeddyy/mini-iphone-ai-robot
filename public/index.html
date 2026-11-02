@@ -111,7 +111,8 @@
         <p id="modeInfo" class="help">Checking connection…</p>
         <p id="modelDiagnostic" class="kid-model-issue hidden" role="status" aria-live="polite"></p>
         <label class="top-label" for="accessCode">Parent access code</label>
-        <input id="accessCode" class="wide-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Your private code" aria-describedby="startInfo">
+        <input id="accessCode" class="wide-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Your private code" aria-describedby="startInfo startupError">
+        <p id="startupError" class="help startup-error hidden" role="alert"></p>
         <div class="settings-grid">
           <label for="language">Language</label>
           <select id="language"><option value="auto">Auto · English / 中文</option><option value="en">English</option><option value="zh">Mandarin 中文</option></select>

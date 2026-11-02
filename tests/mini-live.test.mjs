@@ -22,12 +22,13 @@ function mockEnvironment() {
   const fake=()=>{
     const classes=new Set();
     return {
-    textContent:'',value:'',checked:false,disabled:false,srcObject:null,dataset:{},
+    textContent:'',value:'',checked:false,disabled:false,srcObject:null,dataset:{},attributes:{},
     className:'',
     classList:{toggle(name,force){if(force)classes.add(name);else classes.delete(name);},add(name){classes.add(name);},remove(name){classes.delete(name);},contains:name=>classes.has(name)},
     style:{setProperty(){},removeProperty(){}},
     addEventListener(){},append(){},pause(){},play(){return Promise.resolve();},
-    setAttribute(){},querySelectorAll(){return this.cells || (this.cells=Array.from({length:9},fake));},
+    setAttribute(name,value){this.attributes[name]=value;},getAttribute(name){return this.attributes[name] ?? null;},
+    focus(){document.activeElement=this;},scrollIntoView(){},querySelectorAll(){return this.cells || (this.cells=Array.from({length:9},fake));},
     showModal(){this.open=true;},close(){this.open=false;},
   }};
   const get=id=>{if(!elements.has(id))elements.set(id,fake());return elements.get(id)};
@@ -468,6 +469,62 @@ test('Cancelling parent confirmation prevents capture and paid requests with cam
   await vm.runInContext('startMini()',env.ctx);
   assert.match(confirmation,/Camera: off/);assert.match(confirmation,/Pictures: off/);
   assert.equal(captureCalls,0);assert.equal(requests,0);
+});
+
+test('Startup validation explains the problem inside the parent sheet and focuses the invalid code',async()=>{
+  const env=mockEnvironment(),get=id=>env.ctx.document.getElementById(id);
+  await vm.runInContext('Promise.resolve()',env.ctx);
+  let captures=0;
+  env.ctx.navigator={mediaDevices:{getUserMedia(){captures++;}}};
+  vm.runInContext("current=null;mode='preview';$('parentSetup').open=true;els.code.value=''",env.ctx);
+  await vm.runInContext('startMini()',env.ctx);
+  assert.match(get('startupError').textContent,/access code.*10 characters/);
+  assert.equal(get('startupError').classList.contains('hidden'),false);
+  assert.equal(get('accessCode').getAttribute('aria-invalid'),'true');
+  assert.equal(env.ctx.document.activeElement,get('accessCode'));
+  assert.equal(captures,0);
+
+  vm.runInContext("els.code.value='test-parent-code';window.isSecureContext=false",env.ctx);
+  await vm.runInContext('startMini()',env.ctx);
+  assert.match(get('startupError').textContent,/HTTPS/);
+  assert.equal(get('accessCode').getAttribute('aria-invalid'),'false');
+  assert.equal(captures,0);
+});
+
+test('Denied media produces parent-facing recovery guidance without retrying or connecting',async()=>{
+  const env=mockEnvironment(),get=id=>env.ctx.document.getElementById(id);
+  await vm.runInContext('Promise.resolve()',env.ctx);
+  let captures=0,requests=0;
+  env.ctx.navigator={languages:['en'],mediaDevices:{async getUserMedia(){captures++;throw Object.assign(Error('opaque device failure'),{name:'NotAllowedError'});}}};
+  env.ctx.fetch=async()=>{requests++;throw Error('Must not connect after permission denial');};
+  vm.runInContext("current=null;mode='preview';$('parentSetup').open=true;els.code.value='test-parent-code';els.videoToggle.checked=true",env.ctx);
+  await vm.runInContext('startMini()',env.ctx);
+  assert.match(get('startupError').textContent,/Permission denied.*microphone and camera.*site settings.*Camera off/);
+  assert.equal(get('startupError').classList.contains('hidden'),false);
+  assert.equal(get('accessCode').getAttribute('aria-invalid'),'false');
+  assert.equal(vm.runInContext('current',env.ctx),null);
+  assert.equal(captures,1);assert.equal(requests,0);
+
+  env.ctx.window.confirm=()=>false;
+  await vm.runInContext('startMini()',env.ctx);
+  assert.equal(get('startupError').textContent,'');
+  assert.equal(get('startupError').classList.contains('hidden'),true);
+  assert.equal(captures,1);
+});
+
+test('A late permission rejection after Stop cannot surface a stale startup error',async()=>{
+  const env=mockEnvironment();
+  await vm.runInContext('Promise.resolve()',env.ctx);
+  let rejectCapture;
+  env.ctx.navigator={mediaDevices:{getUserMedia:()=>new Promise((resolve,reject)=>{rejectCapture=reject;})}};
+  vm.runInContext("current=null;mode='preview';els.code.value='test-parent-code'",env.ctx);
+  const starting=vm.runInContext('startMini()',env.ctx);
+  vm.runInContext("stopMini('Parent stopped before permissions completed')",env.ctx);
+  rejectCapture(Object.assign(Error('late permission denial'),{name:'NotAllowedError'}));
+  await starting;
+  assert.equal(vm.runInContext('current',env.ctx),null);
+  assert.equal(env.ctx.document.getElementById('startupError').classList.contains('hidden'),true);
+  assert.equal(env.ctx.document.getElementById('startupError').textContent,'');
 });
 
 test('Live media attachment preserves mute and does not narrate an opening while muted',async()=>{

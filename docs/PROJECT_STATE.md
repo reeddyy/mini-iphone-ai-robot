@@ -7,8 +7,8 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 - Public repository: https://github.com/reeddyy/mini-iphone-ai-robot
 - Published branch: `main`. The previous cloud checkout used a local branch named `work` and pushed with `git push origin HEAD:main`.
 - Application version: **6.6.0**. No package-version bump accompanied the settings/template changes.
-- Latest application/configuration baseline: **`6c07960`**. Documentation-only handoff commits may follow; use `git log -5 --oneline` and the current remote to find HEAD.
-- The user subsequently requested browser review with realistic scenarios/simulations and supplied a protected live deployment URL. Local review is complete; live access is blocked by ngrok Basic Auth. One parent-error-visibility issue is documented and remains unfixed. No new application feature is in progress.
+- Current application behavior includes the parent startup-feedback fix described below; model/configuration selections remain as established in **`6c07960`**. Use `git log -5 --oneline` and the current remote for the latest code/documentation commit.
+- The user subsequently requested browser review with realistic scenarios/simulations and supplied a protected live deployment URL. Local review is complete; live access is blocked by ngrok Basic Auth. The parent-error-visibility issue discovered in that review is now fixed and locally verified. Live Qwen/iPhone checks still require authenticated access; no new feature is in progress.
 
 | Commit | Shipped change |
 | --- | --- |
@@ -17,6 +17,7 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 | `6c07960` | Updated `.env.example`: image-model default, current setup instructions and removal of the unnecessary legacy awareness setting from the template. |
 | `63db2d2` | Published project memory, recovery guide, agent entry point and refreshed documentation. |
 | `a8e05e5` | Published the browser scenario review, screenshots and manual failure/recovery checks. |
+| `0ed14b1` | Published secure credential setup instructions for pending live-deployment checks. |
 
 These commits were pushed to GitHub `main`. See [CHANGELOG.md](../CHANGELOG.md) for release history and [RECOVERY.md](RECOVERY.md) for a fresh checkout. The subsequent browser review is recorded in [TEST_REVIEW_2026-11-02.md](TEST_REVIEW_2026-11-02.md).
 
@@ -106,13 +107,19 @@ A [settings reference screenshot](images/parent-settings-2026-11-02.png) is comm
 
 ### Subsequent browser review on 2 November 2026
 
-All 194 Node tests and all three existing Chromium suites passed, including real local MediaPipe inference with the public-domain adult fixture. A new visible-control exploratory check (`scripts/scenario-review-browser.mjs`) recorded **6 passes and 2 failed usability expectations**, with no harness errors. Both failures have the same cause: missing-code and permission-denied startup errors are not visible inside the open parent dialog. The review did not change application behavior to fix it. See the [report, screenshots and reproduction steps](TEST_REVIEW_2026-11-02.md).
+All 194 Node tests and all three existing Chromium suites passed, including real local MediaPipe inference with the public-domain adult fixture. A new visible-control exploratory check (`scripts/scenario-review-browser.mjs`) recorded **6 passes and 2 failed usability expectations**, with no harness errors. Both failures have the same cause: missing-code and permission-denied startup errors are not visible inside the open parent dialog. That original review did not change application behavior; the subsequent fix is recorded below. See the [report, screenshots and reproduction steps](TEST_REVIEW_2026-11-02.md).
 
 Real HTTPS GETs to the user's live tunnel returned **401 Basic Auth** for both the page and `/api/config`. This is expected gateway protection, not an application defect. The app behind it and live Qwen were not reached. Live work requires secure, host-restricted credentials for the ngrok Authorization header and Mini parent code; do not request or record their values in chat/public docs. The user's backend can retain its Alibaba key. Preserve the review before any environment reconfiguration/restart.
 
 A configuration draft was subsequently confirmed saved for personal secrets `MINI_TUNNEL_AUTH_HEADER` and `MINI_PARENT_ACCESS_CODE`, restricted to the provided tunnel hostname. The tool returned `requires_publish: true`; no values were supplied or activated. [LIVE_TESTING.md](LIVE_TESTING.md) explains preparing the full Basic header locally, entering both values in secure environment settings and publishing before live checks resume. Recheck readiness after publication; do not reuse the old draft as evidence of active credentials.
 
-Next work should address the recorded parent-error-visibility issue and, once authenticated live access is available, the following checks:
+### Startup-feedback fix verified on 2 November 2026
+
+The user asked about fixes after the review. Startup validation and failures now appear in one visible alert below the parent access-code field. Invalid codes focus that field and set its invalid state; typing or retrying clears old errors. Permission denial gives browser-permission and voice-only recovery guidance. Capture, parent confirmation, enabled defaults and Stop remain intact; a late permission rejection after Stop cannot resurrect an error/session.
+
+`npm test` now passes **197/197** tests, including three new regressions. The exploratory browser script now passes **9/9** scenarios, including both formerly failing cases and a real synthetic-microphone retry after a simulated denial. The parent-settings browser suite also passes. Fixed-state screenshots and verification are in [the review report](TEST_REVIEW_2026-11-02.md). The other two full browser suites passed in the immediately preceding review and were not rerun for this focused UI fix. No paid Qwen calls were made. The fix ships in the same Git commit as this memory update; use the latest remote log to identify it.
+
+Next work is the following validation once authenticated live access is available:
 
 1. Physical iPhone Safari microphone/audio playback, local landmark support, interruptions, Stop capture indicators and portrait/landscape behavior.
 2. The user's Singapore model access, including one deliberately parent-authorized image request and the exact safe diagnostic if it fails. Current cloud credentials/device access do not establish this result.

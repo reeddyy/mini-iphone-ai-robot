@@ -1,8 +1,19 @@
 # Browser review and scenario results — 2 November 2026
 
-Reviewed application baseline **`63db2d2`** (application/configuration inherited from `6c07960`). This run reviewed and tested the app; the usability finding below has not been fixed. No live Qwen calls or paid image requests were made.
+Original review baseline: **`63db2d2`** (application/configuration inherited from `6c07960`). The usability finding below was subsequently fixed and verified on the same day. The original observations remain below for traceability. No live Qwen calls or paid image requests were made.
 
-## Finding: startup errors are hidden from the parent
+## Fix verification
+
+Startup errors now appear in an alert directly below the parent access-code field. Invalid codes are marked and focused. Editing the code or retrying clears stale feedback. Permission-denial messages explain how to restore browser access or choose voice-only play. Late permission failures after Stop are ignored.
+
+- **197 Node tests pass**, including new checks for inline validation/focus, denied-media recovery guidance and late rejection after Stop.
+- **All 9 exploratory browser scenarios pass**, including the two original failures and an added explicit voice-only retry after a simulated denial. That retry uses a real synthetic microphone track and releases it on Stop.
+- The **parent-settings browser suite passes** after the fix. The other two existing browser suites passed in the preceding review; they were not rerun for this focused UI change.
+- Fixed screenshots: [access-code validation](images/startup-code-fixed-2026-11-02.png), [permission guidance](images/startup-permission-fixed-2026-11-02.png).
+
+Physical Safari behavior and actual Qwen/API access remain unverified. The fix adds visible feedback without starting capture or retrying provider requests automatically.
+
+## Original finding: startup errors hidden from the parent — resolved
 
 **Priority: medium.** Two browser scenarios failed the same usability requirement: a parent should see why Start did not work inside the open grown-up settings sheet.
 
@@ -22,7 +33,7 @@ Relevant code paths:
 
 Recommended fix: reuse a single visible inline error region in the main parent panel for validation and startup failures, focus the code field when appropriate, and retain detailed last-session history under Troubleshooting. Preserve the minimal controls, enabled defaults and parent Start confirmation.
 
-## Checks run
+## Original review checks
 
 | Check | Result | What was real and what was simulated |
 | --- | --- | --- |
@@ -67,7 +78,7 @@ node scripts/companion-browser-smoke.mjs /tmp/mini-astronaut.png
 node scripts/scenario-review-browser.mjs
 ```
 
-Download the public-domain adult fixture as documented in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md); never substitute a private child's photo. The full browser suite deliberately triggers persistent artwork suppression, so restart its fixture before other suites. Run scripts sequentially: they control the same browser tab. The exploratory script exits **1** while any expectation fails and writes its JSON/screenshot output under `/tmp`; the two known failed expectations are preserved in this report and committed screenshots. It is a manual diagnostic, separate from the passing `npm test` suite.
+Download the public-domain adult fixture as documented in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md); never substitute a private child's photo. The full browser suite deliberately triggers persistent artwork suppression, so restart its fixture before other suites. Run scripts sequentially: they control the same browser tab. The exploratory script exits **1** if any expectation fails and writes JSON/screenshots under `/tmp`. The original failed expectations are preserved in the historical observations/screenshots above; the updated script adds an explicit retry check and passes all nine scenarios after the fix. It is a manual diagnostic, separate from `npm test`.
 
 ## Live validation still needed
 

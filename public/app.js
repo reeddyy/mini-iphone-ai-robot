@@ -6,7 +6,7 @@ const activities = window.MiniActivities;
 const $ = id => document.getElementById(id);
 const els = {
   face: $('robotFace'), status: $('status'), mode: $('modeTag'), info: $('modeInfo'),
-  code: $('accessCode'), start: $('startBtn'), stop: $('stopBtn'), extend: $('extendBtn'),
+  code: $('accessCode'), startupError: $('startupError'), start: $('startBtn'), stop: $('stopBtn'), extend: $('extendBtn'),
   remaining: $('remainingTime'), delay: $('replyDelay'),
   language: $('language'), sensitivity: $('listenSensitivity'),
   postTest: $('postTestBtn'), postResult: $('postTestResult'),
@@ -909,15 +909,39 @@ function makeVideoTrack(s) {
   }
 }
 
+function clearStartupError() {
+  els.startupError.textContent='';
+  els.startupError.classList.add('hidden');
+  els.code.setAttribute('aria-invalid','false');
+}
+function showStartupError(message,{invalidCode=false}={}) {
+  els.startupError.textContent=message;
+  els.startupError.classList.remove('hidden');
+  els.code.setAttribute('aria-invalid',String(invalidCode));
+  setStatus(message,'error');
+  if($('parentSetup').open) {
+    if(invalidCode)els.code.focus?.();
+    els.startupError.scrollIntoView?.({block:'nearest'});
+  }
+}
+function startupFailureMessage(error,wantVideo) {
+  if(['NotAllowedError','PermissionDeniedError'].includes(error?.name)) {
+    return 'Permission denied. Allow '+(wantVideo?'microphone and camera':'microphone')+
+      ' access in your browser’s site settings, then try again.'+(wantVideo?' For voice-only play, turn Camera off.':'');
+  }
+  return error?.message || 'Cannot start Mini. Check your connection and try again.';
+}
+
 async function startMini() {
   if (current || loading || mode === 'checking') return;
+  clearStartupError();
   childUI?.stopSpeech();
   if (els.code.value.trim().length < 10) {
-    setStatus('Enter your private access code (at least 10 characters).', 'error');
+    showStartupError('Enter your private access code (at least 10 characters).',{invalidCode:true});
     return;
   }
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-    setStatus('Open via HTTPS in iPhone Safari to use microphone and camera.', 'error');
+    showStartupError('Open via HTTPS in iPhone Safari to use microphone and camera.');
     return;
   }
   const s = {
@@ -1057,7 +1081,11 @@ async function startMini() {
     await s.pc.setRemoteDescription({type:'answer',sdp:answer});
     setStatus('Waiting for the AI session to initialize…', 'thinking');
   } catch (error) {
-    if (!s.stopped) stopMini(error.message || 'Cannot start the session.');
+    if (!s.stopped) {
+      const message=startupFailureMessage(error,s.wantVideo);
+      stopMini(message);
+      showStartupError(message);
+    }
   } finally {
     loading = false;
     render();
@@ -1181,6 +1209,7 @@ async function testPostConnection() {
 
 els.postTest.addEventListener('click', testPostConnection);
 els.start.addEventListener('click', startMini);
+els.code.addEventListener('input',clearStartupError);
 els.extend.addEventListener('click', extendSession);
 els.extendForm.addEventListener('submit', authorizeExtension);
 els.extensionCancel.addEventListener('click', cancelExtension);

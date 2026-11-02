@@ -26,7 +26,7 @@ Report the median and slowest observed audible delay and interruption time, plus
 
 ## Mini validation available here
 
-The later [browser scenario review](TEST_REVIEW_2026-11-02.md) reran all 194 Node tests and all three existing browser suites successfully, including real local inference. Its additional visible-control exploratory checks recorded 6 passes and 2 failed expectations corresponding to one unfixed startup-error-visibility issue. The supplied live deployment remained behind ngrok Basic Auth.
+The later [browser scenario review](TEST_REVIEW_2026-11-02.md) reran all 194 Node tests and all three existing browser suites successfully, including real local inference. Its original visible-control exploratory checks recorded 6 passes and 2 failed expectations corresponding to one startup-error-visibility issue. The subsequent fix passes all 197 Node tests and all 9 updated exploratory scenarios, including retry after a denied permission request. The parent-settings suite also passes after the fix. The supplied live deployment remained behind ngrok Basic Auth.
 
 ### Recorded checkpoint: 2 November 2026
 
@@ -64,7 +64,7 @@ For the exact in-app picture-close regression, run `node scripts/companion-close
 
 For the simplified grown-up settings, run `node scripts/parent-settings-browser-smoke.mjs` with that fixture and a fresh Chromium profile. It checks mobile widths, enabled defaults, migration from legacy preferences, cancellation before capture/paid requests, microphone-only play, Stop teardown, allowlisted automatic preference storage and Reset. It uses synthetic media and local provider doubles and writes `/tmp/mini-parent-settings.png`; it does not make live Qwen calls or validate physical Safari.
 
-For visible-control failure/recovery checks, run `node scripts/scenario-review-browser.mjs` with a fresh local fixture and the same synthetic-media browser, after other scripts have finished. It checks invalid-code and permission-denial feedback, microphone-only mute/Stop, late capture after Stop, simulated backgrounding/deadline expiry, Escape/focus and server-offline guidance. It writes JSON/screenshots under `/tmp` and exits 1 if any expectation fails. At the review baseline, two failed expectations reproduce the parent-error-visibility finding; this manual diagnostic is separate from CI's passing unit suite.
+For visible-control failure/recovery checks, run `node scripts/scenario-review-browser.mjs` with a fresh local fixture and the same synthetic-media browser, after other scripts have finished. It checks invalid-code and permission-denial feedback, microphone-only mute/Stop, late capture after Stop, simulated backgrounding/deadline expiry, Escape/focus and server-offline guidance. It writes JSON/screenshots under `/tmp` and exits 1 if any expectation fails. At the original review baseline, two expectations failed. After the startup-feedback fix, all 9 scenarios pass; the new retry case checks that explicit voice-only recovery clears the old error. This manual diagnostic is separate from CI's unit suite.
 
 ## Playful learning conversation acceptance checks
 
