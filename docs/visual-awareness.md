@@ -1,12 +1,12 @@
 # Local camera reactions
 
-Mini V6.5 uses on-device MediaPipe Face Mesh for its normal camera-reaction UI. It no longer waits for separate Qwen vision calls. The legacy cloud observation API remains available for older clients, but the current page does not request its grant or call it.
+Mini V6.6 uses on-device MediaPipe Face Mesh for its normal camera-reaction UI. It no longer waits for separate Qwen vision calls. The legacy cloud observation API remains available for older clients, but the current page does not request its grant or call it.
 
 ## Use camera reactions
 
 Open the gear → parent settings. **Camera** defaults on, with local reactions and quiet-time hellos included. Confirm Start to allow capture; turn Camera off first for voice-only play. Camera choices stay for this visit and default on after refresh; they are not saved to storage. This works in free camera preview as well as live AI. In preview, camera frames remain local; in a paid session, enabled camera video still streams to Qwen for ordinary visual conversation.
 
-The first use downloads about 11 MB of pinned assets from your own Mini server; versioned assets can be cached afterwards. There is no third-party model CDN or extra cloud-vision charge. Recent Safari with worker WebGL, OffscreenCanvas and transferable ImageBitmap support is needed. If the worker cannot run, Troubleshooting → Camera and microphone explains that local reactions are unavailable and provide Retry; voice chat continues. Initialization times out after 45 seconds. Physical iPhone compatibility/performance still needs device testing.
+The first use downloads about 11 MB of pinned assets from your own Mini server; versioned assets can be cached afterwards. There is no third-party model CDN or extra cloud-vision charge. Recent Safari with worker WebGL, OffscreenCanvas and transferable ImageBitmap support is needed. If the worker cannot run, Troubleshooting → Camera and microphone explains that local reactions are unavailable and provides Retry; voice chat continues. Initialization times out after 45 seconds. Physical iPhone compatibility/performance still needs device testing.
 
 ## Observable reactions
 
@@ -34,8 +34,8 @@ On your iPhone, first try the free preview: keep the front camera at face height
 
 ## Camera responsiveness and detail
 
-The source camera targets a smooth 30 fps preview. AI sharing defaults to 2 fps and can be lowered to 1 fps for less data. Direct/compatibility mode limits the outbound sender rather than slowing the source camera and face tracker. Canvas mode uses a paced draw timer, keeps portrait/landscape proportions and refreshes the current frame at speech boundaries. It does not run a continuous full-rate canvas-copy loop.
+The source camera targets a smooth 30 fps preview. AI sharing targets 2 fps automatically; the simplified UI has no frame-rate selector. Turn Camera off before Start for voice-only play. Direct/compatibility mode limits the outbound sender rather than slowing the source camera and face tracker. Canvas mode uses a paced draw timer, keeps portrait/landscape proportions and refreshes the current frame at speech boundaries. It does not run a continuous full-rate canvas-copy loop.
 
-Choose **AI camera detail → Sharper toys and text** for a larger outgoing frame (up to a 960-pixel long edge), with more data; Balanced uses up to 640 pixels. A sharper frame can help visible detail but does not guarantee recognition or lower provider latency. The parent monitor shows the whole frame rather than cropping it. Camera diagnostics separate targets from actual outbound frame/byte counters when browser WebRTC stats are available. “No sent video packets confirmed” means the preview alone is not evidence that Qwen received video.
+Choose **Troubleshooting → Camera and microphone → Camera detail → Sharper · more data** for a larger outgoing frame (up to a 960-pixel long edge), with more data; Balanced uses up to 640 pixels. A sharper frame can help visible detail but does not guarantee recognition or lower provider latency. The parent monitor shows the whole frame rather than cropping it. Camera diagnostics separate targets from actual outbound frame/byte counters when browser WebRTC stats are available. “No sent video packets confirmed” means the preview alone is not evidence that Qwen received video.
 
 Qwen is instructed to use the newest incoming camera view for “look”/“what is this”, and to distinguish it from a generated picture on the screen. Local geometry reactions and Qwen's semantic scene understanding are different paths: improving local tracking does not prove cloud recognition accuracy. No additional cloud vision polling or automatic paid response is introduced by these changes.

@@ -4,6 +4,10 @@ Mini is an experimental **voice-first English/Mandarin AI companion for a six-ye
 
 **Current version: V6.6.** Mini has one voice-first child screen, a pinned Stop control and a modal parent settings sheet. The model can switch between chatting, stories, guessing games and describing toys when the child asks out loud.
 
+**Resuming after a lost chat or workspace?** Read [the current project state](docs/PROJECT_STATE.md) and [recovery instructions](docs/RECOVERY.md). They record decisions, Git commits, validation and remaining work. [AGENTS.md](AGENTS.md) points future coding sessions to these documents.
+
+Documentation checked against the current V6.6 code on **2 November 2026**. Release history is in [CHANGELOG.md](CHANGELOG.md).
+
 ### Simple grown-up settings
 
 The main sheet now contains only the parent access code, language, session length, **Camera** and **Pictures**. All available features default on: stories, games, playful learning, follow-ups, camera reactions, quiet-time hellos and local play sounds. Camera and pictures can be switched off before Start. A parent must still enter the code and confirm every session; the confirmation explicitly lists camera sharing and extra picture charges. Nothing captures or connects on page load.
@@ -31,14 +35,14 @@ Mini also connects everyday topics with early maths and science: counting, shape
 - **Direct picture requests:** With parent image permission, “Show me a cat”, “Draw a jellyfish astronaut” and Mandarin equivalents go directly to the image model. They do not depend on Qwen returning drawing JSON and do not add a separate planning call. Other visual story turns use a small image-prompt/choice protocol. Without permission, Mini asks for parent setup instead of substituting a drawing.
 - **Real interactive games:** Tic-tac-toe opens immediately, and counting/choice-duel games use rules-checked local controls. Qwen supplies supported game choices and rules; image generation is not used to draw a playable board. Novel picture subjects are not a fixed asset list.
 - **Back to Mini preserves capture:** Closing a picture is a local view change and sends no new Qwen settings request. Delayed acknowledgements and failures of optional context updates cannot end voice/camera capture. The live camera source remains visible outside the parent dialog, and the parent sheet has its own monitor of the same stream. Stop and backgrounding Safari still release capture.
-- **Camera responsiveness:** Smooth preview capture is kept separate from the AI frame rate. The default is 2 AI frames/sec; portrait proportions are preserved, and **Sharper toys and text** offers more detail with more data. Local landmark inference uses reduced frames and adaptive pacing. Parent settings report outgoing-video counters and local processing timing; cloud recognition still needs live validation.
+- **Camera responsiveness:** Smooth preview capture is kept separate from the AI frame rate. The default is 2 AI frames/sec; portrait proportions are preserved, and **Troubleshooting → Camera and microphone → Camera detail → Sharper · more data** offers more detail with more data. Local landmark inference uses reduced frames and adaptive pacing. Parent settings report outgoing-video counters and local processing timing; cloud recognition still needs live validation.
 - **Local face reactions:** With camera sharing and parent-approved local reactions, gaze, visible smiles/winks and head movement can animate Mini without extra cloud-vision calls. This estimates observable geometry, not identity or feelings. See [camera setup](docs/visual-awareness.md).
 - **Bilingual play and learning:** English/Mandarin auto mode follows the conversation, understands mixed sentences and keeps explicit language switches through the session. Short learned words do not unexpectedly reset the local narration language. Games, picture invitations and available device voices follow the active language. Mini can model one new word and encourage trying it; it does not translate every reply twice unless asked.
 - **A voice-first mobile screen:** The face, short status and pinned Stop control remain accessible. Parent settings keep language, duration, camera and picture choices visible, with technical setup under Troubleshooting. Mini leads with topic-specific play ideas, bite-size learning, effort-focused encouragement and one easy invitation. After a picture, it can suggest being picture detectives or making a tiny story. Quiet-aware follow-ups respect interruptions and endings.
 
 The normal per-session limits remain 60 visual requests and 4 images. Tests use mocked Qwen providers and local synthetic media; physical iPhone behavior, account permissions and actual image quality/latency need device/provider validation. See [the image flow and limits](docs/dynamic-visuals.md).
 
-## V6.4 — A cuter, more expressive Mini
+## Mini's expressions
 
 The child screen still has **no game selection buttons**. The character now has a soft marshmallow-like lavender face, oversized glossy plum eyes, rosy cheeks, tiny ears, an antenna and a small smile that moves when Mini speaks.
 
@@ -50,15 +54,11 @@ The child screen still has **no game selection buttons**. The character now has 
 - **Touching:** Taps cycle through delight, a wink, surprise and peekaboo. Tapping during a blocked Safari opening prompt still retries that prompt.
 - **Resting:** Ending a session closes Mini's eyes and droops the antenna. Starting again wakes the face. Expressions remain distinguishable when reduced motion is enabled.
 
-The base face reacts to **Mini's own spoken words**, conversation state and touch. Optional local camera tracking can also react to visible smiles, winks and head movement, with separate per-session parent consent and no extra vision calls. It does **not** identify your daughter or establish how someone feels. The face artwork itself uses local HTML/CSS, without third-party image assets; its dedicated stylesheet is `public/mini-face.css`.
+The base face reacts to **Mini's own spoken words**, conversation state and touch. Camera tracking accompanies the enabled Camera option and can react to visible smiles, winks and head movement after parent Start confirmation, without extra vision calls. It does **not** identify your daughter or establish how someone feels. The face artwork itself uses local HTML/CSS, without third-party image assets; its dedicated stylesheet is `public/mini-face.css`.
 
 **For accessibility and iPhone battery life**, CSS motion is disabled when the device requests reduced motion. The face retains its existing keyboard/touch interactions. Please test Safari audio animation and appearance directly on your iPhone: automated tests validate code and structure but cannot verify the real visual result or audio hardware behaviour.
 
-### Try V6.4 on Windows
-
-Stop Mini, then run `git pull`, `npm test`, and `npm start` from your current `D:\Ai-projects\mini-iphone-ai-robot` folder. Refresh Safari's HTTPS ngrok page. You should see the new face immediately without signing into the paid Qwen session; the microphone and camera still require a grown-up to start them.
-
-## V6.3 — One face and one ongoing conversation
+## One face and one ongoing conversation
 
 The child simply speaks. There are **no child-facing activity buttons**, separate offline quizzes or game selection pages. For example:
 
@@ -69,7 +69,7 @@ The child simply speaks. There are **no child-facing activity buttons**, separat
 
 Qwen is explicitly instructed to respond to these requests **within the ongoing conversation**, without asking the child to tap a control or announcing a mode change. It should answer briefly and, when follow-ups are enabled and useful, offer one relevant question before waiting. Short acknowledgements and completed stories can stand alone. Direct stop commands end capture when their completed transcript arrives.
 
-When Model Studio supplies a speech transcript, Mini can update a session checkpoint. With dynamic visuals off, this uses fixed story choices and riddle counters. With visuals enabled, a separate paid Qwen planner receives the request and current scene; displayed scene summaries and local game results enter the voice session between turns. Checkpoint updates never send `response.create`. The separate planner is an additional paid request. Qwen may still make mistakes, and voice and visuals may arrive at different times. If transcripts are unavailable, voice chat continues without reliable visual requests. All activity state clears on Stop.
+When Model Studio supplies a speech transcript, Mini can update a session checkpoint. When visual planning is unavailable, limited fixed story choices and riddle counters remain as a fallback. When visual planning is available, a separate paid Qwen planner receives the request and current scene; displayed scene summaries and local game results enter the voice session between turns. Checkpoint updates never send `response.create`. The separate planner is an additional paid request. Qwen may still make mistakes, and voice and visuals may arrive at different times. If transcripts are unavailable, voice chat continues without reliable visual requests. All activity state clears on Stop.
 
 ## How the conversation starts and continues
 
@@ -77,15 +77,15 @@ A **grown-up** opens Parent setup, enters the separate Mini access code and conf
 
 Qwen is asked to acknowledge the child's answer and use a relevant question when it helps an ongoing activity. With follow-ups enabled and a completed spoken transcript, the visual planner can supply one topic-specific question in its existing response, including ordinary chat. Safari may speak it after a six-second quiet pause. If Qwen already asked a question or the story/conversation ended, no extra question is appended. Legacy unfinished activities retain their single local fallback. The Safari voice may sound different. It is **not** another paid AI request and never loops or automatically reconnects. Playful learning and follow-ups are enabled automatically; child speech, touch, mute, Stop and conversation endings still cancel pending narration.
 
-For quiet voices, the default speech detector is acoustic `server_vad`, with **Quiet child** sensitivity. Fast/Balanced/Patient pause options remain. Short replies such as "yes", "dog", "cat", or "是的" should work without a wake word, subject to real microphone and provider behaviour.
+For quiet voices, the default speech detector is acoustic `server_vad`, with **Quiet voice** sensitivity. Balanced speech pacing is automatic; microphone sensitivity can be adjusted under **Troubleshooting → Camera and microphone**. Short replies such as "yes", "dog", "cat", or "是的" should work without a wake word, subject to real microphone and provider behaviour.
 
 **Troubleshooting audio:** Open **Parent setup → Troubleshooting → Camera and microphone** to see the local sound bar and Qwen speech-detection status. A moving bar means the iPhone is hearing sound; an AI speech-detected event means Qwen registered speech. If Qwen reports an error, its sanitized structured code becomes visible on the main Mini screen.
 
-## Test V6.3 with your daughter
+## Short iPhone check
 
 1. Stop the Windows Mini server; `git pull`, `npm test`, then `npm start` in `D:\Ai-projects\mini-iphone-ai-robot`. Keep your existing **password-protected ngrok tunnel** on port 3001.
-2. Refresh the HTTPS Mini page in iPhone Safari. The **four buttons should be gone**. The face should still react to taps.
-3. Open **Grown-up: Start Mini**, set the automatic stop to **5 minutes** for testing and keep **Quiet child** sensitivity. Turn Camera off for the first voice-only test.
+2. Refresh the HTTPS Mini page in iPhone Safari. Check the face, gear button and voice-first layout. The face should react to taps.
+3. Open **For grown-ups**, set **Stop after** to **5 minutes** for testing and keep the default **Quiet voice** microphone sensitivity. Turn Camera off for the first voice-only test.
 4. Start the paid session and let your daughter speak naturally: "Mini, can we guess animals?" Mini should begin a riddle, respond to a one-word guess and ask another question without any button press.
 5. Try "tell me a story" in the same live session, then ask it to switch back to chatting. Check whether the next response carries her choice forward.
 6. If wanted, stop and enable Camera in Parent setup for a supervised "look at my toy" test. Mini must never claim to see an object when the camera is disabled.
@@ -115,7 +115,7 @@ Copy-Item .env.example .env
 notepad .env
 ```
 
-4. Set `ROBOT_ACCESS_CODE` to your own **secret 10+ character value**. For a free local preview, leave `ALIBABA_API_KEY` and `ALIBABA_WORKSPACE_ID` blank.
+4. Set `ROBOT_ACCESS_CODE` to your own **secret 10+ character value**. Set `PORT=3001` to match the localhost and tunnel commands below; the template starts at 3000. For a free local preview, leave `ALIBABA_API_KEY` and `ALIBABA_WORKSPACE_ID` blank.
 5. Start the app:
 
 ```powershell
@@ -145,7 +145,7 @@ In `.env`:
 ROBOT_ACCESS_CODE=your-long-private-code
 ALIBABA_API_KEY=sk-your-modelstudio-payg-key
 ALIBABA_WORKSPACE_ID=your-singapore-workspace-id
-PORT=3000
+PORT=3001
 ```
 
 **Do not include** `https://` or a hostname in the Workspace ID. Stop Node using Ctrl+C and run `npm start` again. The backend will construct the official endpoint:
@@ -189,7 +189,7 @@ Replace `your-google-account@example.com` with the **exact email address of your
 ngrok http 3001 --traffic-policy-file .\ngrok-policy.yml
 ```
 
-5. Open the **HTTPS Forwarding URL printed by ngrok** in Safari on your iPhone 12 Pro. The free plan may show an initial browser warning—continue only if this is the URL you just created. Sign in with the approved Google account, then enter Mini's separate `ROBOT_ACCESS_CODE`. Tap **Test tunnel POST (free)** twice, then try **Start live Mini** if both tests succeed.
+5. Open the **HTTPS Forwarding URL printed by ngrok** in Safari on your iPhone 12 Pro. The free plan may show an initial browser warning—continue only if this is the URL you just created. Sign in with the approved Google account, then enter Mini's separate `ROBOT_ACCESS_CODE`. Open **Troubleshooting → Connection and picture setup**, tap **Test connection · free** twice, then try **Start Mini** if both tests succeed.
 
 Your free ngrok account gets an assigned development domain, with request and bandwidth limits. Ngrok provides HTTPS but the URL is otherwise internet-reachable: **keep gateway authentication enabled (Google OAuth with an exact-email restriction, or Basic Auth)**, use a separate private robot access code, and stop ngrok when not testing. Do not use an unprotected public endpoint for live camera/audio access.
 
@@ -220,7 +220,7 @@ After saving, stop the previous ngrok tunnel with Ctrl+C, leave `npm start` runn
 ngrok http 3001 --traffic-policy-file .\ngrok-password-policy.yml
 ```
 
-In Safari, open the ngrok HTTPS URL and sign in when the **browser's username/password prompt** appears, using `mini` and your new tunnel password. This is **not** your ngrok account password and **not** Mini's `ROBOT_ACCESS_CODE`. Enter the robot access code later, inside Mini, and tap **Test tunnel POST (free)** before starting any chargeable AI session.
+In Safari, open the ngrok HTTPS URL and sign in when the **browser's username/password prompt** appears, using `mini` and your new tunnel password. This is **not** your ngrok account password and **not** Mini's `ROBOT_ACCESS_CODE`. Enter the robot access code later, inside Mini, and use **Troubleshooting → Connection and picture setup → Test connection · free** before starting any chargeable AI session.
 
 If Google sign-in fails with a `403` page after choosing an account, compare the email written in local `ngrok-policy.yml` against the identity used in Safari. If Google itself reports `400`, `redirect_uri_mismatch`, or `access_denied`, report the exact displayed error rather than changing any Mini or Alibaba credentials.
 
@@ -239,7 +239,7 @@ tailscale serve 3001
 ```
 
 4. Follow any prompt to enable HTTPS for the tailnet. Tailscale displays a URL such as `https://your-pc.your-tailnet.ts.net`. Open **the exact URL displayed** in iPhone Safari. Tailscale must remain connected on both devices.
-5. Enter Mini's private `ROBOT_ACCESS_CODE`, select the camera settings and tap **Start live Mini**.
+5. Enter Mini's private `ROBOT_ACCESS_CODE`, select the camera settings and tap **Start Mini**.
 
 Keep the Serve terminal open for testing; use Ctrl+C to stop. Do **not** use `tailscale funnel`—that publishes your service on the internet.
 
@@ -256,7 +256,7 @@ Close/reopen PowerShell after installation if `cloudflared` is not recognized. O
 
 **Known Cloudflare issue (October 2026):** Some `--allowed-mail` Quick Tunnel sessions expire shortly after sign-in; subsequent POST requests return a **plain HTTP 401**, including Mini's `/api/realtime/sdp` request. This matches [cloudflare/cloudflared issue #1752](https://github.com/cloudflare/cloudflared/issues/1752). If localhost works but Safari reports a generic SDP HTTP 401 behind the email-protected tunnel, use **ngrok with Google OAuth** instead (no iPhone app needed). **Do not disable email protection to bypass the problem** on a public URL.
 
-With a working HTTPS method, say: **"Hello Mini, what can you see in front of you?"** and try **"你好 Mini，你看到什么？"**. If Safari refuses to play the model's voice, tap **Enable speaker audio** and raise the iPhone volume. Keep Safari open and the screen awake; backgrounding Safari intentionally stops the session.
+With a working HTTPS method, say: **"Hello Mini, what can you see in front of you?"** and try **"你好 Mini，你看到什么？"**. If Safari refuses to play the model's voice, use the child audio-recovery button or **Troubleshooting → What Mini hears and says → Enable speaker audio** and raise the iPhone volume. Keep Safari open and the screen awake; backgrounding Safari intentionally stops the session.
 
 ## What is / is not continuous
 
@@ -281,16 +281,24 @@ Run `npm test` to verify static serving, config secrecy, credentials checks, rat
 
 The suite also covers delayed playback completion, old response events after interruption, bilingual story choices, riddle progression, safe saved settings, and local play with no media/network APIs. See [the companion benchmark guide](docs/companion-benchmark.md) for repeatable device scenarios and measurement definitions. Competitor scores and live iPhone/Qwen results have not been measured here.
 
+## Documentation map
+
+- [Project state and development memory](docs/PROJECT_STATE.md): decisions, commits, source map, completed checks and remaining work.
+- [Lost-session recovery](docs/RECOVERY.md): fresh cloud setup, Windows updates and private configuration backups.
+- [Agent entry point](AGENTS.md): reading order and instructions for future coding sessions.
+- [Generated pictures and games](docs/dynamic-visuals.md), [camera reactions](docs/visual-awareness.md) and [model evidence/configuration](docs/image-model-research.md).
+- [Validation and device scenarios](docs/companion-benchmark.md), [security notes](SECURITY.md), [release history](CHANGELOG.md) and [third-party assets](THIRD_PARTY_NOTICES.md).
+
 ## Troubleshooting
 
 ### Daughter answers Mini, but Mini doesn't reply
 
-V5's offline games disconnected the model. V6.3 no longer has those buttons. If Mini does not answer, check **both** the microphone and Qwen detection inside Parent setup → Microphone and AI hearing diagnostics.
+Live activities share one ongoing Qwen connection. If Mini does not answer, check **both** the microphone and Qwen detection inside Parent setup → Troubleshooting → Camera and microphone.
 
 | Observation | Meaning and action |
 |---|---|
 | Mic bar stays flat | Safari may not have working microphone permission or the mic is muted; stop/restart and check permissions |
-| Mic bar moves, but AI speech detection does not | Qwen did not detect the short turn; use Quiet child, move the phone closer, reduce noise |
+| Mic bar moves, but AI speech detection does not | Qwen did not detect the short turn; use Quiet voice, move the phone closer, reduce noise |
 | Qwen transcribes the answer, but remains silent | Speech is reaching Qwen; check response events, AI session state, playback or errors |
 | Mini opens a question with Safari's different voice | Qwen did not start a spontaneous turn; the single local fallback prompt should be followed by a live Qwen reply after the child answers |
 
@@ -298,7 +306,7 @@ The conversational session stays active until someone presses Stop, a direct spo
 
 ### Safari SDP HTTP 401 behind a protected Cloudflare Quick Tunnel
 
-On the iPhone, complete the Cloudflare email PIN sign-in, then open Mini. Tap **Test tunnel POST (free)** before pressing Start. This sends a small POST request of the same content type as the WebRTC setup, but **does not call Alibaba or charge for AI**. Repeat the test after 10 seconds.
+On the iPhone, complete the Cloudflare email PIN sign-in, then open Mini. Open **Troubleshooting → Connection and picture setup** and tap **Test connection · free** before pressing Start. This sends a small POST request of the same content type as the WebRTC setup, but **does not call Alibaba or charge for AI**. Repeat the test after 10 seconds.
 
 - **POST reached Mini successfully:** The origin was reachable at that moment. If a later test returns 401, the Cloudflare authentication session may have expired.
 - **POST blocked: HTTP 401:** Mini's test endpoint does not require the robot code; the 401 is coming from the tunnel or another gateway. A [reported protected Quick Tunnel bug](https://github.com/cloudflare/cloudflared/issues/1752) matches this pattern. Use ngrok with a restrictive Google-login or password policy as a Safari-only workaround.
@@ -334,13 +342,13 @@ Node.js v22.13.0 and npm 10.9.2 are sufficient for this project. You do **not** 
 
 | Symptom | Next step |
 |---|---|
-| LOCAL PREVIEW ONLY | Set both `.env` pay-as-you-go variables and restart Node. |
+| FREE PREVIEW | Set both `.env` pay-as-you-go variables and restart Node. |
 | Authentication 401 from Mini | Check `ROBOT_ACCESS_CODE` in `.env` and the code entered in Safari; restart Mini after editing `.env`. A **generic non-JSON SDP HTTP 401** may be caused by the [Cloudflare `--allowed-mail` session-expiration bug](https://github.com/cloudflare/cloudflared/issues/1752); if localhost works, try ngrok with Google OAuth and an exact-email allowlist. |
 | Server rejects Token Plan | Expected; custom robot app must use pay-as-you-go. |
 | Model Studio 403 / 404 | Check Workspace ID, Singapore key, permissions and availability of realtime model. |
 | No camera | Use HTTPS, foreground Safari, allow permissions. Try front camera first. |
 | Model silent | Tap the audio player's play control or **Enable speaker audio**. Lower output speaker volume to reduce echo. |
 | SDP negotiation error | Ensure Node >=22, Safari updated, selected model supports WebRTC and workspaces/region match. |
-| Camera preview OK but model cannot see | Stop, select **Direct camera · Safari compatibility**, then restart; you can also try 2 fps. |
-| Stops when switching apps | Deliberate privacy/cost behavior in V6.3. |
+| Camera preview OK but model cannot see | Stop, choose **Troubleshooting → Camera and microphone → Camera method → Safari compatibility**, then restart. AI sharing already targets 2 fps. |
+| Stops when switching apps | Deliberate privacy/cost behavior; return to Safari and start a new parent-approved session. |
 | Need to resume | Tap Start again to establish a fresh realtime session; previous conversation context is not persisted. |

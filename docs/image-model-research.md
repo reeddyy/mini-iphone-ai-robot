@@ -1,8 +1,8 @@
 # Image model recommendation for Mini
 
-Researched 1 November 2026. Recommended target: **`qwen-image-3.0`**, one **1024×1024** image per explicit picture request. Keep `qwen-plus` as the separate game/story-image coordinator. Do not use the image model for voice or game rules.
+Integration research recorded 1 November 2026; public Alibaba documentation rechecked **2 November 2026**. Recommended target: **`qwen-image-3.0`**, one **1024×1024** image per explicit picture request, subject to the user's Singapore account access. Keep `qwen-plus` as the separate game/story-image coordinator. Do not use the image model for voice or game rules.
 
-Earlier guidance used `qwen-image-plus` without a verified successful Singapore request. The supplied Windows logs return HTTP 404 for it. This research identifies supported newer API IDs and a matching request profile; it does not establish access with your private key.
+Earlier guidance used `qwen-image-plus` without a verified successful Singapore request. The supplied Windows logs return HTTP 404 for it. This research records integration-supported newer API IDs and a matching request profile; it does not establish access with your private key or prove that changing a model name fixes the earlier failure.
 
 ## What to choose
 
@@ -16,14 +16,23 @@ Earlier guidance used `qwen-image-plus` without a verified successful Singapore 
 
 This is a product recommendation based on current API-integration evidence. It is not a benchmark ranking. A smaller single-image request limits work and cost exposure, but does not guarantee a particular response time. Animated faces and rules-checked games remain immediate local rendering; Qwen still composes their scene data dynamically. Full image generation is used for requested illustrations.
 
-## Evidence reviewed
+## Integration evidence recorded on 1 November
 
 1. **Qwen's official image-model repository** announces Qwen-Image-2.0 on 10 February 2026, describing stronger semantic adherence and a lighter/faster architecture. Its README is useful family-level context; it does not independently document Singapore availability of the later 3.0 API IDs: https://github.com/QwenLM/Qwen-Image#news .
 2. **LiteLLM's maintained DashScope image adapter** explicitly supports `qwen-image-2.0`, `qwen-image-2.0-pro`, `qwen-image-3.0` and `qwen-image-3.0-pro`. It uses the native multimodal-generation endpoint, message-based text input and output image URLs: https://github.com/BerriAI/litellm/blob/main/litellm/llms/dashscope/image_generation/transformation.py .
 3. **Merged support with reported live international results:** LiteLLM PR #38449, merged 27 August 2026, registers the 3.0 models and includes before/after calls using a real international key. The reported 3.0 and 3.0 Pro requests return HTTP 200 at 1024×1024; 2.0 also passes. These are the maintainer's published results, not calls made with Mini's key: https://github.com/BerriAI/litellm/pull/38449 .
-4. **Current registry cross-check:** all four model IDs are present in the integration's model catalog, with image-generation capabilities. Prices may depend on region and resolution, so no fixed price or free quota is assumed: https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json .
+4. **Registry cross-check recorded in that research:** all four model IDs were present in the integration's model catalog, with image-generation capabilities. Prices may depend on region and resolution, so no fixed price or free quota is assumed: https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json .
 
-Alibaba's public API page and the supplied console link are blocked by this cloud environment's outbound policy. I could not read the current first-party regional availability table or the account's enabled models. The public integration evidence supports the recommendation; the private account's permissions, billing, provider latency and iPhone behavior remain unverified.
+The earlier research reported blocked access to Alibaba's public pages. That restriction was not reproduced in the 2 November documentation check below. The signed-in account's enabled models, permissions, billing, provider latency and iPhone behavior remain unverified.
+
+## Public documentation recheck on 2 November
+
+- The [Qwen API reference](https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-dashscope), updated **27 October 2026**, still names `qwen-plus` as a plain-text model for the Singapore workspace endpoint. Keep it as Mini's JSON planner.
+- The [OpenAI-compatible Chat reference](https://www.alibabacloud.com/help/en/model-studio/compatibility-of-openai-with-dashscope), updated **13 October 2026**, documents the Singapore `/compatible-mode/v1` route used by the planner.
+- The [Qwen-Image API reference](https://www.alibabacloud.com/help/en/model-studio/qwen-image-api), updated **22 October 2026**, uses `qwen-plus` as a chat model orchestrating a separate image tool. Its retrieved image-model table lists the 2.0 family; it does not establish this user's access to the non-Pro `qwen-image-3.0` ID.
+- The [recommended-models page](https://www.alibabacloud.com/help/en/model-studio/models), updated **28 October 2026**, highlights `qwen-image-3.0-pro` for image generation. A general recommendation does not establish regional entitlement or a successful Mini request for another model ID.
+
+The user reported `ALIBABA_VISUAL_MODEL=qwen-plus` and `ALIBABA_IMAGE_MODEL=qwen-image-3.0` in their private setup. The template now uses these selections as well. Neither documentation retrieval nor the template update made a paid API call or tested that private key. Do not claim that all 3.0 variants are confirmed for this account or silently change model/region after a failure.
 
 ## Windows configuration
 

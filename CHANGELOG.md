@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased — Simpler grown-up settings
+## 2 November 2026 — Documentation and recovery handoff
+
+- Add repository-backed project memory, recovery steps and an agent entry point for replacement cloud workspaces or lost chats.
+- Refresh current setup, UI labels, camera behavior and model-documentation evidence; preserve earlier releases below as history.
+
+## 2 November 2026 — Environment template (`6c07960`)
+
+- Keep `qwen-plus` for planning, default the example image model to `qwen-image-3.0`, update picture setup instructions and remove the legacy cloud-awareness setting from the template. Existing private `.env` files are preserved.
+
+## 2 November 2026 — Simpler grown-up settings (`bf98c0e`)
 
 - Keep the main sheet to the access code, language, automatic stop, camera and pictures. Move camera compatibility, microphone diagnostics, model setup and subtitles under Troubleshooting.
 - Enable all available features by default, including camera, pictures, local reactions, quiet-time hellos, playful learning and local sounds. Every new session still requires parent approval; confirmation explicitly describes capture and paid image usage. Nothing starts on page load.
@@ -36,7 +45,9 @@
 - Strengthen topic-specific play suggestions; optional contextual follow-ups come from the same planner response, wait for quiet, cancel on input and have bounded per-session use.
 - Validation: unit/API regressions plus Chromium mobile and real local landmark inference using a public-domain adult fixture. No paid Qwen calls, private child imagery or physical iPhone tests. Account-specific image generation remains unverified.
 
-## Unreleased — Child controls and gentler conversation
+## Earlier V6 development notes — Child controls and gentler conversation
+
+Historical entries below describe intermediate implementations. Current V6.6 behavior and default-on settings are documented in README.md; sketch fallbacks and separate awareness/follow-up controls were subsequently removed.
 
 - Route artwork through the documented Singapore native API with the workspace header, retain an explicit workspace-route option and include the chosen route in diagnostics. Add validated artwork fallback drawings, replace them on successful image decode, and disable further paid image calls after a model/access/quota rejection for the current grant.
 - Anchor ordinary illustrations to Mini's completed spoken reply instead of independently planning from the child request. Narrate game moves/results from browser state and speak tapped story choices from the returned scene message; suppress competing realtime game audio and restore ordinary Qwen voice after game turns. Preserve interruption, child turn-taking, Mandarin narration and media cleanup.

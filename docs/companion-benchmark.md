@@ -17,7 +17,7 @@ Use the same scenarios when comparing Mini, Loona DeskMate, LOOI, and Reachy Min
 | Choice duel and counting | Ask for scissors-paper-stone, choose by voice and touch, then request three apples and count them. | Mini chooses before the child; correct win/tie/lose result; exactly three objects; one count per tap |
 | Visual continuation | Start a story with a novel character and setting; choose a displayed path, interrupt a pending scene, then return to Mini. | Relevant next scene; voice/visual consistency; latest request wins; full face restored; Stop remains accessible |
 | Optional artwork | With a compatible model configured, compare pictures off/on in separate sessions. Request a painting, cancel it, then Stop. | Consent enforced; actual model access; visible loading/failure state; decoded picture; no late picture after cancellation; observed extra cost |
-| Camera awareness | With adult volunteers and awareness opted in, enter view, hold a visible smile and wave; repeat with poor lighting, camera pause and while someone speaks. | Correct observable cues; false reactions; time to react; cooldowns; no identity/emotion claims; no interruptions; no snapshots after pause/Stop; extra cost |
+| Camera awareness | With adult volunteers and Camera enabled at parent Start, enter view, hold a visible smile, wink and tilt your head; repeat with poor lighting, camera pause and while someone speaks. | Correct observable cues; false reactions; time to react; cooldowns; no identity/emotion claims; no interruptions; no snapshots after pause/Stop; extra cost |
 | Speech/display agreement | Ask for a story with a named hero and place, continue it by voice and a displayed choice, then play a hand game and tic-tac-toe. Simulate unavailable artwork in a development fixture. | Illustration uses completed spoken details; choice narration matches its scene message; game narration uses actual choices/moves/results; unrelated realtime game audio is suppressed; normal Qwen voice returns; no substitute drawing after image failure |
 
 Run at least five repetitions per supported voice scenario in a quiet room. Use adult volunteers and invented content first. Device audio output matters: generated text and an open socket do not establish audible success. Do not record children's voices or retain their transcripts for benchmarking.
@@ -25,6 +25,18 @@ Run at least five repetitions per supported voice scenario in a quiet room. Use 
 Report the median and slowest observed audible delay and interruption time, plus counts of completed, failed, unsupported and unrun trials. With a larger sample, report p95. Do not assign a zero or a passing score to an unrun trial. Note whether interruptions are handled by the device, provider or both.
 
 ## Mini validation available here
+
+### Recorded checkpoint: 2 November 2026
+
+| Check | Recorded result | Scope |
+| --- | --- | --- |
+| `npm test` | 194 passed, 0 failed | Settings implementation published as `bf98c0e`; mocked providers/media events, no live key. |
+| `scripts/parent-settings-browser-smoke.mjs` | Passed | Local fixture, real synthetic media, four mobile viewports, default-on controls, Start cancellation, voice-only play, Stop, persistence and Reset. |
+| `scripts/companion-close-browser.mjs` | Passed | Mocked signaling/provider responses, real synthetic capture; picture closing and optional update errors preserve media until Stop. |
+| `.env.example` parsing and `git diff --check` | Passed | Template update published as `6c07960`; public model defaults present and API credential fields blank. |
+| Fresh-checkout recovery procedure | Passed | Clean local clone of `6c07960`, generated ignored preview configuration, blank API credentials, no npm installation, all 194 tests passed. |
+
+The [committed settings screenshot](images/parent-settings-2026-11-02.png) uses saved Mandarin/5-minute test preferences; fresh defaults are Auto/15 minutes. The full real-landmark fixture smoke check described below was reported during earlier V6.6 work and was not rerun in this settings/documentation session. Physical iPhone, live Qwen access/quality and competitor measurements remain unrun. See [PROJECT_STATE.md](PROJECT_STATE.md) for the durable handoff.
 
 `npm test` exercises simulated provider events, media teardown, delayed audio completion, stale responses after interruption, bilingual fixed story choices, three riddle rounds, settings persistence, parent authorization, local tap play, the visual protocol, planner grants and image tickets. Local Chromium checks also exercised novel image prompts and allowlisted animation, story-choice continuation, exact counting, precommitted hand-game moves, artwork decoding, cancellation and phone widths through the real HTTP endpoints with simulated provider responses. These do not establish live Qwen speech/visual quality, actual image-model access or iPhone Safari timing.
 
@@ -52,7 +64,7 @@ For the simplified grown-up settings, run `node scripts/parent-settings-browser-
 
 ## Playful learning conversation acceptance checks
 
-With **Mini leads playful learning** enabled, the same spoken reply should use the child's particular answer, offer a relevant idea and normally end with one easy invitation. It should not wait for the child to invent every next step, repeat a question that was answered, deliver long lessons or make every remark a quiz.
+Playful learning and follow-ups are enabled automatically in the simplified UI. In a live session, the same spoken reply should use the child's particular answer, offer a relevant idea and normally end with one easy invitation. It should not wait for the child to invent every next step, repeat a question that was answered, deliver long lessons or make every remark a quiz.
 
 | Situation | Expected conversational behavior |
 | --- | --- |
@@ -61,14 +73,14 @@ With **Mini leads playful learning** enabled, the same spoken reply should use t
 | Child guesses incorrectly | Acknowledge the attempt, give a useful easier clue and invite another try. |
 | A picture becomes visible | If the voice reply had no question, an optional invitation can encourage noticing details, making a sound or starting a tiny story. No extra model turn is started. |
 | Child says stop, is tired, closes the picture or mutes | Cancel pending invitations; respect the pause or ending. |
-| Follow-ups are off | Respond positively and helpfully, without optional invitations to prolong the conversation. |
+| Child asks for quiet or says goodbye | Respect the ending without optional invitations to prolong the conversation. |
 
 These are live Qwen acceptance scenarios, not proof that prompt text guarantees every response. Automated tests cover invitation permission, one-per-turn/cost bounds, cancellation and no extra model-turn dispatch. Evaluate the actual warmth, educational correctness, pace and variety with supervised device sessions.
 
 ## Everyday maths and science acceptance checks
 
-Try apples, a toy car and a plant in separate conversations in English and Mandarin. Mini should connect one small idea to the current subject, ask at most one simple question, and wait. Include a correct answer, a mistaken answer and “I don’t know” / “我不知道”. Check that a hint or simpler example helps, a correct answer receives a short explanation, and later difficulty follows the child's demonstrated understanding. Change the topic and turn playful learning off: Mini should respect both. Check arithmetic and science facts manually; prompt-contract tests do not establish live model correctness or educational effectiveness. No grades, timed pressure, ability labels or persistent child learning profile are created.
+Try apples, a toy car and a plant in separate conversations in English and Mandarin. Mini should connect one small idea to the current subject, ask at most one simple question, and wait. Include a correct answer, a mistaken answer and “I don’t know” / “我不知道”. Check that a hint or simpler example helps, a correct answer receives a short explanation, and later difficulty follows the child's demonstrated understanding. Change the topic or ask Mini to stop asking questions: it should respect the spoken request. Check arithmetic and science facts manually; prompt-contract tests do not establish live model correctness or educational effectiveness. No grades, timed pressure, ability labels or persistent child learning profile are created.
 
 ## English and Mandarin acceptance checks
 
-Use Auto, Prefer English and Prefer Mandarin in separate short supervised sessions. Test “请用中文回答”, “English please”, mixed “我想要一只 blue cat”, and word-learning questions such as “猫用英语怎么说？” A switch should persist for local games and picture invitations; a single learned word should not reset the whole conversation. Mandarin should sound natural and child-friendly, not like a literal English translation. English should remain clear and idiomatic. Avoid correcting accents or overwhelming the child with a full translation after every response. Installed Safari voices affect local narration; Qwen supplies the main conversational voice. Unit/browser language-routing checks do not establish real ASR/TTS pronunciation quality.
+Use Auto, English and Mandarin in separate short supervised sessions. Test “请用中文回答”, “English please”, mixed “我想要一只 blue cat”, and word-learning questions such as “猫用英语怎么说？” A switch should persist for local games and picture invitations; a single learned word should not reset the whole conversation. Mandarin should sound natural and child-friendly, not like a literal English translation. English should remain clear and idiomatic. Avoid correcting accents or overwhelming the child with a full translation after every response. Installed Safari voices affect local narration; Qwen supplies the main conversational voice. Unit/browser language-routing checks do not establish real ASR/TTS pronunciation quality.
