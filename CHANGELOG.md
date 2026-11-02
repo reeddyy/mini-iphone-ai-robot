@@ -1,5 +1,12 @@
 # Changelog
 
+## 3 November 2026 — Neutral head tracking and one live voice
+
+- Follow the user's explicit original-voice-only choice: keep Tina as the only spoken voice in live sessions; show local openings, game moves, checked lessons and invitations on screen. Keep captions through reply completion and restore ordinary live audio when leaving local turns.
+- Start head tracking from a neutral pose, account for camera aspect ratio and update rotation independently of floating animation. Clear stale gaze/tilt/smile, recover a stalled local tracker with bounded retries and preserve the existing camera/voice connection.
+- Preserve a single quiet-time lesson hint after the provider turn, including either transcript order. Update model context, troubleshooting, durable memory and recovery instructions.
+- Verify 251 Node tests, eight head/recovery and eight single-voice browser scenarios, all existing browser suites and real local landmark inference. Tests use local providers/synthetic media; physical iPhone sound and movement remain to be checked. No new paid calls.
+
 ## 2 November 2026 — Image/Auto-language voice stability
 
 - Fix the reported unknown `invalid_request_error` ending an established voice session after a picture/context acknowledgement or timeout. Pause optional updates instead; keep genuine setup/auth/quota/server failures fatal.

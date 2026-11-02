@@ -62,9 +62,10 @@ try{
     await waitFor(`$('robotFace').dataset.cameraSmile==='true' && $('robotFace').dataset.expression==='happy'`);
     assert.equal(await evaluate(`narrations.length`),0);await screenshot('smile');
   });
-  await checkpoint('The fresh smile speaks one playful invitation once the conversation is quiet',async()=>{
+  await checkpoint('The fresh smile shows one playful invitation once the conversation is quiet',async()=>{
     await evaluate(`current.responseActive=false;current.awarenessLastActivity=Date.now()-7000;true`);
-    await waitFor(`narrations.some(item=>/spotted a smile/.test(item.text))`);
+    await waitFor(`current.localPrompt.kind==='camera' && /spotted a smile/.test($('kidHint').textContent)`);
+    assert.equal(await evaluate(`narrations.length`),0);
     assert.equal(await evaluate(`current.cameraInvitations`),1);
     assert.equal(await evaluate(`current.localPrompt.kind`),'camera');
   });
@@ -98,7 +99,8 @@ try{
     assert.match(await evaluate(`current.learning.prompt('zh')`),/一共有几位/);
     await turn('三','错误的示范回答');assert.equal(await evaluate(`current.learning.checkpoint('zh').lastResult`),'correct');
     assert.match(await evaluate(`$('assistantTranscript').textContent`),/2加1等于3/);
-    assert.match(await evaluate(`narrations.at(-1).language`),/^zh/);await screenshot('mandarin-answer');
+    assert.match(await evaluate(`$('kidHint').textContent`),/2加1等于3/);
+    assert.equal(await evaluate(`narrations.length`),0);await screenshot('mandarin-answer');
   });
   await checkpoint('A requested science turn teaches a fact and checks the child’s answer in Mandarin',async()=>{
     await turn('我想学有关太阳的科学','不应播放的云端回答');
@@ -114,8 +116,9 @@ try{
   });
   await checkpoint('A quiet child gets one helpful hint and silence is not scored as a mistake',async()=>{
     await turn('教我数学');await waitFor(`Boolean(current.quietTimer)`);
-    const before=await evaluate(`narrations.length`);
-    await waitFor(`narrations.length>${before}`);
+    const before=await evaluate(`current.followUpCount || 0`);
+    await waitFor(`current.followUpCount>${before}`);
+    assert.equal(await evaluate(`narrations.length`),0);
     assert.equal(await evaluate(`current.learning.checkpoint('zh').pending.attempts`),0);
     assert.equal(await evaluate(`current.followUpTurn===current.turnNumber && current.quietTimer===null`),true);
     await evaluate(`scheduleQuietSupport(current,current.localPrompt.text);true`);
@@ -123,10 +126,10 @@ try{
   });
   await checkpoint('Local invitation context reaches voice instructions without another model response',async()=>{
     await waitFor(`!current.contextUpdatePending`);
-    assert.equal(await evaluate(`sentEvents.some(event=>event.type==='session.update' && event.session.instructions.includes('App-spoken invitation data'))`),true);
+    assert.equal(await evaluate(`sentEvents.some(event=>event.type==='session.update' && event.session.instructions.includes('App-displayed invitation data'))`),true);
     assert.equal(await evaluate(`sentEvents.some(event=>event.type==='response.create')`),false);
   });
-  await checkpoint('Learning narration, face and Stop fit four phone layouts',async()=>{
+  await checkpoint('Learning captions, face and Stop fit four phone layouts',async()=>{
     for(const [width,height] of [[320,568],[390,844],[430,932],[844,390]]){
       await rpc('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});
       assert.equal(await evaluate(`document.body.scrollWidth<=innerWidth && $('kidStopBtn').getBoundingClientRect().bottom<=innerHeight`),true,String(width));

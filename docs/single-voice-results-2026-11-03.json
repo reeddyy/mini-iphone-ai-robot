@@ -1,0 +1,19 @@
+{
+  "scope": "local fixture; real synthetic capture; scripted ASR/transport and voice catalog; no actual Qwen audio or physical Safari verification",
+  "results": [
+    "The opening stays on screen with Tina configured and no device speech",
+    "Tic-tik-toe shows cross/circle cues and suppresses conflicting remote moves",
+    "A board tap shows the exact circle move without a second voice",
+    "Rapid New round taps keep a fresh board and a single visual cue",
+    "Mandarin game cues remain visual and retain the original capture",
+    "Leaving the board restores Tina’s ordinary live-audio path",
+    "Checked maths captions persist after completion without speaking or disabling the microphone",
+    "Stop clears cues and capture; late voice catalogs cannot speak or restart"
+  ],
+  "deviceUtterances": 0,
+  "captures": 1,
+  "configuredLiveVoice": "Tina",
+  "errors": [],
+  "providerPlans": 0,
+  "providerImages": 0
+}

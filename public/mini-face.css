@@ -10,7 +10,8 @@
   background:radial-gradient(ellipse at 40% 12%,#fffaf7 0%,#f4edff 45%,var(--skin) 78%);
   box-shadow:0 18px 36px #060e2740,inset 0 -7px 10px #bba7e540,inset 0 3px 3px #fff;
   transform-origin:50% 72%;animation:mini-float 5s ease-in-out infinite;
-  transition:border-radius .3s,filter .25s;
+  rotate:var(--camera-head-tilt,var(--head-tilt));
+  transition:border-radius .3s,filter .25s,rotate .12s linear;
 }
 .robot-stage #robotFace::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;background:radial-gradient(ellipse at 13% 75%,#ffb3cb50,transparent 25%),radial-gradient(ellipse at 87% 75%,#ffb3cb50,transparent 25%)}
 .robot-stage #robotFace::after{content:"";position:absolute;top:22px;left:calc(50% - 9px);width:18px;height:10px;border:0;border-radius:50%;background:#cbbcef66;transform:none}
@@ -48,7 +49,7 @@
 .robot-stage #robotFace.listening .eye{transform:scale(1.05)}
 .robot-stage #robotFace.listening .mini-brow{transform:translateY(-6px)}
 .robot-stage #robotFace.listening .mini-antenna{transform:rotate(0deg)}
-.robot-stage #robotFace.thinking{--head-tilt:5deg}
+.robot-stage #robotFace.thinking{--head-tilt:0deg}
 .robot-stage #robotFace.thinking :is(.pupil,.glint){transform:translate(5px,-8px)}
 .robot-stage #robotFace.thinking .mini-brow:first-child{transform:rotate(-18deg) translateY(-6px)}
 .robot-stage #robotFace.thinking .mini-brow:last-child{transform:rotate(14deg) translateY(3px)}
@@ -88,7 +89,7 @@
 .robot-stage #robotFace.error .mouth{width:24px;height:12px}
 .robot-stage #robotFace.audible .mouth{height:clamp(14px,calc(var(--mouth-height,12px) + 9px),38px);width:37px;border:0;border-radius:35% 35% 48% 48%;background:var(--ink);animation:none}
 .robot-stage #robotFace.idle:not([data-expression]) .pupil{animation:mini-look-around 11s ease-in-out infinite}
-@keyframes mini-float{0%,100%{transform:translateY(0) rotate(var(--head-tilt))}50%{transform:translateY(-4px) rotate(var(--head-tilt))}}
+@keyframes mini-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 .robot-stage #robotFace[data-sequence="celebrate"]{animation:mini-celebrate 1.4s ease-in-out 1}
 @keyframes mini-celebrate{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-7px) rotate(-4deg)}55%{transform:translateY(-2px) rotate(4deg)}80%{transform:translateY(-4px) rotate(-2deg)}}
 @keyframes mini-blink{0%,44%,48%,73%,77%,100%{height:0}46%,75%{height:104%}}
@@ -108,5 +109,5 @@
 }
 @media(prefers-reduced-motion:reduce){
   .robot-stage #robotFace,.robot-stage #robotFace *,.robot-stage #robotFace *::before,.robot-stage #robotFace *::after{animation:none!important;transition:none!important}
-  .robot-stage #robotFace{transform:rotate(var(--head-tilt))}
+  .robot-stage #robotFace{transform:none}
 }

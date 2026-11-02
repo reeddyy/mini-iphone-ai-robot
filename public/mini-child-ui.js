@@ -23,6 +23,7 @@
     let speechActive = false;
     let lastLevel = -1;
     let activeNarration = null;
+    let visualCue=null;
     let pendingStarter = null;
     let moodTimer = null;
     let sparkleTimer = null;
@@ -35,7 +36,6 @@
     const voicePicker=window.MiniLanguage?.createVoicePicker?.();
     let waitedForVoices=false;
     const availableVoices=()=>{try{return window.speechSynthesis?.getVoices?.() || [];}catch{return [];}};
-    availableVoices(); // Warm Safari's asynchronous voice catalog before Start.
     const language = () => options.getLanguage() === 'zh' ? 'zh' : 'en';
     const words = () => content.getLabels(language());
     function setHint(message) { hint.textContent = message; }
@@ -65,6 +65,7 @@
     }
     function stopSpeech() {
       pendingStarter = null;
+      visualCue=null;
       try { window.speechSynthesis?.cancel(); } catch {}
       releaseSpeech();
     }
@@ -72,12 +73,21 @@
       const spokenLanguage = replyLanguage === 'zh' ? 'zh' : replyLanguage === 'en' ? 'en' : language();
       const message = typeof phrase === 'string' && phrase.trim()
         ? phrase.trim().slice(0,300) : content.getFallback(mode,spokenLanguage);
+      const session = options.getSession();
+      if(!session?.ready || session.stopped)return;
       stopSpeech();
       pendingStarter = {mode,text:message,language:spokenLanguage};
       setHint(message);
+      if(session?.mode==='realtime'){
+        pendingStarter=null;visualCue=message;
+        micHelp.textContent=spokenLanguage==='zh'?'小提示显示在屏幕上。直接和 Mini 说话就好。':'Local cues appear on screen. Speak naturally to Mini.';
+        const info=$('narrationVoiceStatus');
+        if(info)info.textContent='Voice: Tina · live companion. Local game and lesson cues appear on screen.';
+        options.onVisualCue?.(message,spokenLanguage);
+        return;
+      }
       micHelp.textContent='Answer Mini out loud. If the voice is silent, tap Mini’s face to hear the question.';
       if (!canSpeak) return;
-      const session = options.getSession();
       if (!session?.ready || session.stopped) return;
       const mic = session.audioInputTrack;
       const utterance = new window.SpeechSynthesisUtterance(message);
@@ -137,7 +147,7 @@
       const session=options.getSession();
       if (!session?.ready || session.stopped || session.muted || speechActive) return false;
       sayFallback(mode, phrase, replyLanguage);
-      micHelp.textContent='Mini has another question for you. Answer it out loud!';
+      micHelp.textContent=session.mode==='realtime'?'Mini’s next idea is on screen. You can answer out loud or choose another activity.':'Mini has another question for you. Answer it out loud!';
       return true;
     }
     function mood(type, duration=850) {
@@ -294,7 +304,7 @@
       } else if(info.state==='thinking') {
         setHint(words().prompting);
       } else if(info.state==='listening' && !speechActive) {
-        setHint(words().listening);
+        setHint(visualCue || words().listening);
       }
       setModeLabel();
     }
@@ -363,12 +373,13 @@
     }
     function onResponseFinished() {
       if(speechActive) return;
-      setHint(options.getSession()?.muted?words().muted:words().listening);
+      setHint(options.getSession()?.muted?words().muted:visualCue || words().listening);
     }
     function onVoiceDetected(heard) {
       speechActive=heard;
       if(heard) {
         cancelReactions();
+        visualCue=null;
         pendingStarter = null;
         lastVoiceAt=Date.now();
         vadStatus.textContent='✅ '+words().speech;

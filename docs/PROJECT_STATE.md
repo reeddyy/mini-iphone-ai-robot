@@ -1,14 +1,15 @@
 # Mini project state and development memory
 
-Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in a new chat or replacement cloud workspace. This is a curated handoff, not a transcript of every prior conversation. The user requested durable documentation because an earlier chat/workspace could not be resumed.
+Updated **3 November 2026 (Asia/Singapore)**. Read this first when continuing in a new chat or replacement cloud workspace. This is a curated handoff, not a transcript of every prior conversation. The user requested durable documentation because an earlier chat/workspace could not be resumed.
 
 ## Repository and current baseline
 
 - Public repository: https://github.com/reeddyy/mini-iphone-ai-robot
 - Published branch: `main`. The previous cloud checkout used a local branch named `work` and pushed with `git push origin HEAD:main`.
 - Application version: **6.6.0**. No package-version bump accompanied the settings/template changes.
-- Current application behavior includes the startup/game/story fixes, proactive learning, local narration voice fix and image/Auto stability fix below; model/configuration selections remain as established in **`6c07960`**. Use `git log -5 --oneline` and the current remote for the latest code/documentation commit.
-- Latest issue: repeated stops around pictures/Auto with **`Qwen error (code=unknown, type=invalid_request_error)`**. The client shutdown is reproduced and fixed: post-start request rejections pause optional context updates rather than stopping capture; completed contexts are paced and wait for provider/audio completion. **242 Node tests, nine new stability scenarios/29 simulated turns and all existing browser suites pass.** Actual physical iPhone stability and the provider's underlying rejection reason remain unverified. See [the image/voice stability report](IMAGE_VOICE_STABILITY_2026-11-02.md).
+- Current behavior includes neutral/recovering head tracking and **Tina-only live speech**, in addition to the startup/game/story, proactive learning and image/Auto stability fixes below. Model/configuration selections remain as established in **`6c07960`**. Use `git log -5 --oneline` and the current remote for the latest code/documentation commit.
+- Latest issues: a fixed right-tilted head and two different voices. The user explicitly chose **Original voice only**, accepting local helper cues on screen. Live sessions now bypass Safari narration; head roll calibrates neutral, updates separately from floating animation and clears/recovers stalled tracking. **251 Node tests, eight head/recovery scenarios, eight single-voice scenarios and all existing browser suites pass.** Physical iPhone sound/movement remain unverified. See [the current report and receipts](HEAD_AND_SINGLE_VOICE_2026-11-03.md).
+- Previous picture/Auto issue: **`Qwen error (code=unknown, type=invalid_request_error)`**. Published as **`fbc9d46`**: post-start request rejections pause optional context updates while established capture continues. The nine-scenario/29-turn stress check passed again after this update. The provider's underlying rejection reason and physical Safari transport stability remain unverified. See [the stability report](IMAGE_VOICE_STABILITY_2026-11-02.md).
 
 | Commit | Shipped change |
 | --- | --- |
@@ -23,6 +24,7 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 | `414a10d` | Fixed local game-to-chat exits and empty story-choice narration after the 23-checkpoint child review. |
 | `b8fd811` | Added proactive camera/play invitations and checked English/Mandarin maths/science learning; 223 tests and 13 new browser scenarios passed. |
 | `fc80187` | Fixed local voice selection, cross/circle pronunciation and clipped/stale device narration; 233 tests and eight new narration browser scenarios passed. |
+| `fbc9d46` | Kept voice/media alive after optional picture/Auto checkpoint rejections; paced/bounded updates; 242 tests and nine stability scenarios passed. |
 
 These commits were pushed to GitHub `main`. See [CHANGELOG.md](../CHANGELOG.md) for release history and [RECOVERY.md](RECOVERY.md) for a fresh checkout. The subsequent browser review is recorded in [TEST_REVIEW_2026-11-02.md](TEST_REVIEW_2026-11-02.md).
 
@@ -47,7 +49,8 @@ The user asked for the grown-up settings to be easy, minimal and default on. The
 - Keep English/Mandarin continuity, speech interruption, short age-appropriate turns, gentle learning and a visible Stop control.
 - Explicit English/Mandarin chat requests leave counting, hand games and tic-tac-toe locally without another planner request. Preserve capture and restore ordinary voice playback for the current response, including late transcript ordering. A story continuation with no message uses its displayed title for local narration.
 - Latest product direction: bilingual, proactive, positive, fun and educational. Mini supplies short topic-aware invitations without depending on Pictures/planner access, and checked local maths/science turns inside the conversation. Keep the child's ability to skip/change topics, use kind hints, leave time for answers and suppress new invitations after explicit declines, distress or requests for quiet.
-- Local opening/game/lesson narration must keep a stable suitable installed voice per language, prefer familiar female voices over regional/default choices and use natural rate/pitch. It remains a device voice, separate from Qwen Tina; do not claim identical timbre or confirmed physical sound from mocked synthesis. Preserve delayed-start/catalog cancellation and microphone restoration.
+- **Latest explicit voice choice supersedes earlier narration policy:** Tina is the only spoken voice during live sessions. Local opening/game/lesson/story-choice/camera/follow-up cues are visual only; do not add a separate device voice or generated voice turn to speak them. Normal conversation resumes through Tina after local game/checked-answer turns. The opening stays silent until the child speaks. Preview-only device speech retains its safe selection/cancellation behavior; it must not become a live fallback.
+- Head tracking starts upright relative to the first valid face, accounts for camera aspect ratio, follows roll in both directions and clears stale poses. Local worker recovery is bounded and must not reconnect Qwen or reacquire microphone/camera.
 - Once voice/media are ready, optional picture/language request errors are recoverable even after an acknowledgement or timeout. Pause rejected checkpoint updates without a retry loop; retain initial/fatal auth/quota/server handling. Send bounded, coalesced final scene facts between provider turns/remote playback; Auto remains available.
 
 This development-memory file is separate from Mini's child-session state. The removed preference-note feature remains removed. Do not add transcript/media storage to satisfy a request to preserve development context.
@@ -169,7 +172,9 @@ Validation: **223/223 Node tests**, **13/13 proactive browser scenarios**, **9/9
 
 The physical iPhone's face-in-view status is user-confirmed; the updated interactions, ASR/Qwen audio and speech synthesis have not been exercised on that device. Normal Windows pull/restart/Safari refresh is still required. The current cloud runtime status returned `unknown` for the two existing secret bindings; these local checks did not use them. Recheck current readiness if live work is requested rather than assuming the historical ready state or asking the user to re-enter values prematurely.
 
-### Local narration voice fix on 2 November 2026
+### Local narration voice fix on 2 November 2026 (historical)
+
+The later **Original voice only** choice below supersedes device narration in live sessions. This section records the earlier implementation and its tests; those device-speech safeguards remain for preview only.
 
 The user reported a deep male, mumbled voice on “tic tik toe”, then confirmed the opening and lessons also sounded wrong. All three use local Safari narration; ordinary realtime chat uses Qwen Tina. The previous region/default-first picker could select Daniel/en-GB ahead of Samantha/en-US and could reselect when voices arrived/reordered. The user's actual voice catalog was not inspected, so this is a code-backed cause consistent with the report, not a recording analysis.
 
@@ -194,6 +199,20 @@ Validation: **242/242 Node tests** and **9/9 new browser stability scenarios** p
 All prior browser suites passed again: parent-settings, **9/9 child journey**, companion-close/media cleanup, **8/8 narration**, **9/9 exploratory**, **13/13 proactive** and full companion smoke with real local landmark inference. See [IMAGE_VOICE_STABILITY_2026-11-02.md](IMAGE_VOICE_STABILITY_2026-11-02.md), the sanitized receipt and `scripts/image-voice-stability-browser.mjs`. The fixture's optional large-image mode resets to its tiny default through `/__fixture/reset`.
 
 Next: Windows pull/restart and Safari refresh, then a supervised physical Auto/Pictures visit. If the provider closes the actual peer or the physical audio/network still breaks, that remains a separate diagnosis; do not claim the injected-error simulation established real Qwen transport reliability. Existing host-scoped credentials were ready and used only for read-only live source/config checks; do not request their values or repeat paid tests to recover context.
+
+### Head tracking and original voice only on 3 November 2026
+
+The user reported a right-tilted, unmoving head and two companion voices. They explicitly selected **Original voice only (Recommended)** when offered Tina-only live speech with local cues on screen versus a separate spoken device voice. Do not reinterpret this as permission to add another TTS model or manual paid `response.create`.
+
+Two engines explain the voice difference: realtime chat uses Qwen Tina, while earlier local openings/games/lessons used Safari speech synthesis. Live `sayFallback` now returns after displaying the cue, before creating an utterance, waiting for a voice catalog or muting the microphone. Openings, game moves, checked answers, story-choice text and local invitations stay visual. Conflicting remote game/checked-answer audio remains suppressed; ordinary chat restores the existing Tina path. Captions survive reply completion and clear for a new child turn/Stop. The parent diagnostic and model instructions describe displayed cues accurately. No paid voice model/call was added.
+
+The browser pass caught a timing regression: scheduling a visual question's quiet hint immediately let the provider's following `response.created` cancel it. Local lesson completion now schedules the one hint after the provider turn. Both transcript orders are tested; silence is never scored and does not loop.
+
+Head rotation previously used absolute landmark roll and shared an expression variable inside floating-animation keyframes, so an angled camera/face could start Mini tilted. A worker/capture stall could leave `busy` and the last tilt/gaze/smile indefinitely. Tracking now has its own CSS rotation, aspect-correct relative roll, neutral first-face calibration, smoothing and a 14-degree bound. Stale results clear pose/status after about 1.2 seconds; a six-second stall restarts only the local worker, at most twice. Repeated stalls show Retry. Existing video playback can resume without a new capture. Old workers/captures cannot affect the recovered tracker; pause/Stop clear the pose. These are code-backed reproductions, not a verified diagnosis of the physical phone.
+
+Validation: **251/251 Node tests**, **8/8 head tracking/recovery browser scenarios**, **8/8 single-voice browser scenarios**, **13/13 proactive**, **9/9 child replay**, parent-settings, companion-close, **9/9 exploratory**, **9/9 image/Auto stability** and full companion smoke all pass. The head test used actual synthetic capture/CSS and deliberately frozen scripted landmark workers; the same peer/capture survived recovery. Single-voice checks made zero device utterances while Tina remained configured. The full smoke separately ran real local MediaPipe inference on the public-domain adult photo. The close suite was rerun with reset fixture counters after an initial cross-suite count mismatch; no production change was needed. No paid live provider calls or new live-deployment verification were made for this update.
+
+See [HEAD_AND_SINGLE_VOICE_2026-11-03.md](HEAD_AND_SINGLE_VOICE_2026-11-03.md), its committed sanitized receipts and the two focused browser scripts. The old 2 November voice report/receipt remains historical; the current narration browser command now tests Tina-only live sessions. Existing secret bindings were ready with enforced networking; these checks did not use them. Next: Windows pull/restart, Safari refresh, then supervise a short head-left/right/smile test, pause/resume and a chat → local game/lesson → chat voice check. Actual Tina pronunciation/timbre, microphone audio, child tracking accuracy and physical iPhone stability remain unverified here.
 
 Do not mark the remaining physical checks as passed or launch paid tests merely to recreate lost context. Restore the repository first, read the current user request, and continue from these recorded facts.
 

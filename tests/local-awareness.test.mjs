@@ -61,3 +61,67 @@ test('Spoken camera reactions have a cooldown and discard faces that left the vi
   for(const now of [12000,17000,22000,27000])policy.accept(face(),now,false);
   assert.equal(policy.accept(face(),30000,true).spoken,false,'expired pending cue cannot speak');
 });
+
+function rolledFace(angle){
+  return face().map(point=>({x:.5+(point.x-.5)*Math.cos(angle)-(point.y-.5)*Math.sin(angle),y:.5+(point.x-.5)*Math.sin(angle)+(point.y-.5)*Math.cos(angle)}));
+}
+test('Head tracking starts upright despite the phone angle, then moves in both directions',()=>{
+  const policy=api().createPolicy();assert.equal(policy.accept(rolledFace(.3),0).tilt,0);
+  let right,left;
+  for(let i=1;i<=4;i++)right=policy.accept(rolledFace(.5),i*200);
+  for(let i=5;i<=10;i++)left=policy.accept(rolledFace(.1),i*200);
+  assert.ok(right.tilt<-5);assert.ok(left.tilt>5);
+  policy.accept([],3000);assert.equal(policy.accept(rolledFace(-.4),3200).tilt,0,'reacquiring a face recalibrates neutral');
+});
+
+test('Roll geometry respects the video aspect ratio instead of treating normalized coordinates as square',()=>{
+  const local=api(),points=rolledFace(.2);
+  assert.ok(local.geometry(points,.75).tilt>local.geometry(points,1.5).tilt);
+});
+
+function recoveryEnvironment(){
+  let clock=0,closed=0,timerId=0;
+  const workers=[],looks=[],states=[],timers=new Map();
+  const createWorker=()=>{const worker={messages:[],terminated:0,postMessage(message){this.messages.push(message);},terminate(){this.terminated++;}};workers.push(worker);return worker;};
+  const tracker=api().start({createWorker,video:{videoWidth:640,videoHeight:480,readyState:4},now:()=>clock,
+    capture:async()=>({close(){closed++;}}),allowed:()=>true,onLook:look=>looks.push(look),onStatus:state=>states.push(state),
+    setInterval:()=>1,clearInterval(){},setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId;},clearTimeout:id=>timers.delete(id)});
+  return {tracker,workers,looks,states,setTime:value=>{clock=value;},closed:()=>closed};
+}
+const flush=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('A stalled frame clears the old pose, restarts only the local worker and ignores stale results',async()=>{
+  const env=recoveryEnvironment();
+  try{
+    const first=env.workers[0];first.onmessage({data:{type:'ready'}});await flush();
+    first.onmessage({data:{type:'landmarks',points:rolledFace(.2)}});first.onmessage({data:{type:'done'}});
+    assert.equal(env.looks.at(-1).face,true);
+    env.setTime(1300);await env.tracker.tick();assert.equal(env.looks.at(-1),null);
+    env.setTime(7400);await env.tracker.tick();assert.equal(first.terminated,1);assert.equal(env.workers.length,2);
+    first.onmessage({data:{type:'landmarks',points:rolledFace(-.6)}});assert.equal(env.looks.at(-1),null);
+    const second=env.workers[1];second.onmessage({data:{type:'ready'}});await flush();
+    second.onmessage({data:{type:'landmarks',points:rolledFace(-.2)}});second.onmessage({data:{type:'done'}});
+    assert.equal(env.looks.at(-1).tilt,0);assert.equal(env.tracker.isUnavailable(),false);
+  }finally{env.tracker.stop();}
+});
+
+test('Repeated tracker stalls have a bounded retry and stop leaves no worker running',async()=>{
+  const env=recoveryEnvironment();
+  try{
+    for(let i=0;i<3;i++){
+      env.workers[i].onmessage({data:{type:'ready'}});await flush();
+      env.setTime((i+1)*7000);await env.tracker.tick();
+    }
+    assert.equal(env.workers.length,3);assert.equal(env.tracker.isUnavailable(),true);
+    assert.equal(env.looks.at(-1),null);assert.ok(env.workers.every(worker=>worker.terminated===1));
+  }finally{env.tracker.stop();}
+});
+
+test('A paused preview is resumed using the existing video without a new capture request',async()=>{
+  const local=api();let plays=0,captures=0;
+  const video={videoWidth:640,videoHeight:480,readyState:4,paused:true,play(){plays++;this.paused=false;return Promise.resolve();}};
+  const worker={postMessage(){},terminate(){}};
+  const tracker=local.start({worker,video,allowed:()=>true,capture:async()=>{captures++;return {close(){}};},setInterval:()=>1,clearInterval(){}});
+  try{worker.onmessage({data:{type:'ready'}});await flush();assert.equal(plays,1);assert.equal(captures,0);await tracker.tick();assert.equal(captures,1);}
+  finally{tracker.stop();}
+});

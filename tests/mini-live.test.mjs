@@ -199,6 +199,21 @@ test('One quiet-time lesson hint is offered without treating silence as a wrong 
   assert.equal(env.calls.filter(call=>call[0]==='followup').length,1,'silence does not loop');
 });
 
+test('A visual lesson schedules quiet help after the provider turn, in either transcript order',()=>{
+  for(const responseFirst of [false,true]){
+    const env=mockEnvironment();childTurn(env,'Teach me maths',{responseFirst});
+    if(!responseFirst)emit(env,'response.created',{response:{id:'math-reply'}});
+    emit(env,'response.audio_transcript.done',{transcript:'An unused provider answer.'});
+    emit(env,'response.done',{response:{status:'completed'}});env.flushTimeouts(900);
+    assert.ok(env.s.quietTimer,'the visible question retains a quiet-time hint');
+    env.flushTimeouts(14000);
+    assert.equal(env.calls.filter(call=>call[0]==='followup').length,1);
+    assert.equal(env.s.learning.checkpoint('en').pending.attempts,0);
+    vm.runInContext('finishPlayback(testSession)',env.ctx);env.flushTimeouts(14000);
+    assert.equal(env.calls.filter(call=>call[0]==='followup').length,1,'silence cannot loop');
+  }
+});
+
 test('Quiet support is cancelled by speech, mute, parent interaction and Stop',()=>{
   for(const action of ['speech','mute','touch','stop']){
     const env=mockEnvironment();childTurn(env,'Teach me maths');
@@ -235,7 +250,7 @@ test('Spoken smile and head-motion invitations use the active language and share
     options.onCue({cue,spokenCue:cue,spoken:true});env.flushTimeouts(0);
     const spoken=env.calls.find(call=>call[0]==='followup');assert.equal(spoken[3],'zh');assert.match(spoken[2],cue==='smile'?/微笑/:/头动/);
     assert.equal(env.s.localPrompt.kind,'camera');assert.equal(env.s.cameraInvitations,1);
-    assert.match(env.sent.at(-1).session.instructions,/App-spoken invitation data/);
+    assert.match(env.sent.at(-1).session.instructions,/App-displayed invitation data/);
     assert.equal(env.sent.some(event=>event.type==='response.create'),false);
   }
 });
@@ -345,7 +360,7 @@ test('Joining a live session starts a local question and never sends response.cr
 });
 
 
-test('Blocked Safari fallback speech does not mute the child microphone',async()=>{
+test('Blocked preview fallback speech does not mute the child microphone',async()=>{
   const childScript=readFileSync(fileURLToPath(new URL('../public/mini-child-ui.js',import.meta.url)),'utf8');
   const elements=new Map();
   const element=()=>({
@@ -357,7 +372,7 @@ test('Blocked Safari fallback speech does not mute the child microphone',async()
   });
   const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id)};
   const mic={enabled:true};
-  const session={ready:true,stopped:false,muted:false,mode:'realtime',audioInputTrack:mic};
+  const session={ready:true,stopped:false,muted:false,mode:'preview',audioInputTrack:mic};
   let utterance;
   const window={
     MiniKidsContent:{
@@ -431,7 +446,7 @@ test('After a short Qwen verdict, Mini asks ONE local follow-up, no added AI req
   env.flushTimeouts();
   assert.equal(env.calls.filter(x=>x[0]==='followup').length,1,'do not nag in a loop');
   assert.equal(env.sent.some(event=>event.type==='response.create'),false,'no extra paid model turn');
-  assert.match(env.sent.at(-1).session.instructions,/App-spoken invitation data/);
+  assert.match(env.sent.at(-1).session.instructions,/App-displayed invitation data/);
 });
 
 test('A Qwen answer that already asks a question is left alone',()=>{
@@ -688,6 +703,7 @@ test('Turning off follow-ups also changes the instructions sent to Qwen',()=>{
   vm.runInContext('tryInitialize(testSession)',env.ctx);
   assert.match(env.sent[0].session.instructions,/Optional follow-up questions are OFF/);
   assert.ok(env.sent[0].session.instructions.includes(env.s.opening));
+  assert.equal(env.sent[0].session.audio.output.voice,'Tina');
   request(env,'story');
   assert.match(env.sent[1].session.instructions,/Optional follow-up questions are OFF/);
 });

@@ -60,8 +60,9 @@ try{
     await turn('Replay Lumi story','Lumi the blue dinosaur has a yellow backpack.');
     assert.equal(await evaluate(`generatedVisuals.describe().status==='visible' && document.querySelector('#visualCanvas img').naturalWidth>0 && document.querySelectorAll('#visualChoices button').length===2`),true);
   });
-  await checkpoint('Tapping the captured empty-message continuation narrates its visible title',async()=>{
-    await click('#visualChoices button');await waitFor(`!current.visualPlanning && narrations.some(n=>n.text==='Lumi Crosses the Rainbow Bridge')`);
+  await checkpoint('Tapping the captured empty-message continuation shows its title without a second voice',async()=>{
+    await click('#visualChoices button');await waitFor(`!current.visualPlanning && $('kidHint').textContent==='Lumi Crosses the Rainbow Bridge'`);
+    assert.equal(await evaluate(`narrations.length`),0);
     assert.equal(await evaluate(`generatedVisuals.current().message==='' && $('visualTitle').textContent==='Lumi Crosses the Rainbow Bridge'`),true);
   });
   await click('#visualExit');

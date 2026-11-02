@@ -118,7 +118,7 @@ test('Qwen game changes use session.update and local starter voice, not response
   assert.match(script,/case 'session\.updated'/);
   assert.match(script,/case 'response\.done'/);
   assert.match(script,/childUI\?\.onLiveReady\(\)/);
-  assert.match(script,/childUI\?\.sayFallback\('chat',s\.opening\)/,'Safari starts the chat while Qwen listens via VAD');
+  assert.match(script,/childUI\?\.sayFallback\('chat',s\.opening\)/,'The app shows the local starter while Qwen listens via VAD');
   assert.match(script,/case 'input_audio_buffer\.speech_started'/);
   assert.match(script,/case 'input_audio_buffer\.speech_stopped'/);
   assert.match(script,/childUI\?\.onVoiceDetected/);

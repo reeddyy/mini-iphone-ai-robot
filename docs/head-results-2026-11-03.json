@@ -1,0 +1,19 @@
+{
+  "scope": "local Chromium; real synthetic capture and CSS; scripted landmark workers/stall; physical Safari and actual Qwen audio unverified",
+  "results": [
+    "An initially tilted face calibrates to an upright Mini with animation running",
+    "Head rotation follows both directions independently of the floating animation",
+    "Position and visible smiles still update the eyes and expression",
+    "Reduced motion preserves direct head following while decorative animation stops",
+    "A stalled landmark frame clears the old pose and face-in-view status",
+    "The local tracker recovers without replacing capture or the voice peer",
+    "Pausing and resuming local reactions clears and recalibrates the pose",
+    "Stop clears camera pose, terminates workers and releases all tracks"
+  ],
+  "captures": 1,
+  "workers": 2,
+  "deviceUtterances": 0,
+  "errors": [],
+  "providerPlans": 0,
+  "providerImages": 0
+}

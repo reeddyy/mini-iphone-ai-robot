@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
-function environment(initialVoices=[]){
+function environment(initialVoices=[],mode='preview'){
   let clock=0,timerId=0,voices=initialVoices,lastCancel=-Infinity;
   const timers=new Map(),listeners=new Set(),spoken=[],elements=new Map();
   const element=()=>({textContent:'',dataset:{},offsetWidth:5,style:{setProperty(){},removeProperty(){}},
     classList:{add(){},remove(){},toggle(){}},setAttribute(){},removeAttribute(){},addEventListener(){},appendChild(){},
     querySelector(){return {textContent:''};},scrollIntoView(){}});
   const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id);};
-  const mic={enabled:true},session={ready:true,stopped:false,muted:false,mode:'realtime',audioInputTrack:mic};
+  const mic={enabled:true},session={ready:true,stopped:false,muted:false,mode,audioInputTrack:mic};
   const setTimer=(fn,delay)=>{timers.set(++timerId,{fn,at:clock+delay});return timerId;};
   const window={scrollTo(){},SpeechSynthesisUtterance:class{constructor(text){this.text=text;}},
     speechSynthesis:{getVoices:()=>voices,cancel(){lastCancel=clock;},
@@ -33,7 +33,7 @@ function environment(initialVoices=[]){
 const samantha={name:'Samantha',lang:'en-US',voiceURI:'fixture-samantha'};
 const tingting={name:'Tingting',lang:'zh-CN',voiceURI:'fixture-tingting'};
 
-test('Opening, game and lesson narration keep one suitable local voice at natural rate and pitch',()=>{
+test('Preview narration keeps one suitable device voice at natural rate and pitch',()=>{
   const env=environment([{name:'Daniel',lang:'en-GB',default:true},samantha,tingting]);
   env.ui.sayFallback('chat','Hello! Which animal do you like?','en');env.advance(80);
   const opening=env.spoken.at(-1).utterance;assert.equal(opening.voice.name,'Samantha');
@@ -45,6 +45,35 @@ test('Opening, game and lesson narration keep one suitable local voice at natura
   env.ui.sayFallback('chat','Two plus one makes three.','en');env.advance(80);
   assert.equal(env.spoken.at(-1).utterance.voice.name,'Samantha');
   assert.equal(env.spoken.every(item=>item.sinceCancel>=80),true,'cancel and speak are separated to avoid clipping');
+});
+
+test('Live openings, game and learning cues never start a second device voice or mute the microphone',()=>{
+  const env=environment([samantha,tingting],'realtime');
+  for(const [text,lang] of [['Hello! Which animal do you like?','en'],['You play crosses. Mini plays circles.','en'],['二加一等于三。','zh']]){
+    env.ui.sayFallback('chat',text,lang);env.advance(1000);
+    assert.equal(env.get('kidHint').textContent,text);
+    assert.equal(env.mic.enabled,true);assert.equal(env.spoken.length,0);
+    assert.equal(env.ui.isSpeakingLocally(),false);assert.equal(env.listenerCount(),0);
+  }
+  assert.match(env.get('narrationVoiceStatus').textContent,/Voice: Tina/);
+});
+
+test('Visual-only live cues remain readable after reply completion and clear for the next child turn',()=>{
+  const env=environment([samantha],'realtime');
+  env.ui.sayFallback('chat','Two explorers and one more: how many?','en');
+  env.ui.onResponseFinished();env.ui.onStatus({running:true,online:true,state:'listening'});
+  assert.equal(env.get('kidHint').textContent,'Two explorers and one more: how many?');
+  env.ui.onVoiceDetected(true);env.ui.onVoiceDetected(false);env.ui.onResponseFinished();
+  assert.notEqual(env.get('kidHint').textContent,'Two explorers and one more: how many?');
+  assert.equal(env.spoken.length,0);
+});
+
+test('Live voice catalog changes cannot create speech and a stopped session cannot restore a cue',()=>{
+  const env=environment([],'realtime');env.ui.sayFallback('chat','A local question.','en');
+  env.voicesChanged([samantha]);env.advance(2000);assert.equal(env.spoken.length,0);
+  env.ui.stopSpeech();env.session.stopped=true;env.ui.onStatus({running:false,online:false,state:'idle'});
+  const resting=env.get('kidHint').textContent;env.ui.sayFallback('chat','A stale question.','en');env.advance(2000);
+  assert.equal(env.get('kidHint').textContent,resting);assert.equal(env.mic.enabled,true);assert.equal(env.spoken.length,0);
 });
 
 test('A late Safari voice catalog is awaited without muting the microphone or speaking twice',()=>{

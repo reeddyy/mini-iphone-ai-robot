@@ -2,6 +2,8 @@
 
 The durable source of development context is **GitHub `main`**, including [PROJECT_STATE.md](PROJECT_STATE.md) and [AGENTS.md](../AGENTS.md). A ChatGPT local-chat URL, cloud filesystem or `/tmp` screenshot may no longer be accessible. These documents preserve decisions and next steps; they do not restore the original chat transcript or private credentials.
 
+Latest accepted behavior: **Tina is the only live-session voice**. Local openings, games, checked lessons and invitations appear on screen, as the user explicitly chose. Earlier device-narration notes are historical. Head tracking now calibrates neutral and recovers local stalls without reconnecting voice. Read [the 3 November handoff](HEAD_AND_SINGLE_VOICE_2026-11-03.md) before changing either path.
+
 ## Continue in a new coding session
 
 Give the new session access to https://github.com/reeddyy/mini-iphone-ai-robot and this instruction:

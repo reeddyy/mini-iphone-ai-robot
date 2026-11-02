@@ -12,7 +12,7 @@ The image API receives a child-appropriate illustration instruction and the requ
 
 ## Interactive games
 
-Tic-tac-toe remains a real local board, opening immediately without a planning call. Counting, choice activities and complete 2–5 move duels use local controls and rules. Qwen can supply labels, rules and choices; it cannot replace playable controls with a generated screenshot or invent results. Games therefore remain usable without image-generation permission. Tapped story choices can request the next generated illustration and its matching narration.
+Tic-tac-toe remains a real local board, opening immediately without a planning call. Counting, choice activities and complete 2–5 move duels use local controls and rules. Qwen can supply labels, rules and choices; it cannot replace playable controls with a generated screenshot or invent results. Games therefore remain usable without image-generation permission. Tapped story choices can request the next generated illustration and its matching on-screen text. Local game/choice cues are visual only; Tina remains the sole live voice. Competing remote game audio stays suppressed until ordinary chat resumes. See [the current voice policy](HEAD_AND_SINGLE_VOICE_2026-11-03.md).
 
 ## Windows setup
 

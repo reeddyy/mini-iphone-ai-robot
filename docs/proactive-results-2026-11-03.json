@@ -1,0 +1,21 @@
+{
+  "scope": "local fixture; real synthetic capture; scripted ASR/voice and landmark output; real 6/14-second waits",
+  "results": [
+    "Visible smiles animate Mini during a reply without starting overlapping speech",
+    "The fresh smile shows one playful invitation once the conversation is quiet",
+    "Head movement updates the eyes while speech cooldown prevents a second interruption",
+    "Chat offers an animal play idea with Pictures and visual planning off",
+    "Early chat naturally produces a checked maths question without a provider request",
+    "A mistaken answer receives a helpful counting hint, not a false success",
+    "Mandarin switching retains the challenge and accepts a short Mandarin answer",
+    "A requested science turn teaches a fact and checks the child’s answer in Mandarin",
+    "The child can skip a lesson without losing the original microphone or camera",
+    "A quiet child gets one helpful hint and silence is not scored as a mistake",
+    "Local invitation context reaches voice instructions without another model response",
+    "Learning captions, face and Stop fit four phone layouts",
+    "Goodbye cancels all prompts, clears learning state and releases every capture track"
+  ],
+  "errors": [],
+  "providerPlans": 0,
+  "providerImages": 0
+}
