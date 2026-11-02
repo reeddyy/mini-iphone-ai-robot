@@ -26,6 +26,8 @@ Report the median and slowest observed audible delay and interruption time, plus
 
 ## Mini validation available here
 
+The later [browser scenario review](TEST_REVIEW_2026-11-02.md) reran all 194 Node tests and all three existing browser suites successfully, including real local inference. Its additional visible-control exploratory checks recorded 6 passes and 2 failed expectations corresponding to one unfixed startup-error-visibility issue. The supplied live deployment remained behind ngrok Basic Auth.
+
 ### Recorded checkpoint: 2 November 2026
 
 | Check | Recorded result | Scope |
@@ -36,7 +38,7 @@ Report the median and slowest observed audible delay and interruption time, plus
 | `.env.example` parsing and `git diff --check` | Passed | Template update published as `6c07960`; public model defaults present and API credential fields blank. |
 | Fresh-checkout recovery procedure | Passed | Clean local clone of `6c07960`, generated ignored preview configuration, blank API credentials, no npm installation, all 194 tests passed. |
 
-The [committed settings screenshot](images/parent-settings-2026-11-02.png) uses saved Mandarin/5-minute test preferences; fresh defaults are Auto/15 minutes. The full real-landmark fixture smoke check described below was reported during earlier V6.6 work and was not rerun in this settings/documentation session. Physical iPhone, live Qwen access/quality and competitor measurements remain unrun. See [PROJECT_STATE.md](PROJECT_STATE.md) for the durable handoff.
+The [committed settings screenshot](images/parent-settings-2026-11-02.png) uses saved Mandarin/5-minute test preferences; fresh defaults are Auto/15 minutes. The full real-landmark fixture smoke check described below was not rerun during that earlier settings/documentation checkpoint; it passed in the subsequent review linked above. Physical iPhone, live Qwen access/quality and competitor measurements remain unrun. See [PROJECT_STATE.md](PROJECT_STATE.md) for the durable handoff.
 
 `npm test` exercises simulated provider events, media teardown, delayed audio completion, stale responses after interruption, bilingual fixed story choices, three riddle rounds, settings persistence, parent authorization, local tap play, the visual protocol, planner grants and image tickets. Local Chromium checks also exercised novel image prompts and allowlisted animation, story-choice continuation, exact counting, precommitted hand-game moves, artwork decoding, cancellation and phone widths through the real HTTP endpoints with simulated provider responses. These do not establish live Qwen speech/visual quality, actual image-model access or iPhone Safari timing.
 
@@ -61,6 +63,8 @@ The check covers 320×568, 390×844, 430×932 and 844×390 views, parent-dialog 
 For the exact in-app picture-close regression, run `node scripts/companion-close-browser.mjs` against a fresh fixture server and the same synthetic-media Chromium instance. It checks live camera frames and the same enabled microphone track after **Back to Mini**, optional context-error recovery, in-flight generation cancellation, image animation/reduced motion, responsive layouts and full Stop teardown. Signaling is mocked in this test; it does not establish delivery to a real Qwen peer. The managed environment's local WebRTC ICE test exposed no host candidates, so packet-level loopback was not used as passing evidence.
 
 For the simplified grown-up settings, run `node scripts/parent-settings-browser-smoke.mjs` with that fixture and a fresh Chromium profile. It checks mobile widths, enabled defaults, migration from legacy preferences, cancellation before capture/paid requests, microphone-only play, Stop teardown, allowlisted automatic preference storage and Reset. It uses synthetic media and local provider doubles and writes `/tmp/mini-parent-settings.png`; it does not make live Qwen calls or validate physical Safari.
+
+For visible-control failure/recovery checks, run `node scripts/scenario-review-browser.mjs` with a fresh local fixture and the same synthetic-media browser, after other scripts have finished. It checks invalid-code and permission-denial feedback, microphone-only mute/Stop, late capture after Stop, simulated backgrounding/deadline expiry, Escape/focus and server-offline guidance. It writes JSON/screenshots under `/tmp` and exits 1 if any expectation fails. At the review baseline, two failed expectations reproduce the parent-error-visibility finding; this manual diagnostic is separate from CI's passing unit suite.
 
 ## Playful learning conversation acceptance checks
 

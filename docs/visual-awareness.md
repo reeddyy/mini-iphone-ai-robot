@@ -12,7 +12,7 @@ The first use downloads about 11 MB of pinned assets from your own Mini server; 
 
 - A single face's position guides Mini's eyes and head tilt.
 - A visible smile held across two samples can make Mini smile; a separate visible-smile cue can remain on the face while Mini listens. A one-eye wink or sufficient head movement can produce a wink or curious expression.
-- Up to four samples per second run in a dedicated worker. One expression cue can appear every 1.5 seconds; there is no eight-reaction exhaustion limit. Holding a smile does not repeatedly trigger it.
+- Samples run in a dedicated worker, paced at least 160 ms apart (about six per second before slower-device adaptation). One expression cue can appear every 1.5 seconds; there is no eight-reaction exhaustion limit. Holding a smile does not repeatedly trigger it.
 - Gaze and visible expression reactions can continue during Mini's audio and games. Detected child speech keeps listening priority. No camera reaction interrupts existing audio. Frames are reduced to at most 320×240 inside the worker before landmark inference. Troubleshooting reports local reaction FPS and processing time, without uploading those frames.
 - Occasional spoken hellos are enabled with camera reactions. They wait for a quiet moment, do not overlap narration or a game, have at least 60 seconds between greetings, and are limited to two per session. They use Safari narration without starting an extra paid AI turn.
 

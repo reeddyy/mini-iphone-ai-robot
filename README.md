@@ -281,6 +281,8 @@ Run `npm test` to verify static serving, config secrecy, credentials checks, rat
 
 The suite also covers delayed playback completion, old response events after interruption, bilingual story choices, riddle progression, safe saved settings, and local play with no media/network APIs. See [the companion benchmark guide](docs/companion-benchmark.md) for repeatable device scenarios and measurement definitions. Competitor scores and live iPhone/Qwen results have not been measured here.
 
+The [2 November browser review](docs/TEST_REVIEW_2026-11-02.md) records passing core suites and a confirmed usability issue: startup errors are hidden from the open parent settings sheet. The report includes reproduction steps, screenshots and the live-deployment authentication blocker.
+
 ## Documentation map
 
 - [Project state and development memory](docs/PROJECT_STATE.md): decisions, commits, source map, completed checks and remaining work.

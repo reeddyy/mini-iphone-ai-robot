@@ -1,5 +1,11 @@
 # Changelog
 
+## 2 November 2026 — Browser scenario review
+
+- Rerun all 194 Node tests and all three existing browser suites, including real local face-landmark inference; all pass with mocked Qwen providers.
+- Add manual visible-control scenarios: six pass, two expose one unfixed parent startup-error-visibility issue. Preserve the report, reproduction script and screenshots.
+- Record expected ngrok Basic Auth blocking the supplied live deployment; no live Qwen or paid image requests were made.
+
 ## 2 November 2026 — Documentation and recovery handoff
 
 - Add repository-backed project memory, recovery steps and an agent entry point for replacement cloud workspaces or lost chats.

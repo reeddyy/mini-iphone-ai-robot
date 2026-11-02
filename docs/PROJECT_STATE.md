@@ -8,15 +8,16 @@ Updated **2 November 2026 (Asia/Singapore)**. Read this first when continuing in
 - Published branch: `main`. The previous cloud checkout used a local branch named `work` and pushed with `git push origin HEAD:main`.
 - Application version: **6.6.0**. No package-version bump accompanied the settings/template changes.
 - Latest application/configuration baseline: **`6c07960`**. Documentation-only handoff commits may follow; use `git log -5 --oneline` and the current remote to find HEAD.
-- The current request is to finish documentation and recovery preparation before further product work. No new application feature is in progress.
+- The user subsequently requested browser review with realistic scenarios/simulations and supplied a protected live deployment URL. Local review is complete; live access is blocked by ngrok Basic Auth. One parent-error-visibility issue is documented and remains unfixed. No new application feature is in progress.
 
 | Commit | Shipped change |
 | --- | --- |
 | `9cc8dc1` | Generated pictures, session-safe visual closing, camera improvements and bilingual playful learning. |
 | `bf98c0e` | Simplified grown-up settings, enabled feature defaults, explicit startup confirmation, automatic safe preference storage and regression coverage. |
 | `6c07960` | Updated `.env.example`: image-model default, current setup instructions and removal of the unnecessary legacy awareness setting from the template. |
+| `63db2d2` | Published project memory, recovery guide, agent entry point and refreshed documentation. |
 
-All three commits were pushed to GitHub `main`. See [CHANGELOG.md](../CHANGELOG.md) for release history and [RECOVERY.md](RECOVERY.md) for a fresh checkout.
+These commits were pushed to GitHub `main`. See [CHANGELOG.md](../CHANGELOG.md) for release history and [RECOVERY.md](RECOVERY.md) for a fresh checkout. The subsequent browser review is recorded in [TEST_REVIEW_2026-11-02.md](TEST_REVIEW_2026-11-02.md).
 
 ## What the app is
 
@@ -96,13 +97,19 @@ On **2 November 2026**, after the settings changes:
 - `.env.example` parsed successfully after `6c07960`; API credential fields remained blank. `git diff --check` passed before the pushes.
 - The recovery procedure was checked in a clean local clone of `6c07960`: no private `.env` was copied, a generated free-preview configuration parsed with blank API credentials and port 3001, and all **194 tests passed** again without npm installation. The handoff's relative documentation links were also checked.
 
-Reproduction steps and what each test proves are in [companion-benchmark.md](companion-benchmark.md). Earlier V6.6 documentation also reports a real worker inference check with a public-domain adult fixture; that full landmark smoke test was not rerun during this settings/documentation work.
+Reproduction steps and what each test proves are in [companion-benchmark.md](companion-benchmark.md). The full landmark smoke test was not rerun during the settings/documentation work; it was subsequently rerun successfully during the browser review below.
 
 A [settings reference screenshot](images/parent-settings-2026-11-02.png) is committed with this handoff. It uses the test fixture's saved Mandarin/5-minute choices; fresh defaults are Auto/15 minutes. Original `/tmp` screenshots/logs are disposable and not needed for recovery.
 
 ## Remaining checks and next work
 
-No new feature has been requested after the documentation checkpoint. The next user-directed investigation may involve:
+### Subsequent browser review on 2 November 2026
+
+All 194 Node tests and all three existing Chromium suites passed, including real local MediaPipe inference with the public-domain adult fixture. A new visible-control exploratory check (`scripts/scenario-review-browser.mjs`) recorded **6 passes and 2 failed usability expectations**, with no harness errors. Both failures have the same cause: missing-code and permission-denied startup errors are not visible inside the open parent dialog. The review did not change application behavior to fix it. See the [report, screenshots and reproduction steps](TEST_REVIEW_2026-11-02.md).
+
+Real HTTPS GETs to the user's live tunnel returned **401 Basic Auth** for both the page and `/api/config`. This is expected gateway protection, not an application defect. The app behind it and live Qwen were not reached. Live work requires secure, host-restricted credentials for the ngrok Authorization header and Mini parent code; do not request or record their values in chat/public docs. The user's backend can retain its Alibaba key. Preserve the review before any environment reconfiguration/restart.
+
+Next work should address the recorded parent-error-visibility issue and, once authenticated live access is available, the following checks:
 
 1. Physical iPhone Safari microphone/audio playback, local landmark support, interruptions, Stop capture indicators and portrait/landscape behavior.
 2. The user's Singapore model access, including one deliberately parent-authorized image request and the exact safe diagnostic if it fails. Current cloud credentials/device access do not establish this result.
