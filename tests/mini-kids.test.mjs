@@ -38,7 +38,7 @@ test('Child home shows one talking Mini and keeps diagnostics under parent contr
   assert.ok(html.indexOf('id="parentDiagnostics"')>adult,'hearing diagnostics are in parent area');
   assert.ok(html.indexOf('id="kidMicBar"')>adult,'mic status does not clutter the child screen');
   assert.ok(html.indexOf('id="modelDiagnostic"')>adult,'provider details stay with parent controls');
-  assert.match(html,/<input id="sendVideo" type="checkbox">/,'camera remains opt-in');
+  assert.match(html,/<input id="sendVideo" type="checkbox" checked/,'camera defaults on; capture still requires parent Start');
   assert.match(html,/<dialog id="parentSetup" class="parent-setup"/);
   assert.ok(html.indexOf('id="startBtn"')>adult,'paid AI still starts under parent setup');
 });

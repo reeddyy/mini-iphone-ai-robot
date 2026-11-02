@@ -48,6 +48,10 @@ button:focus-visible,summary:focus-visible{outline:3px solid #fbd89d;outline-off
 @media(prefers-reduced-motion:reduce){.robot-stage #robotFace{animation:none!important}.parent-setup::backdrop{backdrop-filter:none}}
 .parent-setup{max-width:620px;max-height:92dvh}.parent-setup .session-actions{position:static;padding:0;background:none}
 .parent-setup .settings-grid{grid-template-columns:minmax(88px,36%) 1fr}
+.parent-setup .session-actions .primary{min-height:50px;font-size:17px}
+.parent-setup :is(.advanced-setup,.parent-diagnostics)>summary{min-height:44px;align-content:center;font-size:14px}
+.parent-setup #resetSettingsBtn{margin-top:18px}
+.parent-setup .kid-listening-head{flex-wrap:wrap}
 @media(orientation:landscape) and (max-height:500px){
   .shell[data-visual-activity] :is(.board-activity,.visual-scene){display:grid;grid-template-columns:minmax(120px,43%) 1fr;gap:5px 10px;margin-top:0}
   .shell[data-visual-activity] .board-heading{grid-column:1/-1}.shell[data-visual-activity] .board-heading h2{font-size:17px}

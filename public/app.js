@@ -7,11 +7,10 @@ const $ = id => document.getElementById(id);
 const els = {
   face: $('robotFace'), status: $('status'), mode: $('modeTag'), info: $('modeInfo'),
   code: $('accessCode'), start: $('startBtn'), stop: $('stopBtn'), extend: $('extendBtn'),
-  pace: $('responsePace'), remaining: $('remainingTime'), delay: $('replyDelay'), keepTalk: $('keepConversationGoing'),
-  personality: $('personality'), language: $('language'), sensitivity: $('listenSensitivity'),
-  note: $('familyNote'), remember: $('rememberPrefs'), clearMemory: $('clearMemoryBtn'), memoryInfo: $('memoryInfo'),
+  remaining: $('remainingTime'), delay: $('replyDelay'),
+  language: $('language'), sensitivity: $('listenSensitivity'),
   postTest: $('postTestBtn'), postResult: $('postTestResult'),
-  videoToggle: $('sendVideo'), facing: $('facing'), videoMode: $('videoMode'), fps: $('fps'),visionQuality:$('visionQuality'), limit: $('sessionLimit'),
+  videoToggle: $('sendVideo'), facing: $('facing'), videoMode: $('videoMode'), visionQuality:$('visionQuality'), limit: $('sessionLimit'),
   preview: $('preview'),cameraMonitor:$('cameraMonitor'),cameraSurface:$('cameraSurface'),cameraSurfaceLabel:$('cameraSurfaceLabel'), placeholder: $('cameraPlaceholder'),
   mute: $('muteBtn'), pauseVideo: $('pauseVideoBtn'), clock: $('sessionClock'),
   micBadge: $('micBadge'), videoBadge: $('videoBadge'),
@@ -19,12 +18,11 @@ const els = {
   remoteAudio: $('remoteAudio'), playAudio: $('playAudioBtn'), diagnostic: $('modelDiagnostic'),
   kidAudio: $('kidAudioBtn'),
   sharing: $('sharingNotice'), progress: $('activityProgress'),
-  favoriteTopic: $('favoriteTopic'), reactionSounds: $('reactionSounds'), rememberSettings: $('rememberSettings'),
-  visualToggle:$('visualResponses'),pictures:$('generatedPictures'),visualStatus:$('visualRequestStatus'),visualInfo:$('visualCapabilityInfo'),
+  pictures:$('generatedPictures'),visualStatus:$('visualRequestStatus'),visualInfo:$('visualCapabilityInfo'),
   picturesInfo:$('generatedPicturesInfo'),
   visualServiceStatus:$('visualServiceStatus'),visualPause:$('pauseVisualsBtn'),
-  awarenessToggle:$('visualAwareness'),spokenGreetings:$('spokenGreetings'),awarenessStatus:$('awarenessStatus'),awarenessPause:$('pauseAwarenessBtn'),
-  forgetSettings: $('forgetSettingsBtn'), settingsInfo: $('settingsInfo'),
+  awarenessStatus:$('awarenessStatus'),awarenessPause:$('pauseAwarenessBtn'),
+  resetSettings: $('resetSettingsBtn'), settingsInfo: $('settingsInfo'),
   extendDialog: $('extendDialog'), extendForm: $('extendForm'), extensionCode: $('extensionCode'),
   extensionMessage: $('extensionMessage'), extensionApprove: $('extensionApprove'), extensionCancel: $('extensionCancel'),
 };
@@ -69,25 +67,23 @@ function render() {
   $('kidParentLink').classList.toggle('hidden',running);
   els.stop.classList.toggle('hidden', !running);
   els.start.disabled = loading || mode === 'checking';
-  els.start.textContent = mode === 'preview' ? '● Parent: Test camera & mic' : '● Parent: Start live voice';
-  for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.fps,els.visionQuality, els.limit, els.pace, els.sensitivity, els.keepTalk, els.personality, els.language, els.note, els.remember]) control.disabled = running || loading;
-  els.clearMemory.disabled = running || loading;
-  for(const control of [els.favoriteTopic,els.reactionSounds,els.rememberSettings,els.forgetSettings])control.disabled=running || loading;
-  els.visualToggle.disabled=running || loading || !visualCapabilities.available;
-  els.pictures.disabled=running || loading || mode!=='realtime' || !visualCapabilities.imagesAvailable || !els.visualToggle.checked;
+  els.start.textContent = mode === 'preview' ? 'Test microphone' + (els.videoToggle.checked ? ' & camera' : '') : 'Start Mini';
+  for (const control of [els.code, els.videoToggle, els.facing, els.videoMode, els.visionQuality, els.limit, els.sensitivity, els.language, els.resetSettings]) control.disabled = running || loading;
+  $('liveSessionControls').classList.toggle('hidden', !running);
+  els.pictures.disabled=running || loading || mode!=='realtime' || !visualCapabilities.available || !visualCapabilities.imagesAvailable;
   const pictureReason=running || loading
-    ? 'Stop Mini before changing picture permission, then choose it before starting a new session.'
+    ? 'Pictures are ' + (s?.imagesAllowed ? 'on' : 'off') + ' for this session. Stop Mini to change.'
     : mode==='checking'
-    ? 'Waiting for server configuration. Check that the Windows Mini server is running, then refresh this page.'
+    ? 'Checking picture setup…'
     : mode!=='realtime'
-    ? 'Generated pictures need live AI. Configure the Alibaba key and Singapore workspace on your Windows server first.'
-    : visualCapabilities.configurationError
-    ? 'Fix the visual planner setup first. '+visualCapabilities.configurationError
+    ? 'Pictures need live AI. See Troubleshooting for setup.'
+    : !visualCapabilities.available
+    ? 'Picture setup needs attention. Voice chat can still work. See Troubleshooting.'
     : !visualCapabilities.imagesAvailable
-    ? visualCapabilities.imageError || 'Picture generation is not configured on the Windows server. Set ALIBABA_IMAGE_MODEL in its private .env, restart Mini and refresh this page. See picture setup below.'
-    : !els.visualToggle.checked
-    ? 'Turn on “Show visual stories and games” above to enable generated pictures.'
-    : 'Picture generation is configured. You can tick this before starting a session; pictures add separate charges. Model access still depends on your Alibaba account.';
+    ? 'Pictures aren’t set up yet. Voice and games still work. See Troubleshooting.'
+    : els.pictures.checked
+    ? 'On request · up to 4 pictures per session.'
+    : 'Pictures are off. Stories and games still work.';
   els.picturesInfo.textContent=pictureReason;els.pictures.title=pictureReason;
   els.visualPause.classList.toggle('hidden',!s?.visualsEnabled || !s?.visualGrant);
   els.visualPause.textContent=s?.visualsPaused?'Resume visual responses':'Pause visual responses';
@@ -95,8 +91,6 @@ function render() {
     (visualCapabilities.imageEndpoint?' · Image API: '+(visualCapabilities.imageEndpoint==='singapore'?'Singapore native':'Workspace'):'')+'.';
   const visualIssue=s?.visualIssue || lastVisualIssue;
   els.visualServiceStatus.textContent=visualIssue?'Last visual issue: '+visualIssue:(s?.visualsPaused?'Visual responses paused. Voice chat can continue. '+visualModels:visualModels);
-  els.awarenessToggle.disabled=running || loading || !window.MiniLocalAwareness || !els.videoToggle.checked;
-  els.spokenGreetings.disabled=running || loading || !els.awarenessToggle.checked || !els.videoToggle.checked || !window.MiniLocalAwareness;
   els.awarenessPause.classList.toggle('hidden',!s?.awareness);
   els.awarenessPause.textContent=s?.awareness?.isUnavailable?.()?'Retry local reactions':s?.awareness?.isPaused()?'Resume local reactions':'Pause local reactions';
   els.mute.disabled = !running;
@@ -148,13 +142,13 @@ async function loadConfig() {
     visualCapabilities=data.visuals || {available:data.mode==='realtime',imagesAvailable:false};
     els.visualInfo.textContent=visualCapabilities.configurationError || (visualCapabilities.imagesAvailable
       ? 'Games and story coordination can use paid Qwen requests. Explicit pictures go directly to the image model. Limits: 60 plans and 4 pictures per session.'
-      : 'Visual scenes use extra paid Qwen requests. Newly generated artwork is not configured; Images need a configured image model and session permission. Interactive games remain available.');
+      : visualCapabilities.imageError || 'Pictures are not configured. Set ALIBABA_IMAGE_MODEL in the server’s private .env, restart Mini and refresh. Voice and games remain available.');
     mode = data.mode;
-    els.mode.textContent = mode === 'realtime' ? 'QWEN REALTIME' : 'LOCAL PREVIEW ONLY';
+    els.mode.textContent = mode === 'realtime' ? 'LIVE AI' : 'FREE PREVIEW';
     els.mode.classList.toggle('is-demo', mode !== 'realtime');
     els.info.textContent = mode === 'realtime'
-      ? 'Voice chat is ready. Paid usage begins after parent confirmation. Camera sharing is optional.'
-      : 'Live AI is not configured yet. You can test the microphone and camera locally for free.';
+      ? 'Ready · paid AI after Start confirmation.'
+      : 'Free local preview. Live AI is not configured yet.';
   } catch (e) {
     mode = 'checking';
     els.mode.textContent = 'SERVER OFFLINE';
@@ -423,56 +417,26 @@ function syncActivityContext(s) {
   } catch {s.contextUpdatePending=false;s.contextSyncDisabled=true;}
 }
 function initSavedSettings() {
-  const names=['language','personality','sessionLimit','responsePace','listenSensitivity','facing','videoMode','fps','favoriteTopic','keepConversationGoing','reactionSounds','visualResponses','visionQuality'];
+  const defaults={language:'auto',sessionLimit:'15',listenSensitivity:'quiet',facing:'user',videoMode:'canvas',visionQuality:'balanced'};
+  const names=Object.keys(defaults);
   const saved=extras.loadSettings?.();
-  if(saved) {
-    for(const key of names)if(Object.hasOwn(saved,key)){const el=$(key);if(typeof saved[key]==='boolean')el.checked=saved[key];else el.value=saved[key];}
-    els.rememberSettings.checked=true;
-    els.settingsInfo.textContent='Your selected settings are remembered on this device. Camera sharing stays off until you enable it.';
-  }
-  function save() {
-    if(!els.rememberSettings.checked)return;
-    const settings=Object.fromEntries(names.map(key=>[key,['keepConversationGoing','reactionSounds','visualResponses'].includes(key)?$(key).checked:$(key).value]));
+  // Only the remaining controls are restored. Legacy feature-off flags and
+  // preference notes must not override the simplified, enabled defaults.
+  for(const key of names)$(key).value=saved?.[key] ?? defaults[key];
+  for(const key of names)$(key).addEventListener('change',()=>{
+    const settings=Object.fromEntries(names.map(name=>[name,$(name).value]));
     const ok=extras.saveSettings(settings);
-    els.settingsInfo.textContent=ok?'Settings saved on this device. Access codes and camera sharing are not saved.':'Browser storage unavailable; settings are only used for this session.';
-  }
-  for(const key of names)$(key).addEventListener('change',save);
-  els.rememberSettings.addEventListener('change',()=>{
-    if(els.rememberSettings.checked)save();
-    else {const ok=extras.clearSettings();els.settingsInfo.textContent=ok?'Saved settings removed; current choices remain for this session.':'Could not remove settings: browser storage is unavailable.';}
+    els.settingsInfo.textContent=ok?'Language, time and troubleshooting choices saved on this device.':'Browser storage unavailable; choices apply to this visit only.';
   });
-  els.forgetSettings.addEventListener('click',()=>{const ok=extras.clearSettings();els.rememberSettings.checked=false;els.settingsInfo.textContent=ok?'Saved settings removed. Your preference note is controlled separately below.':'Could not remove settings: browser storage is unavailable.';});
-}
-function updateMemoryLabel(message) {
-  els.memoryInfo.textContent = message;
-}
-function initPreferences() {
-  const previous = extras.loadSavedNote();
-  if (previous !== null) {
-    els.note.value = previous;
-    els.remember.checked = true;
-    updateMemoryLabel('A preference note is saved locally in this Safari browser. No transcripts or camera footage are saved.');
-  }
-  els.note.addEventListener('input', () => {
-    if (els.remember.checked) {
-      const ok = extras.saveNote(els.note.value);
-      updateMemoryLabel(ok ? 'Preference note saved locally on this browser.' : 'Browser storage unavailable; note is only used for the current session.');
-    }
-  });
-  els.remember.addEventListener('change', () => {
-    if (els.remember.checked) {
-      const ok = extras.saveNote(els.note.value);
-      updateMemoryLabel(ok ? 'Remembering this note only in this Safari browser. Clear it at any time.' : 'Browser storage unavailable; note will not be remembered.');
-    } else {
-      extras.clearNote();
-      updateMemoryLabel('Saved preference note removed. Current text remains for this session only.');
-    }
-  });
-  els.clearMemory.addEventListener('click', () => {
-    extras.clearNote();
-    els.note.value = '';
-    els.remember.checked = false;
-    updateMemoryLabel('Preference note cleared. No conversation history is stored.');
+  els.resetSettings.addEventListener('click',()=>{
+    if(current || loading)return;
+    const cleared=extras.clearSettings();
+    const noteCleared=extras.clearNote();
+    for(const key of names)$(key).value=defaults[key];
+    els.videoToggle.checked=true;
+    els.pictures.checked=true;
+    els.settingsInfo.textContent=cleared && noteCleared?'Defaults restored and old saved preferences removed.':'Defaults restored for this visit. Browser storage could not be cleared.';
+    render();
   });
 }
 
@@ -959,20 +923,18 @@ async function startMini() {
   const s = {
     stopped:false, mode, abort:new AbortController(),
     wantVideo:els.videoToggle.checked, facing:els.facing.value,
-    fps:Number(els.fps.value) === 1 ? 1 : 2, videoMode:els.videoMode.value,visionQuality:els.visionQuality.value==='detail'?'detail':'balanced',
+    fps:2, videoMode:els.videoMode.value,visionQuality:els.visionQuality.value==='detail'?'detail':'balanced',
     limit:extras.durationMinutes(els.limit.value),
-    silenceMs:extras.silenceDuration(els.pace.value),
-    keepConversationGoing:els.keepTalk.checked,
+    silenceMs:extras.silenceDuration('balanced'),
+    keepConversationGoing:true,
     vadThreshold:extras.speechThreshold(els.sensitivity.value),
-    personality:els.personality.value, language:els.language.value,
-    favoriteTopic:els.favoriteTopic.value,
-    visualsEnabled:els.visualToggle.checked && visualCapabilities.available,
-    imagesAllowed:els.pictures.checked && visualCapabilities.imagesAvailable && els.visualToggle.checked,
-    awarenessEnabled:els.awarenessToggle.checked && els.videoToggle.checked && Boolean(window.MiniLocalAwareness),
-    spokenGreetings:els.spokenGreetings.checked && els.awarenessToggle.checked && els.videoToggle.checked,
+    personality:'playful', language:els.language.value,
+    visualsEnabled:visualCapabilities.available,
+    imagesAllowed:els.pictures.checked && visualCapabilities.imagesAvailable && visualCapabilities.available,
+    awarenessEnabled:els.videoToggle.checked && Boolean(window.MiniLocalAwareness),
+    spokenGreetings:els.videoToggle.checked && Boolean(window.MiniLocalAwareness),
     conversationLanguage:window.MiniLanguage.resolve({preferred:els.language.value,device:navigator.languages || [navigator.language]}),
     opening:kids.getOpening(window.MiniLanguage.resolve({preferred:els.language.value,device:navigator.languages || [navigator.language]}),openingRound++),
-    note:extras.boundedNote(els.note.value),
     muted:false, videoPaused:false, channels:new Set(),
     ready:false, updateSent:false, sessionCreated:false, mediaStarted:false, mediaReady:false,
     activity:'chat', activeActivity:'chat', activityUpdatePending:false,
@@ -982,9 +944,13 @@ async function startMini() {
   };
   s.activityState=s.visualsEnabled?activities.fresh():activities.fromOpening(s.opening);
   s.syncedRevision=s.activityState.revision;
-  if (s.mode === 'realtime' && !window.confirm('Grown-up check: Start a paid Qwen voice session for up to ' + s.limit + ' minutes? The microphone and any camera you enable will stream while connected.'+
-    (s.visualsEnabled?' Visual scenes add paid planning requests per turn.':'')+(s.imagesAllowed?' Newly generated pictures add separate image charges.':'')+
-    (s.awarenessEnabled?' Smile and head-movement tracking runs on this device, without extra AI calls.':'')+(s.awarenessEnabled && s.spokenGreetings?' Mini may occasionally say hello when nobody is speaking.':''))) return;
+  const confirmation=s.mode==='realtime'
+    ? 'Start Mini for up to '+s.limit+' minutes?\n\nMicrophone: shared with Qwen.\nCamera: '+(s.wantVideo?'shared with Qwen.':'off.')+
+      '\nPaid AI voice'+(s.visualsEnabled?', story and game planning':'')+' will be used.'+
+      '\nPictures: '+(s.imagesAllowed?'on request, with extra image charges (up to 4).':'off.')+
+      (s.awarenessEnabled?'\nCamera reactions and occasional quiet-time hellos are on.':'')+'\n\nStop ends microphone and camera capture.'
+    : 'Test the microphone'+(s.wantVideo?' and camera':'')+' locally for up to '+s.limit+' minutes? No AI connection or charges. Stop ends capture.';
+  if(!window.confirm(confirmation))return;
   cancelGeneratedRequest(current);generatedVisuals?.clear();
   lastVisualIssue='';
   visualActivity?.close(false);
@@ -1144,9 +1110,7 @@ function stopMini(reason = 'Mini stopped · camera and microphone off', {gentle=
   s.generatedVisualContext=null;
   s.visualIssue='';s.visualsPaused=false;
   s.lastChildTranscript='';s.replyTranscript='';s.replyTextBackup='';s.pendingReaction='';
-  els.videoToggle.checked=false;
-  els.pictures.checked=false;
-  els.awarenessToggle.checked=false;els.spokenGreetings.checked=false;
+  // Keep this visit's choices; another session still requires parent approval.
   current = null;
   els.remaining.textContent = 'Remaining: --:--';
   els.remaining.classList.remove('warning');
@@ -1242,12 +1206,11 @@ document.addEventListener('visibilitychange', () => {
     if (current) stopMini('Safari hidden · live session stopped for privacy');
   }
 });
-initPreferences();
 initSavedSettings();
 childUI = window.MiniChildUI?.init({
   getSession: () => current,
   getLanguage: () => sessionLanguage(),
-  getReactionSounds: () => els.reactionSounds.checked,
+  getReactionSounds: () => true,
   stopSession: (reason, options) => stopMini(reason, options),
   requestActivity,openParentSetup,closeParentSetup,
 });
@@ -1297,10 +1260,9 @@ generatedVisuals=window.MiniVisuals.init({
   onNarrate:narrateVisual,
   onExit:returnToMini,
 });
-els.visualToggle.addEventListener('change',render);
+els.pictures.addEventListener('change',render);
 els.visualPause.addEventListener('click',toggleVisualResponses);
 els.videoToggle.addEventListener('change',render);
-els.awarenessToggle.addEventListener('change',render);
 els.awarenessPause.addEventListener('click',()=>{const s=current;if(!s)return;if(s.awareness?.isUnavailable?.()){s.awareness.stop();s.awareness=null;startAwareness(s);}else s.awareness?.toggle();});
 document.addEventListener('pointerdown',()=>{interruptAwareness(current);if(current)cancelCompanionFollowUp(current);});
 els.language.addEventListener('change', () => childUI?.syncLanguage());

@@ -24,9 +24,9 @@ ALIBABA_IMAGE_MODEL=qwen-image-3.0
 ALIBABA_IMAGE_ENDPOINT=singapore
 ```
 
-Keep the existing Singapore pay-as-you-go key and workspace. Run `npm start`, refresh Safari, then enable **Show visual stories and games** and **Generate images and animate them** before starting a parent-authorized session. Picture permission resets on Stop. Research and model access limits are in [image model research](image-model-research.md). The console catalog is not proof of entitlement for a particular key; no paid API test was made here.
+Keep the existing Singapore pay-as-you-go key and workspace. Run `npm start`, refresh Safari, then review **Pictures**, which defaults on when configured, before starting a parent-authorized session. Stories and game planning are enabled automatically. Picture choices stay for this visit and default on after refresh; every new paid session still needs parent confirmation including image charges. Research and model access limits are in [image model research](image-model-research.md). The console catalog is not proof of entitlement for a particular key; no paid API test was made here.
 
-Qwen Image 2.0/3.0 requests use one 1024×1024 image, without provider prompt expansion. Older configured image models retain their original resolution. The native image endpoint is `https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`; workspace routing is an explicit server setting. There is no automatic model/region fallback. Parent settings include a read-only model-ID check that does not generate a picture.
+Qwen Image 2.0/3.0 requests use one 1024×1024 image, without provider prompt expansion. Older configured image models retain their original resolution. The native image endpoint is `https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`; workspace routing is an explicit server setting. There is no automatic model/region fallback. Troubleshooting → Connection and picture setup includes a read-only model-ID check that does not generate a picture.
 
 ## Back to Mini and the camera
 

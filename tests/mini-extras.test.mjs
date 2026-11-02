@@ -88,8 +88,8 @@ test('HTML includes the controls expected by app.js and the separate helper scri
   const css = readFileSync(stylesheet, 'utf8');
   assert.ok(html.indexOf('src="/mini-extras.js"') < html.indexOf('src="/app.js"'));
   for (const id of [
-    'responsePace','sessionLimit','extendBtn','remainingTime','replyDelay',
-    'personality','language','familyNote','rememberPrefs','clearMemoryBtn','memoryInfo',
+    'sessionLimit','extendBtn','remainingTime','replyDelay',
+    'language','sendVideo','generatedPictures','resetSettingsBtn','settingsInfo',
   ]) {
     assert.match(html, new RegExp('id="' + id + '"'));
   }

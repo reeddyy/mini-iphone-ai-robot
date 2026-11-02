@@ -35,7 +35,7 @@ ALIBABA_IMAGE_MODEL=qwen-image-3.0
 ALIBABA_IMAGE_ENDPOINT=singapore
 ```
 
-Keep the existing pay-as-you-go API key and Singapore workspace. Do not switch to a Token Plan/Coding Plan key. Run `npm start`, then refresh Safari. Before starting a new session, open parent settings → **Visual stories, pictures and model setup** and enable generated pictures. Consent still resets each session.
+Keep the existing pay-as-you-go API key and Singapore workspace. Do not switch to a Token Plan/Coding Plan key. Run `npm start`, then refresh Safari. Review **Pictures** in parent settings; it defaults on when configured. Every new paid session still needs parent confirmation, including extra image charges. Picture choices stay for this visit and default on after refresh.
 
 The artwork request uses:
 
@@ -49,4 +49,4 @@ parameters.size: 1024*1024
 
 The server alone supplies its Bearer key and workspace header. Mini's 2.0/3.0 profiles use 1024×1024, prompt expansion remains disabled, and older configured models retain their original resolution. No API key or image-generation access is tested just by updating code or changing the model name.
 
-Parent settings → **Check model IDs · no generation** can inspect account metadata without making a picture request; a listed ID still does not prove generation entitlement. If 3.0 returns an access/model error, keep the diagnostic's exact stage, HTTP status and provider code. Correct access or explicitly configure an available alternative, then restart the Windows server to clear the persistent image-failure block. Never silently retry across models/regions. A real one-picture test would use the parent's normal paid-session consent; no paid request was made during this research.
+Parent settings → **Troubleshooting → Connection and picture setup → Check image model setup · free** can inspect account metadata without making a picture request; a listed ID still does not prove generation entitlement. If 3.0 returns an access/model error, keep the diagnostic's exact stage, HTTP status and provider code. Correct access or explicitly configure an available alternative, then restart the Windows server to clear the persistent image-failure block. Never silently retry across models/regions. A real one-picture test would use the parent's normal paid-session consent; no paid request was made during this research.

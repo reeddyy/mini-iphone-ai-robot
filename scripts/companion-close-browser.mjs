@@ -40,7 +40,7 @@ async function screenshot(name) {
 const base='http://127.0.0.1:3109';
 await rpc('Page.enable');await rpc('Runtime.enable');await rpc('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
 await rpc('Page.navigate',{url:base});await waitFor(`document.readyState==='complete' && mode==='realtime'`);
-await evaluate(`window.captures=0;window.originalCapture=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=options=>{captures++;return originalCapture(options);};mode='preview';$('sendVideo').checked=true;$('accessCode').value='coherent-parent-fixture';window.starting=startMini();true`);
+await evaluate(`window.captures=0;window.originalCapture=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=options=>{captures++;return originalCapture(options);};window.confirm=()=>true;mode='preview';$('sendVideo').checked=true;$('accessCode').value='coherent-parent-fixture';window.starting=startMini();true`);
 await waitFor(`Boolean(current?.ready) && $('preview').videoWidth>0`);
 const OFFER='v=0\r\no=- 123 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=mid:0\r\na=sendrecv\r\n';
 const grant=await fetch(base+'/api/realtime/sdp',{method:'POST',headers:{'Content-Type':'application/sdp','X-Robot-Access-Code':'coherent-parent-fixture','X-Mini-Visuals':'true','X-Mini-Images':'true'},body:OFFER});assert.equal(grant.status,200);const token=grant.headers.get('X-Mini-Visual-Session');

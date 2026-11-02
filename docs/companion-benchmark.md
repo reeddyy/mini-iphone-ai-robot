@@ -48,6 +48,8 @@ The check covers 320×568, 390×844, 430×932 and 844×390 views, parent-dialog 
 
 For the exact in-app picture-close regression, run `node scripts/companion-close-browser.mjs` against a fresh fixture server and the same synthetic-media Chromium instance. It checks live camera frames and the same enabled microphone track after **Back to Mini**, optional context-error recovery, in-flight generation cancellation, image animation/reduced motion, responsive layouts and full Stop teardown. Signaling is mocked in this test; it does not establish delivery to a real Qwen peer. The managed environment's local WebRTC ICE test exposed no host candidates, so packet-level loopback was not used as passing evidence.
 
+For the simplified grown-up settings, run `node scripts/parent-settings-browser-smoke.mjs` with that fixture and a fresh Chromium profile. It checks mobile widths, enabled defaults, migration from legacy preferences, cancellation before capture/paid requests, microphone-only play, Stop teardown, allowlisted automatic preference storage and Reset. It uses synthetic media and local provider doubles and writes `/tmp/mini-parent-settings.png`; it does not make live Qwen calls or validate physical Safari.
+
 ## Playful learning conversation acceptance checks
 
 With **Mini leads playful learning** enabled, the same spoken reply should use the child's particular answer, offer a relevant idea and normally end with one easy invitation. It should not wait for the child to invent every next step, repeat a question that was answered, deliver long lessons or make every remark a quiz.

@@ -56,7 +56,7 @@ await waitFor(`!$('checkImageModelsBtn').disabled`);assert.match(await evaluate(
 assert.equal(await evaluate(`document.activeElement.closest('dialog')?.id`),'parentSetup');
 await screenshot('mini-mobile-parent-390');await evaluate(`closeParentSetup();true`);await waitFor(`document.activeElement.id==='parentSettingsBtn'`);
 // Begin with real synthetic microphone/camera capture, then supply mocked realtime events.
-await evaluate(`mode='preview';$('sendVideo').checked=true;$('accessCode').value='coherent-parent-fixture';window.starting=startMini();true`);await waitFor(`Boolean(current?.ready)`);
+await evaluate(`window.confirm=()=>true;mode='preview';$('sendVideo').checked=true;$('accessCode').value='coherent-parent-fixture';window.starting=startMini();true`);await waitFor(`Boolean(current?.ready)`);
 const token=await grant();
 await evaluate(`window.miniAudio=current.audioInputTrack;window.miniCamera=current.localStream.getVideoTracks()[0];current.mode='realtime';current.mediaReady=true;current.visualsEnabled=true;current.imagesAllowed=true;current.visualGrant=${JSON.stringify(token)};current.awarenessEnabled=true;current.audioMeter={isAudible:()=>false,stop(){}};current.hadAudibleReply=true;current.baseInstructions=extras.buildInstructions({language:'en'});current.eventChannel={readyState:'open',send:()=>setTimeout(()=>{if(current && !current.stopped)receiveEvent(current,{type:'session.updated'},current.eventChannel)},0)};render();true`);
 await evaluate(`receiveEvent(current,{type:'input_audio_buffer.speech_started'});receiveEvent(current,{type:'input_audio_buffer.speech_stopped'});receiveEvent(current,{type:'conversation.item.input_audio_transcription.completed',transcript:'Play tic tac toe'});true`);

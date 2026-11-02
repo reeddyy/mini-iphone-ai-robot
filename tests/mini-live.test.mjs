@@ -83,6 +83,7 @@ function mockEnvironment() {
       MiniVisuals:{init:options=>{visualOptions=options;return visualRenderer;}},
       addEventListener(){},
       scrollTo(){},
+      confirm(){return true;},
       isSecureContext:true,
     },
     fetch:async()=>({ok:true,json:async()=>({mode:'realtime',model:'test',maxSessionMinutes:60})}),
@@ -446,6 +447,27 @@ test('Muting while permission is pending disables the eventual preview microphon
     assert.equal(mic.enabled,false);
   } finally {vm.runInContext('stopMini()',env.ctx);}
   assert.equal(mic.stopped,true);
+});
+
+test('Cancelling parent confirmation prevents capture and paid requests with camera and pictures enabled',async()=>{
+  const env=mockEnvironment();
+  await vm.runInContext('Promise.resolve()',env.ctx);
+  let captureCalls=0,requests=0,confirmation='';
+  env.ctx.navigator={languages:['en'],mediaDevices:{getUserMedia(){captureCalls++;}}};
+  env.ctx.fetch=async()=>{requests++;throw Error('Must not connect before confirmation');};
+  env.ctx.window.confirm=message=>{confirmation=message;return false;};
+  vm.runInContext("current=null;mode='realtime';visualCapabilities={available:true,imagesAvailable:true};els.code.value='test-parent-code';els.videoToggle.checked=true;els.pictures.checked=true",env.ctx);
+  await vm.runInContext('startMini()',env.ctx);
+  assert.match(confirmation,/Microphone: shared with Qwen/);
+  assert.match(confirmation,/Camera: shared with Qwen/);
+  assert.match(confirmation,/Pictures: on request, with extra image charges/);
+  assert.equal(captureCalls,0);assert.equal(requests,0);
+  assert.equal(vm.runInContext('current',env.ctx),null);
+
+  vm.runInContext('els.videoToggle.checked=false;els.pictures.checked=false',env.ctx);
+  await vm.runInContext('startMini()',env.ctx);
+  assert.match(confirmation,/Camera: off/);assert.match(confirmation,/Pictures: off/);
+  assert.equal(captureCalls,0);assert.equal(requests,0);
 });
 
 test('Live media attachment preserves mute and does not narrate an opening while muted',async()=>{
@@ -932,14 +954,14 @@ test('All browser visual requests preserve gateway credentials and avoid setting
 
 test('Picture permission explains each unavailable state and enables only for a configured new visual session',()=>{
   const env=mockEnvironment(),get=id=>env.ctx.document.getElementById(id);
-  vm.runInContext("current=null;mode='realtime';loading=false;visualCapabilities={available:true,imagesAvailable:false};els.visualToggle.checked=true;render()",env.ctx);
+  vm.runInContext("current=null;mode='realtime';loading=false;visualCapabilities={available:true,imagesAvailable:false};render()",env.ctx);
   assert.equal(get('generatedPictures').disabled,true);
-  assert.match(get('generatedPicturesInfo').textContent,/ALIBABA_IMAGE_MODEL.*private \.env.*restart/);
+  assert.match(get('generatedPicturesInfo').textContent,/aren’t set up.*Troubleshooting/);
   vm.runInContext('visualCapabilities.imagesAvailable=true;render()',env.ctx);
   assert.equal(get('generatedPictures').disabled,false);assert.equal(get('generatedPictures').checked,false);
-  vm.runInContext('els.visualToggle.checked=false;render()',env.ctx);
-  assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/Turn on.*visual stories and games/);
-  vm.runInContext('els.visualToggle.checked=true;current=testSession;render()',env.ctx);
+  vm.runInContext('visualCapabilities.available=false;render()',env.ctx);
+  assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/setup needs attention/);
+  vm.runInContext('visualCapabilities.available=true;current=testSession;render()',env.ctx);
   assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/Stop Mini/);
   vm.runInContext("current=null;mode='preview';render()",env.ctx);
   assert.equal(get('generatedPictures').disabled,true);assert.match(get('generatedPicturesInfo').textContent,/need live AI/);
@@ -951,9 +973,9 @@ test('Wrong visual-model setup is explained before a session while ordinary voic
   env.ctx.fetch=async()=>({ok:true,json:async()=>({mode:'realtime',visuals:{available:false,imagesAvailable:false,model:'qwen-image-plus',configurationError:'Set ALIBABA_VISUAL_MODEL=qwen-plus; use ALIBABA_IMAGE_MODEL=qwen-image-plus for artwork.'}})});
   await vm.runInContext('loadConfig()',env.ctx);
   const get=id=>env.ctx.document.getElementById(id);
-  assert.equal(get('startBtn').disabled,false);assert.equal(get('visualResponses').disabled,true);assert.equal(get('generatedPictures').disabled,true);
+  assert.equal(get('startBtn').disabled,false);assert.equal(get('generatedPictures').disabled,true);
   assert.match(get('visualCapabilityInfo').textContent,/ALIBABA_VISUAL_MODEL=qwen-plus/);
-  assert.match(get('generatedPicturesInfo').textContent,/Fix the visual planner/);
+  assert.match(get('generatedPicturesInfo').textContent,/setup needs attention/);
 });
 
 test('Local camera reactions continue during conversation and games, but speech stays gated',()=>{
@@ -972,9 +994,8 @@ test('Local camera reactions continue during conversation and games, but speech 
   options.onCue({cue:'smile',spoken:false});assert.equal(env.calls.at(-1)[0],'visual_cue');
   env.s.videoPaused=true;assert.equal(Boolean(options.allowed()),false);env.s.videoPaused=false;
   env.ctx.document.hidden=true;assert.equal(Boolean(options.allowed()),false);env.ctx.document.hidden=false;
-  env.ctx.document.getElementById('visualAwareness').checked=true;env.ctx.document.getElementById('spokenGreetings').checked=true;
   vm.runInContext('stopMini()',env.ctx);assert.equal(stopped,1);
-  assert.equal(env.ctx.document.getElementById('visualAwareness').checked,false);assert.equal(env.ctx.document.getElementById('spokenGreetings').checked,false);
+  assert.equal(env.s.awareness,null);assert.equal(env.s.stopped,true);
 });
 
 test('Contextual follow-ups preserve topic, wait for playback, cancel on speech and respect preference',()=>{

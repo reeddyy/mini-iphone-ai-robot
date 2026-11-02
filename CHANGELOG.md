@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Simpler grown-up settings
+
+- Keep the main sheet to the access code, language, automatic stop, camera and pictures. Move camera compatibility, microphone diagnostics, model setup and subtitles under Troubleshooting.
+- Enable all available features by default, including camera, pictures, local reactions, quiet-time hellos, playful learning and local sounds. Every new session still requires parent approval; confirmation explicitly describes capture and paid image usage. Nothing starts on page load.
+- Remove personality, topic, preference-note, memory and redundant feature controls. Use a playful personality, follow the child, balance speech pacing and send 2 AI camera frames/sec automatically.
+- Remember only language, duration and troubleshooting choices automatically. Ignore legacy feature-off flags and notes; provide Reset settings. Keep this visit’s camera/picture choices after Stop without restarting capture.
+
 ## V6.6 — Generated images and animation, with session-safe closing
 
 - Remove drawing primitives, sketch previews and substitute drawings. Character/story visuals use real image generation and allowlisted local motion; interactive game controls retain local rules.
